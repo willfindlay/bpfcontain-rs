@@ -113,11 +113,13 @@ fn restart_daemon() -> Result<()> {
         }
         Err(e) => {
             log::warn!(
-                "Unable to stop the daemon while restarting (daemon may not be running): {}",
+                "Unable to stop the daemon while restarting (daemon may not \
+                be running): {}",
                 e
             );
         }
     }
 
+    // Start the daemon
     start_daemon()
 }
