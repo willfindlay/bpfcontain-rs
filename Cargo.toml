@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.36"
 libbpf-rs = "0.6.0"
+clap = "2.33.3"
+libc = "0.2.81"
