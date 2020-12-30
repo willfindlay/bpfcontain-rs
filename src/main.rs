@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: GPL-2
+//
+// BPFContain - Container security with eBPF
+// Copyright (C) 2020  William Findlay
+//
+// Dec. 29, 2020  William Findlay  Created this.
+
 use anyhow::{anyhow, Result};
 use clap::{App, AppSettings, Arg, SubCommand};
 use simple_logger::SimpleLogger;
