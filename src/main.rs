@@ -28,8 +28,11 @@ fn main() -> Result<()> {
                 .global(true)
                 .help("Sets verbosity. Possible values are -v, -vv, or -vvv"),
         )
+        // If the user supplies no arguments, print help
         .setting(AppSettings::ArgRequiredElseHelp)
+        // Make all commands print colored help if available
         .global_setting(AppSettings::ColoredHelp)
+        // Daemon-related commands
         .subcommand(
             SubCommand::with_name("daemon")
                 .about("Control the BPFContain daemon.")
@@ -49,9 +52,11 @@ fn main() -> Result<()> {
                         .about("Restart the daemon")
                         .display_order(3),
                 ),
-        );
+        )
+        // Run the BPF program without daemonizing
+        .subcommand(SubCommand::with_name("run").about("Run in the foreground."));
 
-    // Parse the arguments
+    // Parse arguments
     let args = app.get_matches();
 
     // Set log level based on verbosity
@@ -72,6 +77,7 @@ fn main() -> Result<()> {
     // Dispatch to subcommand
     let result = match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args),
+        ("run", Some(args)) => bpf_program::main(args),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };
