@@ -39,6 +39,8 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 
     log::info!("Loaded and attached BPF objects!");
 
+    std::thread::sleep(std::time::Duration::new(60, 0));
+
     Ok(())
 }
 
