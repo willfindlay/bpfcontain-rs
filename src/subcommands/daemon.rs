@@ -12,15 +12,17 @@ use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
+use crate::bpf_program;
+
 static PIDFILE: &str = "/run/bpfcontain.pid";
 static LOGFILE: &str = "/var/log/bpfcontain.log";
 static WORKDIR: &str = "/var/lib/bpfcontain";
 
 pub fn main(args: &ArgMatches) -> Result<()> {
     let result = match args.subcommand() {
-        ("start", Some(_args)) => start_daemon(),
-        ("restart", Some(_args)) => restart_daemon(),
-        ("stop", Some(_args)) => stop_daemon(),
+        ("start", Some(args)) => start_daemon(args),
+        ("restart", Some(args)) => restart_daemon(args),
+        ("stop", Some(_)) => stop_daemon(),
         _ => bail!("Bad subcommand name"),
     };
 
@@ -28,7 +30,7 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 }
 
 /// Starts the daemon.
-fn start_daemon() -> Result<()> {
+fn start_daemon(args: &ArgMatches) -> Result<()> {
     log::info!("Starting daemon...");
 
     // Open the log file
@@ -44,7 +46,7 @@ fn start_daemon() -> Result<()> {
     // Set up the daemon
     let daemonize = Daemonize::new()
         .pid_file(PIDFILE)
-        .user("nobody")
+        //.user("nobody")
         .stdout(stdout)
         .stderr(stderr)
         .working_directory(WORKDIR)
@@ -58,8 +60,7 @@ fn start_daemon() -> Result<()> {
         }
     }
 
-    // FIXME: replace this with the actual BPF program work loop
-    std::thread::sleep(std::time::Duration::new(10, 0));
+    bpf_program::main(&args)?;
 
     Ok(())
 }
@@ -109,7 +110,7 @@ fn stop_daemon() -> Result<()> {
 ///
 /// This behaviour should be changed in future versions to wait for the file to
 /// be unlocked.
-fn restart_daemon() -> Result<()> {
+fn restart_daemon(args: &ArgMatches) -> Result<()> {
     log::info!("Restarting daemon...");
 
     // Try to stop the daemon
@@ -128,5 +129,5 @@ fn restart_daemon() -> Result<()> {
     }
 
     // Start the daemon
-    start_daemon()
+    start_daemon(args)
 }

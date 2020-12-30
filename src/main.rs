@@ -9,7 +9,11 @@ use anyhow::{anyhow, Result};
 use clap::{App, AppSettings, Arg, SubCommand};
 use simple_logger::SimpleLogger;
 
+mod bpf;
+mod bpf_program;
 mod subcommands;
+mod utils;
+
 use subcommands::daemon;
 
 fn main() -> Result<()> {
@@ -75,7 +79,8 @@ fn main() -> Result<()> {
     // Log errors if they bubble up
     if let Err(e) = &result {
         log::error!("Error: {}", e);
+        std::process::exit(1);
     }
 
-    result
+    Ok(())
 }
