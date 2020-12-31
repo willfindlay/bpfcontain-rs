@@ -52,8 +52,8 @@ BPF_HASH(cap_deny, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
  * Uprobe Commands                                                           *
  * ========================================================================= */
 
-SEC("uprobe/containerize")
-int BPF_KPROBE(containerize, int *ret_p, u64 container_id)
+SEC("uprobe/do_containerize")
+int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
 {
     int ret = 0;
 
