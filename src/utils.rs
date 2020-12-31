@@ -67,7 +67,9 @@ pub fn get_symbol_offset(binary_path: &str, symbol_name: &str) -> Result<usize> 
 
     // Find the relative offset of symbol
     let symbol = get_symbol(&elf, symbol_name)?;
-    let offset = symbol.st_value + elf.entry;
+    let offset = symbol.st_value as usize;
+
+    log::debug!("{} {}={:#0x}", binary_path, symbol_name, offset);
 
     Ok(offset as usize)
 }

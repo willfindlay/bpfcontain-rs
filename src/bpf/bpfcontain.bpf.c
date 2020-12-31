@@ -5,7 +5,9 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-#include "progs.bpf.h"
+#include "bpfcontain.h"
+
+const volatile int debug = 0;
 
 /* ========================================================================= *
  * BPF Maps                                                                  *
@@ -60,9 +62,13 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
     u32 pid = bpf_get_current_pid_tgid();
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
 
+    struct bpfcon_process process = {};
+    bpf_map_update_elem(&processes, &pid, &process, 0);
+
 out:
     if (ret_p)
         bpf_probe_write_user(ret_p, &ret, sizeof(ret));
+
     return 0;
 }
 
