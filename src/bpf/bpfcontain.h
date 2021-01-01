@@ -59,6 +59,14 @@
 #define BPFCON_NET_BROADCAST 0x00000004
 #define BPFCON_DAC_OVERRIDE  0x00000008
 
+/* Network policy */
+#define BPFCON_UNIX    0x00000001
+#define BPFCON_NETLINK 0x00000002
+#define BPFCON_NET_IPC (BPFCON_UNIX | BPFCON_NETLINK)
+#define BPFCON_INET    0x00000004
+#define BPFCON_INET6   0x00000008
+#define BPFCON_NET_WWW (BPFCON_INET | BPFCON_INET6)
+
 struct bpfcon_container {
     u8 default_deny;
 };
