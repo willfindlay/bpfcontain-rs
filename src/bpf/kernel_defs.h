@@ -258,40 +258,91 @@ static inline u32 new_encode_dev(dev_t dev)
 /* Signal numbers TODO: handle other archs
  * https://elixir.bootlin.com/linux/v5.10/source/arch/x86/include/uapi/asm/signal.h#L23
  */
-#define SIGHUP		 1
-#define SIGINT		 2
-#define SIGQUIT		 3
-#define SIGILL		 4
-#define SIGTRAP		 5
-#define SIGABRT		 6
-#define SIGIOT		 6
-#define SIGBUS		 7
-#define SIGFPE		 8
-#define SIGKILL		 9
-#define SIGUSR1		10
-#define SIGSEGV		11
-#define SIGUSR2		12
-#define SIGPIPE		13
-#define SIGALRM		14
-#define SIGTERM		15
-#define SIGSTKFLT	16
-#define SIGCHLD		17
-#define SIGCONT		18
-#define SIGSTOP		19
-#define SIGTSTP		20
-#define SIGTTIN		21
-#define SIGTTOU		22
-#define SIGURG		23
-#define SIGXCPU		24
-#define SIGXFSZ		25
-#define SIGVTALRM	26
-#define SIGPROF		27
-#define SIGWINCH	28
-#define SIGIO		29
-#define SIGPOLL		SIGIO
-#define SIGLOST		29
-#define SIGPWR		30
-#define SIGSYS		31
-#define	SIGUNUSED	31
+#define SIGHUP       1
+#define SIGINT       2
+#define SIGQUIT      3
+#define SIGILL       4
+#define SIGTRAP      5
+#define SIGABRT      6
+#define SIGIOT       6
+#define SIGBUS       7
+#define SIGFPE       8
+#define SIGKILL      9
+#define SIGUSR1     10
+#define SIGSEGV     11
+#define SIGUSR2     12
+#define SIGPIPE     13
+#define SIGALRM     14
+#define SIGTERM     15
+#define SIGSTKFLT   16
+#define SIGCHLD     17
+#define SIGCONT     18
+#define SIGSTOP     19
+#define SIGTSTP     20
+#define SIGTTIN     21
+#define SIGTTOU     22
+#define SIGURG      23
+#define SIGXCPU     24
+#define SIGXFSZ     25
+#define SIGVTALRM   26
+#define SIGPROF     27
+#define SIGWINCH    28
+#define SIGIO       29
+#define SIGPOLL     SIGIO
+#define SIGLOST     29
+#define SIGPWR      30
+#define SIGSYS      31
+#define SIGUNUSED   31
+
+/* ========================================================================= *
+ * uapi/linux/capability.h                                                   *
+ * ========================================================================= */
+
+/* POSIX capabilities
+ * https://elixir.bootlin.com/linux/v5.10/source/include/uapi/linux/capability.h#L105
+ */
+#define CAP_CHOWN            0
+#define CAP_DAC_OVERRIDE     1
+#define CAP_DAC_READ_SEARCH  2
+#define CAP_FOWNER           3
+#define CAP_FSETID           4
+#define CAP_KILL             5
+#define CAP_SETGID           6
+#define CAP_SETUID           7
+#define CAP_SETPCAP          8
+#define CAP_LINUX_IMMUTABLE  9
+#define CAP_NET_BIND_SERVICE 10
+#define CAP_NET_BROADCAST    11
+#define CAP_NET_ADMIN        12
+#define CAP_NET_RAW          13
+#define CAP_IPC_LOCK         14
+#define CAP_IPC_OWNER        15
+#define CAP_SYS_MODULE       16
+#define CAP_SYS_RAWIO        17
+#define CAP_SYS_CHROOT       18
+#define CAP_SYS_PTRACE       19
+#define CAP_SYS_PACCT        20
+#define CAP_SYS_ADMIN        21
+#define CAP_SYS_BOOT         22
+#define CAP_SYS_NICE         23
+#define CAP_SYS_RESOURCE     24
+#define CAP_SYS_TIME         25
+#define CAP_SYS_TTY_CONFIG   26
+#define CAP_MKNOD            27
+#define CAP_LEASE            28
+#define CAP_AUDIT_WRITE      29
+#define CAP_AUDIT_CONTROL    30
+#define CAP_SETFCAP          31
+#define CAP_MAC_OVERRIDE     32
+#define CAP_MAC_ADMIN        33
+#define CAP_SYSLOG           34
+#define CAP_WAKE_ALARM       35
+#define CAP_BLOCK_SUSPEND    36
+#define CAP_AUDIT_READ       37
+#define CAP_PERFMON          38
+#define CAP_BPF              39
+#define CAP_CHECKPOINT_RESTORE 40
+
+#define CAP_LAST_CAP         CAP_CHECKPOINT_RESTORE
 
 #endif /* ifndef KERNEL_DEFS_H */
