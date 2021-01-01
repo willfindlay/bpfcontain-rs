@@ -66,6 +66,9 @@
 #define BPFCON_INET    0x00000004
 #define BPFCON_INET6   0x00000008
 #define BPFCON_NET_WWW (BPFCON_INET | BPFCON_INET6)
+// Note: I think it makes sense to support these four protocol families for now.
+// Support for others can be added in the future. In bpfbox, I made the mistake
+// of trying to support everything and things got very complicated very quickly.
 
 struct bpfcon_container {
     u8 default_deny;
@@ -95,6 +98,10 @@ struct dev_policy_key {
 };
 
 struct cap_policy_key {
+    u64 container_id;
+};
+
+struct network_policy_key {
     u64 container_id;
 };
 

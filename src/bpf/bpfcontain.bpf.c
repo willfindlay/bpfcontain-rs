@@ -649,7 +649,37 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
  * Capability Policy                                                         *
  * ========================================================================= */
 
-// TODO: Add LSM probes here tomorrow
+/* Restrict container capabilities */
+SEC("lsm/capable")
+int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns, int cap,
+          unsigned int opts)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct cap_policy_key key = {};
+    key.container_id = process->container_id;
+
+    u32 *denied = bpf_map_lookup_elem(&cap_deny, &key);
+    if (denied && (*denied == cap)) {
+        return -EACCES;
+    }
+
+    u32 *allowed = bpf_map_lookup_elem(&cap_allow, &key);
+    if (allowed && (*allowed == cap)) {
+        return 0;
+    }
+
+    // TODO: for now, we don't care about default_allow here,
+    // but maybe this can change in the future
+
+    return -EACCES;
+}
 
 /* ========================================================================= *
  * Implicit Policy                                                           *
