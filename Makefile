@@ -2,8 +2,8 @@ VMLINUX = vmlinux_$(shell uname -r).h
 
 .PHONY: build
 build: vmlinux
-	cargo libbpf gen
 	cargo libbpf build
+	cargo libbpf gen
 	cargo build
 
 .PHONY: test
