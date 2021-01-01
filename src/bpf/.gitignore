@@ -1,3 +1,5 @@
+vmlinux*
+
 mod.rs
 *.skel.rs
 
