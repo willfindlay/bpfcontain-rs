@@ -655,13 +655,200 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
  * Implicit Policy                                                           *
  * ========================================================================= */
 
-// TODO: Add LSM probes here tomorrow
+/* Disallow BPF */
+SEC("lsm/bpf")
+int BPF_PROG(bpf, int cmd, union bpf_attr *attr, unsigned int size)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow misc. dangerous operations */
+SEC("lsm/locked_down")
+int BPF_PROG(locked_down, enum lockdown_reason what)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // We need to allow LOCKDOWN_BPF_READ so our kprobes work
+    if (what == LOCKDOWN_BPF_READ)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow perf */
+SEC("lsm/perf_event_open")
+int BPF_PROG(perf_event_open, struct perf_event_attr *attr, int type)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow perf */
+SEC("lsm/perf_event_alloc")
+int BPF_PROG(perf_event_alloc, struct perf_event *event)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow perf */
+SEC("lsm/perf_event_read")
+int BPF_PROG(perf_event_read, struct perf_event *event)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow perf */
+SEC("lsm/perf_event_write")
+int BPF_PROG(perf_event_write, struct perf_event *event)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow access to kernel keyring */
+SEC("lsm/key_alloc")
+int BPF_PROG(key_alloc, int unused)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow access to kernel keyring */
+SEC("lsm/key_permission")
+int BPF_PROG(key_permission, int unused)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow access to set system time */
+SEC("lsm/settime")
+int BPF_PROG(settime, int unused)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow ptrace */
+SEC("lsm/ptrace_access_check")
+int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
+
+/* Disallow ptrace */
+SEC("lsm/ptrace_traceme")
+int BPF_PROG(ptrace_traceme, int unused)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return -EACCES;
+}
 
 /* ========================================================================= *
  * Kernel Hardening                                                          *
  * ========================================================================= */
 
-// TODO: Add LSM probes here tomorrow
+/* It is punishable by death to escalate privileges without going through an
+ * execve. */
+SEC("fentry/commit_creds")
+int fentry_commit_creds(struct cred *new)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // Check to see if the process is in the middle of an execve
+    if (process->in_execve)
+        return 0;
+
+    bpf_send_signal(SIGKILL);
+
+    return 0;
+}
 
 /* ========================================================================= *
  * Bookkeeping                                                               *
@@ -701,6 +888,54 @@ int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
         return 0;
 
     process->in_execve = 0;
+
+    return 0;
+}
+
+/* Handle procfs inodes */
+SEC("lsm/task_to_inode")
+int BPF_PROG(task_to_inode, struct task_struct *task, struct inode *inode)
+{
+    struct inode_key key = {};
+
+    // Look up the process using the current PID
+    u32 pid = task->pid;
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    key.device_id = new_encode_dev(inode->i_sb->s_dev);
+    key.inode_id = inode->i_ino;
+
+    bpf_map_update_elem(&procfs_inodes, &key, &pid, 0);
+
+    return 0;
+}
+
+/* Propagate a process' container_id to its children */
+SEC("tracepoint/sched/sched_process_fork")
+int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
+{
+    struct bpfcon_process *process;
+    struct bpfcon_process *parent_process;
+
+    u32 ppid = args->parent_pid;
+    u32 cpid = args->child_pid;
+    u32 ctgid = bpf_get_current_pid_tgid() >> 32;
+
+    // Is the parent confined?
+    parent_process = bpf_map_lookup_elem(&processes, &ppid);
+    if (!parent_process) {
+        return 0;
+    }
+
+    // Create the child
+    process = add_process(cpid, ctgid, parent_process->container_id);
+    if (!process) {
+        // TODO log error
+    }
 
     return 0;
 }

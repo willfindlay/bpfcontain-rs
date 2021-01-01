@@ -7,7 +7,6 @@
 
 use anyhow::{bail, Result};
 use clap::ArgMatches;
-use std::ffi::CString;
 
 use crate::bpf;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
