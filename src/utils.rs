@@ -35,7 +35,7 @@ pub fn get_symbol(elf: &goblin::elf::Elf, symbol_name: &str) -> Result<goblin::e
     let symtab = &elf.syms;
     let strtab = &elf.strtab;
 
-    // Locate the
+    // Locate the symbol
     let sym = symtab.iter().find(|sym| {
         if let Some(sym) = strtab.get(sym.st_name) {
             if let Ok(name) = sym {
