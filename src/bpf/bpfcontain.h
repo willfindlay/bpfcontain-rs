@@ -33,15 +33,16 @@
 #define BPFCON_MAX_POLICY 10240
 #endif
 
+/* Possible policy decisions */
 #define BPFCON_NO_DECISION 0x00
 #define BPFCON_ALLOW       0x01
 #define BPFCON_DENY        0x02
 
 /* Permissions, partly based on AppArmor */
-#define BPFCON_MAY_EXEC      MAY_EXEC
-#define BPFCON_MAY_WRITE     MAY_WRITE
-#define BPFCON_MAY_READ      MAY_READ
-#define BPFCON_MAY_APPEND    MAY_APPEND
+#define BPFCON_MAY_EXEC      0x00000001
+#define BPFCON_MAY_WRITE     0x00000002
+#define BPFCON_MAY_READ      0x00000004
+#define BPFCON_MAY_APPEND    0x00000008
 #define BPFCON_MAY_CREATE    0x00000010
 #define BPFCON_MAY_DELETE    0x00000020
 #define BPFCON_MAY_RENAME    0x00000040
@@ -93,12 +94,6 @@ struct inode_key {
     u64 inode_id;
     u32 device_id;
 };
-
-static __always_inline struct bpfcon_process *add_process(u32 pid, u32 tgid,
-                                                          u64 policy_key);
-
-static __always_inline int do_fs_permission_file(u64, struct file *, u32);
-static __always_inline int do_fs_permission_inode(u64, struct inode *, u32);
 
 #endif /* ifndef PROGS_BPF_H */
 

@@ -72,6 +72,8 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 /// Extends [`libbpf_rs::Program`] with a method to attach a uprobe to a given
 /// `symbol_name` within the ELF binary located at `binary_path`.
 trait SymbolUprobeExt {
+    /// Attach a uprobe to a given `symbol_name` within the ELF binary located
+    /// at `binary_path`.
     fn attach_uprobe_symbol(
         &mut self,
         retprobe: bool,
@@ -81,9 +83,8 @@ trait SymbolUprobeExt {
     ) -> Result<libbpf_rs::Link>;
 }
 
+/// Extend [`libbpf_rs::Program`] with the [`SymbolUprobeExt`] trait.
 impl SymbolUprobeExt for libbpf_rs::Program {
-    /// Attach a uprobe to a given `symbol_name` within the ELF binary located
-    /// at `binary_path`.
     fn attach_uprobe_symbol(
         &mut self,
         retprobe: bool,

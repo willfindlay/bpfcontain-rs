@@ -315,7 +315,329 @@ static int bpfcontain_inode_perm(u64 container_id, struct inode *inode,
     return 0;
 }
 
-// TODO: Add LSM probes here tomorrow
+SEC("lsm/file_permission")
+int BPF_PROG(file_permission, struct file *file, int mask) {
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // Make an access control decision
+    return bpfcontain_inode_perm(process->container_id, file->f_inode,
+            mask_to_access(file->f_inode, mask));
+}
+
+/* Enforce policy on execve operations */
+SEC("lsm/bprm_check_security")
+int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
+{
+    int ret = 0;
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *file = bprm->file->f_inode;
+    if (file->i_ino) {
+        ret =
+            bpfcontain_inode_perm(process->container_id, file, BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
+
+    struct inode *executable = bprm->executable->f_inode;
+    if (executable->i_ino) {
+        ret = bpfcontain_inode_perm(process->container_id, executable,
+                                    BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
+
+    struct inode *interpreter = bprm->interpreter->f_inode;
+    if (interpreter->i_ino) {
+        ret = bpfcontain_inode_perm(process->container_id, interpreter,
+                                    BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
+
+    return 0;
+}
+
+/* Mediate access to unlink a path. */
+SEC("lsm/path_unlink")
+int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *inode = dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, inode,
+                                 BPFCON_MAY_DELETE);
+}
+
+/* Mediate access to unlink a directory. */
+SEC("lsm/path_rmdir")
+int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *inode = dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, inode,
+                                 BPFCON_MAY_DELETE);
+}
+
+/* Mediate access to create a file. */
+SEC("lsm/path_mknod")
+int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
+          umode_t mode, unsigned int dev)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *inode = dir->dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, inode,
+                                 BPFCON_MAY_CREATE);
+
+    // TODO: also check access based on the type of file
+
+    // TODO: add to the process' list of owned files if permission succeeded
+    // _then_ return
+}
+
+/* Mediate access to make a directory. */
+SEC("lsm/path_mkdir")
+int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *dir_inode = dir->dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, dir_inode,
+                                 BPFCON_MAY_CREATE);
+
+    // TODO: add to the process' list of owned files if permission succeeded
+    // _then_ return
+}
+
+/* Mediate access to make a symlink. */
+SEC("lsm/path_symlink")
+int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
+          const char *old_name)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *dir_inode = dir->dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, dir_inode,
+                                 BPFCON_MAY_CREATE);
+
+    // TODO: add to the process' list of owned files if permission succeeded
+    // _then_ return
+}
+
+/* Mediate access to make a hard link. */
+SEC("lsm/path_link")
+int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
+          struct dentry *new_dentry)
+{
+    int ret = 0;
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *old_inode = old_dentry->d_inode;
+    struct inode *dir_inode = new_dir->dentry->d_inode;
+
+    ret = bpfcontain_inode_perm(process->container_id, dir_inode,
+                                BPFCON_MAY_CREATE);
+    if (ret)
+        return ret;
+
+    ret = bpfcontain_inode_perm(process->container_id, old_inode,
+                                BPFCON_MAY_LINK);
+    if (ret)
+        return ret;
+
+    return 0;
+}
+
+/* Mediate access to rename a file. */
+SEC("lsm/path_rename")
+int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
+          const struct path *new_dir, struct dentry *new_dentry)
+{
+    int ret = 0;
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *old_dir_inode = old_dir->dentry->d_inode;
+    struct inode *old_inode = old_dentry->d_inode;
+    struct inode *new_dir_inode = new_dir->dentry->d_inode;
+    struct inode *new_inode = new_dentry->d_inode;
+
+    ret = bpfcontain_inode_perm(process->container_id, old_inode,
+                                BPFCON_MAY_RENAME);
+    if (ret)
+        return ret;
+
+    ret = bpfcontain_inode_perm(process->container_id, new_dir_inode,
+                                BPFCON_MAY_CREATE);
+    if (ret)
+        return ret;
+
+    return 0;
+}
+
+/* Mediate access to truncate a file. */
+SEC("lsm/path_truncate")
+int BPF_PROG(path_truncate, const struct path *path)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *inode = path->dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, inode,
+                                 BPFCON_MAY_WRITE | BPFCON_MAY_SETATTR);
+}
+
+/* Mediate access to chmod a file. */
+SEC("lsm/path_chmod")
+int BPF_PROG(path_chmod, const struct path *path)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    struct inode *inode = path->dentry->d_inode;
+
+    return bpfcontain_inode_perm(process->container_id, inode,
+                                 BPFCON_MAY_CHMOD);
+}
+
+/* Convert mmap prot and flags into an access vector and then do a permission
+ * check.
+ *
+ * @container_id: Container ID of the process.
+ * @file: Pointer to the mmaped file (if not private mapping).
+ * @prot: Requested mmap prot.
+ * @flags: Requested mmap flags.
+ *
+ * return: Converted access mask.
+ */
+static __always_inline int mmap_permission(u64 container_id, struct file *file,
+                                           unsigned long prot,
+                                           unsigned long flags)
+{
+    u32 access = 0;
+
+    if (!file)
+        return 0;
+
+    if (prot & PROT_READ)
+        access |= BPFCON_MAY_READ;
+
+    if ((prot & PROT_WRITE) && !(flags & MAP_PRIVATE))
+        access |= BPFCON_MAY_WRITE;
+
+    if ((prot & PROT_EXEC))
+        access |= BPFCON_MAY_EXEC_MMAP;
+
+    if (!access)
+        return 0;
+
+    return bpfcontain_inode_perm(container_id, file->f_inode, access);
+}
+
+SEC("lsm/mmap_file")
+int BPF_PROG(mmap_file, struct file *file, unsigned long reqprot,
+          unsigned long prot, unsigned long flags)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return mmap_permission(process->container_id, file, prot, flags);
+}
+
+SEC("lsm/file_mprotect")
+int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
+          unsigned long prot)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    return mmap_permission(process->container_id, vma->vm_file, prot,
+                           !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0);
+}
 
 /* ========================================================================= *
  * Network Policy                                                            *
@@ -345,7 +667,43 @@ static int bpfcontain_inode_perm(u64 container_id, struct inode *inode,
  * Bookkeeping                                                               *
  * ========================================================================= */
 
-// TODO: Add bookkeeping probes here tomorrow
+/* Turn on in_execve bit when we are committing credentials */
+SEC("lsm/bprm_committing_creds")
+int BPF_PROG(bprm_committing_creds, struct linux_binprm *bprm)
+{
+    int ret = 0;
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    process->in_execve = 1;
+
+    return 0;
+}
+
+/* Turn off in_execve bit when we are done committing credentials */
+SEC("lsm/bprm_committed_creds")
+int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
+{
+    int ret = 0;
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    process->in_execve = 0;
+
+    return 0;
+}
 
 /* ========================================================================= *
  * Uprobe Commands                                                           *

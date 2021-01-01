@@ -148,4 +148,107 @@ static inline u32 new_encode_dev(dev_t dev)
     return (minor & 0xff) | (major << 8) | ((minor & ~0xff) << 12);
 }
 
+/* ========================================================================= *
+ * uapi/asm-generic/mman-common.h                                            *
+ * ========================================================================= */
+
+/* mmap prot
+ * https://elixir.bootlin.com/linux/v6.10/source/include/uapi/asm-generic/mman-common.h#L10 */
+#define PROT_READ   0x1     /* page can be read */
+#define PROT_WRITE  0x2     /* page can be written */
+#define PROT_EXEC   0x4     /* page can be executed */
+
+/* ========================================================================= *
+ * uapi/linux/mman.h                                                         *
+ * ========================================================================= */
+
+/* mmap flags
+ * https://elixir.bootlin.com/linux/v5.10/source/include/uapi/linux/mman.h#L8 */
+#define MREMAP_MAYMOVE      1
+#define MREMAP_FIXED        2
+#define MREMAP_DONTUNMAP    4
+
+#define OVERCOMMIT_GUESS    0
+#define OVERCOMMIT_ALWAYS   1
+#define OVERCOMMIT_NEVER    2
+
+#define MAP_SHARED  0x01        /* Share changes */
+#define MAP_PRIVATE 0x02        /* Changes are private */
+#define MAP_SHARED_VALIDATE 0x03    /* share + validate extension flags */
+
+/* ========================================================================= *
+ * uapi/linux/mman.h                                                         *
+ * ========================================================================= */
+
+/*
+ * vm_flags in vm_area_struct, see mm_types.h.
+ * When changing, update also include/trace/events/mmflags.h
+ * https://elixir.bootlin.com/linux/v5.10/source/include/linux/mm.h#L253
+ */
+#define VM_NONE     0x00000000
+
+#define VM_READ     0x00000001  /* currently active flags */
+#define VM_WRITE    0x00000002
+#define VM_EXEC     0x00000004
+#define VM_SHARED   0x00000008
+
+/* ========================================================================= *
+ * linux/socket.h                                                            *
+ * ========================================================================= */
+
+/* Supported address families.
+ * https://elixir.bootlin.com/linux/v5.10/source/include/linux/socket.h#L175 */
+#define AF_UNSPEC   0
+#define AF_UNIX     1   /* Unix domain sockets            */
+#define AF_LOCAL    1   /* POSIX name for AF_UNIX         */
+#define AF_INET     2   /* Internet IP Protocol           */
+#define AF_AX25     3   /* Amateur Radio AX.25            */
+#define AF_IPX      4   /* Novell IPX                     */
+#define AF_APPLETALK    5   /* AppleTalk DDP              */
+#define AF_NETROM   6   /* Amateur Radio NET/ROM          */
+#define AF_BRIDGE   7   /* Multiprotocol bridge           */
+#define AF_ATMPVC   8   /* ATM PVCs                       */
+#define AF_X25      9   /* Reserved for X.25 project      */
+#define AF_INET6    10  /* IP version 6                   */
+#define AF_ROSE     11  /* Amateur Radio X.25 PLP         */
+#define AF_DECnet   12  /* Reserved for DECnet project    */
+#define AF_NETBEUI  13  /* Reserved for 802.2LLC project  */
+#define AF_SECURITY 14  /* Security callback pseudo AF    */
+#define AF_KEY      15  /* PF_KEY key management API      */
+#define AF_NETLINK  16
+#define AF_ROUTE    AF_NETLINK /* Alias to emulate 4.4BSD */
+#define AF_PACKET   17  /* Packet family                  */
+#define AF_ASH      18  /* Ash                            */
+#define AF_ECONET   19  /* Acorn Econet                   */
+#define AF_ATMSVC   20  /* ATM SVCs                       */
+#define AF_RDS      21  /* RDS sockets                    */
+#define AF_SNA      22  /* Linux SNA Project (nutters!)   */
+#define AF_IRDA     23  /* IRDA sockets                   */
+#define AF_PPPOX    24  /* PPPoX sockets                  */
+#define AF_WANPIPE  25  /* Wanpipe API Sockets            */
+#define AF_LLC      26  /* Linux LLC                      */
+#define AF_IB       27  /* Native InfiniBand address      */
+#define AF_MPLS     28  /* MPLS                           */
+#define AF_CAN      29  /* Controller Area Network        */
+#define AF_TIPC     30  /* TIPC sockets                   */
+#define AF_BLUETOOTH 31  /* Bluetooth sockets             */
+#define AF_IUCV     32  /* IUCV sockets                   */
+#define AF_RXRPC    33  /* RxRPC sockets                  */
+#define AF_ISDN     34  /* mISDN sockets                  */
+#define AF_PHONET   35  /* Phonet sockets                 */
+#define AF_IEEE802154 36  /* IEEE802154 sockets           */
+#define AF_CAIF     37  /* CAIF sockets                   */
+#define AF_ALG      38  /* Algorithm sockets              */
+#define AF_NFC      39  /* NFC sockets                    */
+#define AF_VSOCK    40  /* vSockets                       */
+#define AF_KCM      41  /* Kernel Connection Multiplexor  */
+#define AF_QIPCRTR  42  /* Qualcomm IPC Router            */
+#define AF_SMC      43  /* smc sockets: reserve number for
+                         * PF_SMC protocol family that
+                         * reuses AF_INET address family
+                         */
+#define AF_XDP      44  /* XDP sockets          */
+
+#define AF_MAX      45  /* For now.. */
+
 #endif /* ifndef KERNEL_DEFS_H */
