@@ -23,6 +23,7 @@ pub fn main(args: &ArgMatches) -> Result<()> {
         ("start", Some(args)) => start_daemon(args),
         ("restart", Some(args)) => restart_daemon(args),
         ("stop", Some(_)) => stop_daemon(),
+        ("foreground", Some(args)) => bpf_program::main(args),
         _ => bail!("Bad subcommand name"),
     };
 

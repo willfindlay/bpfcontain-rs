@@ -7,8 +7,6 @@
 
 #include "bpfcontain.h"
 
-const volatile int debug = 0;
-
 /* ========================================================================= *
  * BPF Maps                                                                  *
  * ========================================================================= */
@@ -42,6 +40,23 @@ BPF_HASH(cap_deny, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
  * Helpers                                                                   *
  * ========================================================================= */
 
+static __always_inline struct bpfcon_process *add_process(u32 pid, u32 tgid,
+                                                          u64 container_id)
+{
+    struct bpfcon_process new_process = {};
+    new_process.pid = pid;
+    new_process.tgid = tgid;
+    new_process.container_id = container_id;
+    new_process.in_execve = 0;
+
+    // Cowardly refuse to overwrite an existing process
+    if (bpf_map_lookup_elem(&processes, &pid)){
+        return NULL;
+    }
+
+    return bpf_map_lookup_or_try_init(&processes, &pid, &new_process);
+}
+
 /* ========================================================================= *
  * Filesystem, File, Device Policy                                           *
  * ========================================================================= */
@@ -59,16 +74,37 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
 {
     int ret = 0;
 
+    // Look up the `pid` and `tgid` of the current process
     u32 pid = bpf_get_current_pid_tgid();
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
 
-    struct bpfcon_process process = {};
-    bpf_map_update_elem(&processes, &pid, &process, 0);
+    bpf_printk("do_containerize with pid %u", pid);
+
+    // Look up the `container` using `container_id`
+    struct bpfcon_container *container = bpf_map_lookup_elem(&containers, &container_id);
+    // If the container doesn't exist, report an error and bail
+    if (!container) {
+        ret = -ENOENT;
+        goto out;
+    }
+
+    // Try to add a process to `processes` with `pid`/`tgid`, associated with
+    // `container_id`
+    if (!add_process(pid, tgid, container_id)) {
+        ret = -EINVAL;
+        goto out;
+    }
 
 out:
     if (ret_p)
         bpf_probe_write_user(ret_p, &ret, sizeof(ret));
 
+    return 0;
+}
+
+SEC("uprobe/func")
+int BPF_KPROBE(test) {
+    bpf_printk("test!\n");
     return 0;
 }
 

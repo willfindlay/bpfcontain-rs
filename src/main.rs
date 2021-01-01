@@ -51,6 +51,12 @@ fn main() -> Result<()> {
                     SubCommand::with_name("restart")
                         .about("Restart the daemon")
                         .display_order(3),
+                )
+                .subcommand(
+                    SubCommand::with_name("foreground")
+                        .about("Run in the foreground")
+                        .display_order(4)
+                        .alias("fg"),
                 ),
         )
         // Run the BPF program without daemonizing
@@ -77,14 +83,14 @@ fn main() -> Result<()> {
     // Dispatch to subcommand
     let result = match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args),
-        ("run", Some(args)) => bpf_program::main(args),
+        ("run", Some(args)) => todo!("Implement this"),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };
 
     // Log errors if they bubble up
-    if let Err(e) = &result {
-        log::error!("Error: {}", e);
+    if let Err(e) = result {
+        log::error!("Exited with error: {}", e);
         std::process::exit(1);
     }
 

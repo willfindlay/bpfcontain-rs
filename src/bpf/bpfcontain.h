@@ -15,8 +15,8 @@
 #include <bpf/bpf_core_read.h> /* for BPF CO-RE helpers */
 #include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
 #include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
-//#include <linux/bpf.h>
 
+#include "kernel_defs.h"
 #include "maps.h"
 
 #define lock_xadd(ptr, val) ((void)__sync_fetch_and_add(ptr, val))

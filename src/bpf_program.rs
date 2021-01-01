@@ -7,6 +7,7 @@
 
 use anyhow::{bail, Result};
 use clap::ArgMatches;
+use std::ffi::CString;
 
 use crate::bpf;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
@@ -15,43 +16,51 @@ use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 pub fn main(args: &ArgMatches) -> Result<()> {
     log::info!("Initializing BPF objects...");
 
+    // Initialize the skeleton builder
+    log::debug!("Initializing skeleton builder...");
+    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
+
+    // Log output from libbpf if we are -vvv
+    if args.occurrences_of("v") >= 3 {
+        skel_builder.obj_builder.debug(true);
+    } else {
+        skel_builder.obj_builder.debug(false);
+    }
+
+    // We need to bump the memlock limit to allow even the smallest of maps to
+    // load properly
     log::debug!("Bumping memlock...");
     bump_memlock_rlimit()?;
 
-    log::debug!("Initializing skeleton builder...");
-    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
-    if args.occurrences_of("v") >= 3 {
-        skel_builder.obj_builder.debug(true);
-    }
-
-    log::debug!("Opening skeleton...");
+    // Open eBPF objects
+    log::debug!("Opening eBPF objects...");
     let mut open_skel = match skel_builder.open() {
         Ok(open_skel) => open_skel,
         Err(e) => bail!("Failed to open skeleton: {}", e),
     };
-    //open_skel.bss();
 
+    // TODO: Set data here
     log::debug!("Setting data...");
-    // TODO: Write to skeleton sections here
-    //open_skel.rodata().debug = 1;
 
-    log::debug!("Loading skeleton...");
+    // Loading eBPF objects into kernel
+    log::debug!("Loading eBPF objects into kernel...");
     let mut skel = match open_skel.load() {
         Ok(skel) => skel,
         Err(e) => bail!("Failed to load skeleton: {}", e),
     };
 
-    log::debug!("Attaching BPF objects...");
+    log::debug!("Attaching BPF objects to events...");
     skel.attach()?;
-    skel.progs().do_containerize().attach_uprobe_symbol(
+
+    // Attach to do_containerize from /usr/lib/libbpfcontain.so
+    let _link = skel.progs().do_containerize().attach_uprobe_symbol(
         false,
         -1,
-        String::from("/usr/lib/libbpfcontain.so"),
-        String::from("do_containerize"),
+        "/usr/lib/libbpfcontain.so",
+        "do_containerize",
     )?;
-
-    // TODO: Attach BPF programs here
-    //skel.attach()?;
+    // Keep a reference count
+    skel.links.do_containerize = Some(_link);
 
     log::info!("Loaded and attached BPF objects!");
 
@@ -67,8 +76,8 @@ trait SymbolUprobeExt {
         &mut self,
         retprobe: bool,
         pid: i32,
-        binary_path: String,
-        symbol_name: String,
+        binary_path: &str,
+        symbol_name: &str,
     ) -> Result<libbpf_rs::Link>;
 }
 
@@ -79,22 +88,26 @@ impl SymbolUprobeExt for libbpf_rs::Program {
         &mut self,
         retprobe: bool,
         pid: i32,
-        binary_path: String,
-        symbol_name: String,
+        binary_path: &str,
+        symbol_name: &str,
     ) -> Result<libbpf_rs::Link> {
         // Grab the symbol offset, if we can find it
-        let func_offset = get_symbol_offset(binary_path.as_str(), symbol_name.as_str())?;
+        let func_offset = get_symbol_offset(binary_path, symbol_name)?;
 
-        //log::debug!(
-        //    "retprobe={} pid={} binary_path={} symbol_name={}",
-        //    retprobe,
-        //    pid,
-        //    binary_path,
-        //    symbol_name
-        //);
+        log::debug!(
+            "Attaching uprobe: retprobe={} pid={} binary_path={} symbol_name={}",
+            retprobe,
+            pid,
+            binary_path,
+            symbol_name
+        );
+
+        // Null terminate binary_path
+        let mut binary_path = binary_path.to_string();
+        binary_path.push_str("\0");
 
         // Use the offset we found to attach the uprobe or uretprobe
-        let result = self.attach_uprobe(retprobe, pid, binary_path, func_offset)?;
+        let result = self.attach_uprobe(retprobe, pid, &binary_path[..], func_offset)?;
 
         Ok(result)
     }
