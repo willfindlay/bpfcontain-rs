@@ -36,6 +36,10 @@ BPF_HASH(dev_deny, struct dev_policy_key, u32, BPFCON_MAX_POLICY, 0);
 BPF_HASH(cap_allow, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
 BPF_HASH(cap_deny, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
 
+/* Network policy */
+BPF_HASH(net_allow, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(net_deny, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
+
 /* ========================================================================= *
  * Helpers                                                                   *
  * ========================================================================= */
@@ -643,11 +647,272 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
  * Network Policy                                                            *
  * ========================================================================= */
 
-// TODO: Add LSM probes here tomorrow
+static u32 family_to_bpfcon_family(int family) {
+    // Note: I think it makes sense to support these four protocol families for now.
+    // Support for others can be added in the future. In bpfbox, I made the mistake
+    // of trying to support everything and things got very complicated very quickly.
+    switch (family) {
+        case AF_UNIX:
+        case AF_NETLINK:
+            return BPFCON_NET_IPC;
+            break;
+        case AF_INET:
+        case AF_INET6:
+            return BPFCON_NET_WWW;
+            break;
+        default:
+            return 0;
+    }
+}
+
+/* Take all policy decisions together to reach a verdict on network access.
+ *
+ * This function should be called and taken as a return value to whatever LSM
+ * hooks involve network access.
+ *
+ * @container_id: 64-bit id of the current container
+ * @family:       Requested family.
+ * @access:       Requested access.
+ *
+ * return: -EACCES if access is denied or 0 if access is granted.
+ */
+static int bpfcontain_net_perm(u64 container_id, u32 family, u32 access)
+{
+    int decision = BPFCON_NO_DECISION;
+
+    struct bpfcon_container *container =
+        bpf_map_lookup_elem(&containers, &container_id);
+    if (!container) {
+        return -EACCES;
+    }
+
+    struct net_policy_key key = {};
+    key.container_id = container_id;
+    key.family = family;
+
+    // If we are allowing the _entire_ access, allow
+    u32 *allowed = bpf_map_lookup_elem(&net_allow, &key);
+    if (allowed && ((*allowed & access) == access)) {
+        decision |= BPFCON_ALLOW;
+    }
+
+    // If we are denying _any part_ of the access, deny
+    u32 *denied = bpf_map_lookup_elem(&net_deny, &key);
+    if (denied && (*denied & access)) {
+        decision |= BPFCON_DENY;
+    }
+
+    if (decision & BPFCON_DENY) {
+        return -EACCES;
+    }
+
+    if (decision & BPFCON_ALLOW)
+        return 0;
+
+    if (container->default_deny) {
+        return -EACCES;
+    }
+
+    return 0;
+}
+
+SEC("lsm/socket_create")
+int BPF_PROG(socket_create, int _family, int type, int protocol, int kern)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CREATE);
+}
+
+SEC("lsm/socket_bind")
+int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
+          int addrlen)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(address->sa_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_BIND);
+}
+
+SEC("lsm/socket_connect")
+int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
+          int addrlen)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(address->sa_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CONNECT);
+}
+
+SEC("lsm/unix_stream_connect")
+int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
+          struct socket *newsock)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(AF_UNIX);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CONNECT);
+}
+
+SEC("lsm/unix_may_send")
+int BPF_PROG(unix_may_send, struct socket *sock, struct socket *other)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(AF_UNIX);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SEND);
+}
+
+SEC("lsm/socket_listen")
+int BPF_PROG(socket_listen, struct socket *sock, int backlog)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_LISTEN);
+}
+
+SEC("lsm/socket_accept")
+int BPF_PROG(socket_accept, struct socket *sock, struct socket *newsock)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_ACCEPT);
+}
+
+SEC("lsm/socket_sendmsg")
+int BPF_PROG(socket_sendmsg, struct socket *sock, struct msghdr *msg, int size)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SEND);
+}
+
+SEC("lsm/socket_recvmsg")
+int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
+          int flags)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_RECV);
+}
+
+SEC("lsm/socket_shutdown")
+int BPF_PROG(socket_shutdown, struct socket *sock, int how)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+
+    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SHUTDOWN);
+}
 
 /* ========================================================================= *
  * Capability Policy                                                         *
  * ========================================================================= */
+
+/* Convert a POSIX capability into an "access vector".
+ *
+ * @cap: Requested POSIX capability
+ *
+ * return: Converted capability.
+ */
+static __always_inline u32 cap_to_access(int cap) {
+    if (cap == CAP_NET_BIND_SERVICE) {
+        return BPFCON_CAP_NET_BIND_SERVICE;
+    }
+
+    if (cap == CAP_NET_RAW) {
+        return BPFCON_CAP_NET_RAW;
+    }
+
+    if (cap == CAP_NET_BROADCAST) {
+        return BPFCON_CAP_NET_BROADCAST;
+    }
+
+    if (cap == CAP_DAC_OVERRIDE) {
+        return BPFCON_CAP_DAC_OVERRIDE;
+    }
+
+    if (cap == CAP_DAC_READ_SEARCH) {
+        return BPFCON_CAP_DAC_READ_SEARCH;
+    }
+
+    return 0;
+}
 
 /* Restrict container capabilities */
 SEC("lsm/capable")
@@ -662,16 +927,23 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns, int ca
     if (!process)
         return 0;
 
+    // Convert cap to an "access vector"
+    // (even though only one bit will be on at a time)
+    u32 access = cap_to_access(cap);
+    if (!access) { // One of our implicit-deny capbilities
+        return -EACCES;
+    }
+
     struct cap_policy_key key = {};
     key.container_id = process->container_id;
 
     u32 *denied = bpf_map_lookup_elem(&cap_deny, &key);
-    if (denied && (*denied == cap)) {
+    if (denied && (*denied & access)) {
         return -EACCES;
     }
 
     u32 *allowed = bpf_map_lookup_elem(&cap_allow, &key);
-    if (allowed && (*allowed == cap)) {
+    if (allowed && (*allowed & access) == access) {
         return 0;
     }
 

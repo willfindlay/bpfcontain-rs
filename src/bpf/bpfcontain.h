@@ -54,21 +54,30 @@
 #define BPFCON_MAY_CHDIR     0x00001000
 
 /* Tunable capabilities */
-#define BPFCON_NET_BIND      0x00000001
-#define BPFCON_NET_RAW       0x00000002
-#define BPFCON_NET_BROADCAST 0x00000004
-#define BPFCON_DAC_OVERRIDE  0x00000008
+#define BPFCON_CAP_NET_BIND_SERVICE 0x00000001
+#define BPFCON_CAP_NET_RAW          0x00000002
+#define BPFCON_CAP_NET_BROADCAST    0x00000004
+#define BPFCON_CAP_DAC_OVERRIDE     0x00000008
+#define BPFCON_CAP_DAC_READ_SEARCH  0x00000010
+// Note: Fow now, we only support these capabilities. Most of the other
+// capabilities don't really make sense in the context of a container, but may
+// be required later for compatibility with other container implementations.
 
-/* Network policy */
-#define BPFCON_UNIX    0x00000001
-#define BPFCON_NETLINK 0x00000002
-#define BPFCON_NET_IPC (BPFCON_UNIX | BPFCON_NETLINK)
-#define BPFCON_INET    0x00000004
-#define BPFCON_INET6   0x00000008
-#define BPFCON_NET_WWW (BPFCON_INET | BPFCON_INET6)
-// Note: I think it makes sense to support these four protocol families for now.
-// Support for others can be added in the future. In bpfbox, I made the mistake
-// of trying to support everything and things got very complicated very quickly.
+/* Network families */
+#define BPFCON_NET_WWW  1
+#define BPFCON_NET_IPC  2
+
+/* Network operations */
+#define BPFCON_NET_CONNECT  0x00000001
+#define BPFCON_NET_BIND     0x00000002
+#define BPFCON_NET_ACCEPT   0x00000004
+#define BPFCON_NET_LISTEN   0x00000008
+#define BPFCON_NET_SEND     0x00000010
+#define BPFCON_NET_RECV     0x00000020
+#define BPFCON_NET_CREATE   0x00000040
+#define BPFCON_NET_SHUTDOWN 0x00000080
+
+/* Network operations */
 
 struct bpfcon_container {
     u8 default_deny;
@@ -101,8 +110,9 @@ struct cap_policy_key {
     u64 container_id;
 };
 
-struct network_policy_key {
+struct net_policy_key {
     u64 container_id;
+    u32 family;
 };
 
 struct inode_key {

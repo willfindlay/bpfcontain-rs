@@ -49,6 +49,7 @@ pub fn main(args: &ArgMatches) -> Result<()> {
     };
 
     log::debug!("Attaching BPF objects to events...");
+    // Auto attach non-uprobe programs
     skel.attach()?;
 
     // Attach to do_containerize from /usr/lib/libbpfcontain.so
