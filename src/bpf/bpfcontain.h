@@ -63,9 +63,9 @@
 // capabilities don't really make sense in the context of a container, but may
 // be required later for compatibility with other container implementations.
 
-/* Network families */
-#define BPFCON_NET_WWW  1
-#define BPFCON_NET_IPC  2
+/* Network categories */
+#define BPFCON_NET_WWW  0x01
+#define BPFCON_NET_IPC  0x02
 
 /* Network operations */
 #define BPFCON_NET_CONNECT  0x00000001
@@ -112,7 +112,7 @@ struct cap_policy_key {
 
 struct net_policy_key {
     u64 container_id;
-    u32 family;
+    u8 category;
 };
 
 struct inode_key {

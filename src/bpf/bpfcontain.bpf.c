@@ -647,7 +647,7 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
  * Network Policy                                                            *
  * ========================================================================= */
 
-static u32 family_to_bpfcon_family(int family) {
+static u8 family_to_category(int family) {
     // Note: I think it makes sense to support these four protocol families for now.
     // Support for others can be added in the future. In bpfbox, I made the mistake
     // of trying to support everything and things got very complicated very quickly.
@@ -676,7 +676,7 @@ static u32 family_to_bpfcon_family(int family) {
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_net_perm(u64 container_id, u32 family, u32 access)
+static int bpfcontain_net_perm(u64 container_id, u8 category, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -688,7 +688,7 @@ static int bpfcontain_net_perm(u64 container_id, u32 family, u32 access)
 
     struct net_policy_key key = {};
     key.container_id = container_id;
-    key.family = family;
+    key.category = category;
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&net_allow, &key);
@@ -717,7 +717,7 @@ static int bpfcontain_net_perm(u64 container_id, u32 family, u32 access)
 }
 
 SEC("lsm/socket_create")
-int BPF_PROG(socket_create, int _family, int type, int protocol, int kern)
+int BPF_PROG(socket_create, int family, int type, int protocol, int kern)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -727,9 +727,9 @@ int BPF_PROG(socket_create, int _family, int type, int protocol, int kern)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(_family);
+    u8 category = family_to_category(family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CREATE);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CREATE);
 }
 
 SEC("lsm/socket_bind")
@@ -744,9 +744,9 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(address->sa_family);
+    u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_BIND);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_BIND);
 }
 
 SEC("lsm/socket_connect")
@@ -761,9 +761,9 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(address->sa_family);
+    u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CONNECT);
 }
 
 SEC("lsm/unix_stream_connect")
@@ -778,9 +778,9 @@ int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(AF_UNIX);
+    u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CONNECT);
 }
 
 SEC("lsm/unix_may_send")
@@ -794,9 +794,9 @@ int BPF_PROG(unix_may_send, struct socket *sock, struct socket *other)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(AF_UNIX);
+    u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SEND);
 }
 
 SEC("lsm/socket_listen")
@@ -810,9 +810,9 @@ int BPF_PROG(socket_listen, struct socket *sock, int backlog)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+    u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_LISTEN);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_LISTEN);
 }
 
 SEC("lsm/socket_accept")
@@ -826,9 +826,9 @@ int BPF_PROG(socket_accept, struct socket *sock, struct socket *newsock)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+    u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_ACCEPT);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_ACCEPT);
 }
 
 SEC("lsm/socket_sendmsg")
@@ -842,9 +842,9 @@ int BPF_PROG(socket_sendmsg, struct socket *sock, struct msghdr *msg, int size)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+    u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SEND);
 }
 
 SEC("lsm/socket_recvmsg")
@@ -859,9 +859,9 @@ int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+    u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_RECV);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_RECV);
 }
 
 SEC("lsm/socket_shutdown")
@@ -875,9 +875,9 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
     if (!process)
         return 0;
 
-    u32 family = family_to_bpfcon_family(sock->sk->__sk_common.skc_family);
+    u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, family, BPFCON_NET_SHUTDOWN);
+    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SHUTDOWN);
 }
 
 /* ========================================================================= *
