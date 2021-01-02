@@ -6,5 +6,21 @@
 // Dec. 29, 2020  William Findlay  Created this.
 
 fn main() {
+    // Re-run build if our header file(s) has changed
+    println!("cargo:rerun-if-changed=src/include/libbpfcontain.h");
+    println!("cargo:rerun-if-changed=src/include/structs.h");
+
+    // Generate bindings
+    let bindings = bindgen::builder()
+        .header("src/include/libbpfcontain.h")
+        .generate()
+        .expect("Failed to generate bindings");
+
+    // Save bindings
+    bindings
+        .write_to_file("src/lib/bindings.rs")
+        .expect("Failed to save bindings");
+
+    // Include bpfcontain as a C library
     println!("cargo:rustc-link-lib=dylib=bpfcontain");
 }

@@ -10,10 +10,10 @@ install: all
 	sudo cp libbpfcontain.so $(LIBRARY_DIR)
 	sudo ldconfig -n -v $(LIBRARY_DIR)
 	sudo mkdir -p $(INCLUDE_DIR)
-	sudo cp libbpfcontain.h $(INCLUDE_DIR)
+	sudo cp ../include/* $(INCLUDE_DIR)
 
-libbpfcontain.o: libbpfcontain.c libbpfcontain.h
-	gcc -fPIC -c libbpfcontain.c -o libbpfcontain.o
+libbpfcontain.o: libbpfcontain.c ../include/*
+	gcc -I ../include -fPIC -c libbpfcontain.c -o libbpfcontain.o
 
 libbpfcontain.so: libbpfcontain.o
 	gcc -shared libbpfcontain.o -o libbpfcontain.so

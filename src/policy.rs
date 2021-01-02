@@ -5,5 +5,5 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use crate::structs::*;
+use crate::libbpfcontain::*;
 use anyhow::{bail, Result};

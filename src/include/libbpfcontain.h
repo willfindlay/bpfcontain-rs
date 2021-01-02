@@ -5,4 +5,6 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+#include "../include/structs.h"
+
 int containerize(unsigned long container_id);
