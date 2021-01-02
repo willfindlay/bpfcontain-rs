@@ -13,6 +13,7 @@ fn main() {
     // Generate bindings
     let bindings = bindgen::builder()
         .header("src/include/libbpfcontain.h")
+        .derive_default(true)
         .generate()
         .expect("Failed to generate bindings");
 

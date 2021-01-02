@@ -37,7 +37,7 @@ pub const net_operation_t_BPFCON_NET_CREATE: net_operation_t = 64;
 pub const net_operation_t_BPFCON_NET_SHUTDOWN: net_operation_t = 128;
 pub type net_operation_t = ::std::os::raw::c_uint;
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct bpfcon_container {
     pub default_deny: ::std::os::raw::c_uchar,
 }
@@ -65,7 +65,7 @@ fn bindgen_test_layout_bpfcon_container() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct bpfcon_process {
     pub container_id: ::std::os::raw::c_ulong,
     pub pid: ::std::os::raw::c_uint,
@@ -126,7 +126,7 @@ fn bindgen_test_layout_bpfcon_process() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct fs_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
@@ -165,7 +165,7 @@ fn bindgen_test_layout_fs_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct file_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub inode_id: ::std::os::raw::c_ulong,
@@ -215,7 +215,7 @@ fn bindgen_test_layout_file_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct dev_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub major: ::std::os::raw::c_uint,
@@ -254,7 +254,7 @@ fn bindgen_test_layout_dev_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct cap_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
 }
@@ -282,7 +282,7 @@ fn bindgen_test_layout_cap_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct net_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub category: ::std::os::raw::c_uchar,
@@ -321,7 +321,7 @@ fn bindgen_test_layout_net_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct inode_key {
     pub inode_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
