@@ -11,6 +11,7 @@ use simple_logger::SimpleLogger;
 
 mod bpf;
 mod bpf_program;
+mod libbpfcontain;
 mod policy;
 mod structs;
 mod subcommands;

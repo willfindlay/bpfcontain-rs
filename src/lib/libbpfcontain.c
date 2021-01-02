@@ -7,6 +7,8 @@
 
 #include "libbpfcontain.h"
 
+#include <errno.h>
+
 /* ========================================================================= *
  * Commands                                                                  *
  * ========================================================================= */
@@ -42,7 +44,7 @@ int containerize(unsigned long container_id)
 
     if (ret < 0) {
         errno = -ret;
-        return -1;
+        return ret;
     }
 
     return 0;

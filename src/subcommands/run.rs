@@ -10,6 +10,8 @@ use clap::ArgMatches;
 use std::fs::File;
 use std::io::Read;
 
+use crate::libbpfcontain::containerize;
+
 pub fn main(args: &ArgMatches) -> Result<()> {
-    todo!()
+    containerize(42)
 }
