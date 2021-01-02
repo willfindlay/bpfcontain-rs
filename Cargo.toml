@@ -16,7 +16,6 @@ log = "0.4.11"
 simple_logger = "1.11.0"
 goblin = "0.3.0"
 plain = "0.2.3"
-vsprintf = "2.0.0"
 bitflags = "1.2.1"
 
 [dev-dependencies]
