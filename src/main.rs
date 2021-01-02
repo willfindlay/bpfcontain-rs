@@ -11,10 +11,13 @@ use simple_logger::SimpleLogger;
 
 mod bpf;
 mod bpf_program;
+mod policy;
+mod structs;
 mod subcommands;
 mod utils;
 
 use subcommands::daemon;
+use subcommands::run;
 
 fn main() -> Result<()> {
     let app = App::new("BPFContain")
@@ -60,7 +63,15 @@ fn main() -> Result<()> {
                 ),
         )
         // Run the BPF program without daemonizing
-        .subcommand(SubCommand::with_name("run").about("Run in the foreground."));
+        .subcommand(
+            SubCommand::with_name("run")
+                .about("Run in the foreground.")
+                .arg(
+                    Arg::with_name("manifest")
+                        .required(true)
+                        .help("Path the manifest to run"),
+                ),
+        );
 
     // Parse arguments
     let args = app.get_matches();
@@ -83,7 +94,7 @@ fn main() -> Result<()> {
     // Dispatch to subcommand
     let result = match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args),
-        ("run", Some(args)) => todo!("Implement this"),
+        ("run", Some(args)) => run::main(args),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };
