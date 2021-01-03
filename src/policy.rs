@@ -151,7 +151,7 @@ impl FileAccess {
 impl ToBitflags for FileAccess {
     type BitFlag = structs::FileAccess;
 
-    /// Convert a [`Capability`] into a bitflag representation for loading into an
+    /// Convert a [`FileAccess`] into a bitflag representation for loading into an
     /// eBPF map.
     fn to_bitflags(&self) -> Self::BitFlag {
         match self {
@@ -515,6 +515,42 @@ mod tests {
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
             Rule::Capability(Capability::NetBindService)
+        );
+
+        let rule_str = "
+            capability: net-raw
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Capability(Capability::NetRaw)
+        );
+
+        let rule_str = "
+            capability: net-broadcast
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Capability(Capability::NetBroadcast)
+        );
+
+        let rule_str = "
+            capability: dac-override
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Capability(Capability::DacOverride)
+        );
+
+        let rule_str = "
+            capability: dac-read-search
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Capability(Capability::DacReadSearch)
         );
 
         Ok(())
