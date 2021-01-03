@@ -79,11 +79,13 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "TODO"]
     fn test_get_symbol() -> Result<()> {
         todo!()
     }
 
     #[test]
+    #[ignore = "TODO"]
     fn test_get_symbol_offset() -> Result<()> {
         todo!()
     }
