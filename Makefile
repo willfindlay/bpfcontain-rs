@@ -1,7 +1,7 @@
 VMLINUX = vmlinux_$(shell uname -r).h
 
 .PHONY: build
-build: vmlinux
+build: src/bpf/vmlinux.h
 	cargo libbpf build
 	cargo libbpf gen
 	cargo build
@@ -13,8 +13,12 @@ test:
 	sudo cargo test --target-dir /tmp/bpfcontain-tests -- $(ARGS)
 
 .PHONY: vmlinux
-vmlinux: src/bpf/$(VMLINUX) src/bpf/vmlinux.h
+vmlinux: | src/bpf/vmlinux.h
+
+src/bpf/$(VMLINUX):
 	bpftool btf dump file /sys/kernel/btf/vmlinux format c > src/bpf/$(VMLINUX)
+
+src/bpf/vmlinux.h: src/bpf/$(VMLINUX)
 	ln -snfr src/bpf/$(VMLINUX) src/bpf/vmlinux.h
 
 .PHONY: install
