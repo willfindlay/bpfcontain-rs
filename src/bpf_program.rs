@@ -64,6 +64,16 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 
     log::info!("Loaded and attached BPF objects!");
 
+    // FIXME: remove this, for testing
+    let key: libc::c_ulong = 42;
+    let mut value = crate::libbpfcontain::structs::bpfcon_container::default();
+    value.default_deny = 1;
+    let key = unsafe { plain::as_bytes(&key) };
+    let value = unsafe { plain::as_bytes(&value) };
+    skel.maps()
+        .containers()
+        .update(key, value, libbpf_rs::MapFlags::ANY)?;
+
     std::thread::sleep(std::time::Duration::new(10000, 0));
 
     Ok(())
