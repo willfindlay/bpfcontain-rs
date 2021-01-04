@@ -170,10 +170,94 @@ impl Default for FileAccess {
     }
 }
 
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+enum NetCategory {
+    WWW,
+    IPC,
+    All,
+}
+
+impl ToBitflags for NetCategory {
+    type BitFlag = structs::NetCategory;
+
+    /// Convert a [`NetCategory`] into a bitflag representation for loading into an
+    /// eBPF map.
+    fn to_bitflags(&self) -> Self::BitFlag {
+        match self {
+            Self::WWW => Self::BitFlag::WWW,
+            Self::IPC => Self::BitFlag::IPC,
+            Self::All => Self::BitFlag::all(),
+        }
+    }
+}
+
+impl Default for NetCategory {
+    fn default() -> Self {
+        Self::WWW
+    }
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+enum NetAccess {
+    ClientSend,
+    ServerSend,
+    ClientRecv,
+    ServerRecv,
+    Client,
+    Server,
+    ClientServerSend,
+    ClientServerRecv,
+    ClientServer,
+}
+
+impl ToBitflags for NetAccess {
+    type BitFlag = structs::NetOperation;
+
+    /// Convert a [`NetAccess`] into a bitflag representation for loading into an
+    /// eBPF map.
+    fn to_bitflags(&self) -> Self::BitFlag {
+        match self {
+            Self::ClientSend => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND,
+            Self::ServerSend => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND,
+            Self::ClientRecv => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_RECV,
+            Self::ServerRecv => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_RECV,
+            Self::Client => {
+                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND | Self::BitFlag::MASK_RECV
+            }
+            Self::Server => {
+                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND | Self::BitFlag::MASK_RECV
+            }
+            Self::ClientServerSend => {
+                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SERVER | Self::BitFlag::MASK_SEND
+            }
+            Self::ClientServerRecv => {
+                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SERVER | Self::BitFlag::MASK_RECV
+            }
+            Self::ClientServer => {
+                Self::BitFlag::MASK_CLIENT
+                    | Self::BitFlag::MASK_SERVER
+                    | Self::BitFlag::MASK_SEND
+                    | Self::BitFlag::MASK_RECV
+            }
+        }
+    }
+}
+
+impl Default for NetAccess {
+    fn default() -> Self {
+        Self::ClientServer
+    }
+}
+
 /// A parseable rule
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 enum Rule {
     /// A filesystem access rule, specifying a path and an access vector.
+    ///
+    /// # Examples
+    ///
     /// ```yaml
     /// # Short-form
     /// fs: {path: /path/to/fs, access: rwx}
@@ -186,7 +270,11 @@ enum Rule {
     #[serde(rename = "filesystem")]
     #[serde(alias = "fs")]
     Fs { path: String, access: FileAccess },
+
     /// A file access rule, specifying a path and an access vector.
+    ///
+    /// # Examples
+    ///
     /// ```yaml
     /// # Short-form
     /// file: {path: /path/to/file, access: rwx}
@@ -198,10 +286,35 @@ enum Rule {
     /// ```
     #[serde(rename = "file")]
     File { path: String, access: FileAccess },
-    /// TODO
+
+    /// A capability rule, specifying a single capability.
+    ///
+    /// # Examples
+    ///
+    /// ```yaml
+    /// # Short-form
+    /// cap: dac-override
+    ///
+    /// # Long-form
+    /// capability: net-bind-service
+    /// ```
     #[serde(rename = "capability")]
     #[serde(alias = "cap")]
     Capability(Capability),
+
+    /// A network rule, specifying access to the network.
+    ///
+    /// # Examples
+    ///
+    /// TODO
+    #[serde(rename = "network")]
+    #[serde(alias = "net")]
+    Network {
+        #[serde(default)]
+        category: NetCategory,
+        #[serde(default)]
+        access: NetAccess,
+    },
 }
 
 /// A high-level representation of a BPFContain policy that has been loaded
@@ -551,6 +664,49 @@ mod tests {
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
             Rule::Capability(Capability::DacReadSearch)
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_net_rule_deserialize() -> Result<()> {
+        let rule_str = "
+            network: {}
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Network {
+                category: NetCategory::default(),
+                access: NetAccess::default()
+            }
+        );
+
+        let rule_str = "
+            network:
+                category: www
+                access: client-send
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Network {
+                category: NetCategory::WWW,
+                access: NetAccess::ClientSend
+            }
+        );
+
+        let rule_str = "
+            net: {category: ipc, access: server}
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Network {
+                category: NetCategory::IPC,
+                access: NetAccess::Server
+            }
         );
 
         Ok(())

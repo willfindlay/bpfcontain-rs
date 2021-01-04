@@ -127,6 +127,10 @@ pub mod structs {
             const NET_RECV     = 0x00000020;
             const NET_CREATE   = 0x00000040;
             const NET_SHUTDOWN = 0x00000080;
+            const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits | Self::NET_LISTEN.bits | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
+            const MASK_CLIENT = Self::NET_CONNECT.bits;
+            const MASK_SEND = Self::NET_SEND.bits;
+            const MASK_RECV = Self::NET_RECV.bits;
         }
     }
 
