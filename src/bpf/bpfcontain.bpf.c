@@ -52,8 +52,8 @@ BPF_HASH(net_deny, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
  *
  * return: Pointer to the added process.
  */
-static __always_inline struct bpfcon_process *add_process(u32 pid, u32 tgid,
-                                                          u64 container_id)
+static __always_inline struct bpfcon_process *
+add_process(u32 pid, u32 tgid, u64 container_id)
 {
     // Initialize a new process
     struct bpfcon_process new_process = {};
@@ -118,6 +118,39 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
     return access;
 }
 
+/* Update a policy map from the eBPF side. This will update the map using the
+ * bitwise OR of the value and any existing value with the same key.
+ *
+ * TODO: Call this function when we start updating policy via uprobes.
+ *
+ * @map: Pointer to the eBPF policy map.
+ * @key: Pointer to the key.
+ * @value: Pointer to the desired value.
+ *
+ * return: Converted access mask.
+ */
+static __always_inline int
+do_update_policy(void *map, const void *key, const u32 *value)
+{
+    u32 new_value = 0;
+
+    if (!map || !value || !key)
+        return -EINVAL;
+
+    u32 *old_value = bpf_map_lookup_elem(map, key);
+
+    if (old_value) {
+        new_value = *value | *old_value;
+    } else {
+        new_value = *value;
+    }
+
+    if (!bpf_map_update_elem(map, key, &new_value, 0))
+        return -ENOMEM;
+
+    return 0;
+}
+
 /* ========================================================================= *
  * Filesystem, File, Device Policy                                           *
  * ========================================================================= */
@@ -130,8 +163,8 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_fs_permission(u64 container_id,
-                                            struct inode *inode, u32 access)
+static __always_inline int
+do_fs_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
     struct fs_policy_key key = {};
@@ -163,8 +196,8 @@ static __always_inline int do_fs_permission(u64 container_id,
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_file_permission(u64 container_id,
-                                              struct inode *inode, u32 access)
+static __always_inline int
+do_file_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
     struct file_policy_key key = {};
@@ -196,8 +229,8 @@ static __always_inline int do_file_permission(u64 container_id,
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_dev_permission(u64 container_id,
-                                             struct inode *inode, u32 access)
+static __always_inline int
+do_dev_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
     struct dev_policy_key key = {};
@@ -236,8 +269,8 @@ static __always_inline int do_dev_permission(u64 container_id,
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_procfs_permission(u64 container_id,
-                                                struct inode *inode, u32 access)
+static __always_inline int
+do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -270,8 +303,8 @@ static __always_inline int do_procfs_permission(u64 container_id,
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_inode_perm(u64 container_id, struct inode *inode,
-                                 u32 access)
+static int
+bpfcontain_inode_perm(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
     struct bpfcon_container *container =
@@ -320,7 +353,8 @@ static int bpfcontain_inode_perm(u64 container_id, struct inode *inode,
 }
 
 SEC("lsm/file_permission")
-int BPF_PROG(file_permission, struct file *file, int mask) {
+int BPF_PROG(file_permission, struct file *file, int mask)
+{
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
@@ -331,7 +365,7 @@ int BPF_PROG(file_permission, struct file *file, int mask) {
 
     // Make an access control decision
     return bpfcontain_inode_perm(process->container_id, file->f_inode,
-            mask_to_access(file->f_inode, mask));
+                                 mask_to_access(file->f_inode, mask));
 }
 
 /* Enforce policy on execve operations */
@@ -414,7 +448,7 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
 /* Mediate access to create a file. */
 SEC("lsm/path_mknod")
 int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
-          umode_t mode, unsigned int dev)
+             umode_t mode, unsigned int dev)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -459,7 +493,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
 /* Mediate access to make a symlink. */
 SEC("lsm/path_symlink")
 int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
-          const char *old_name)
+             const char *old_name)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -481,7 +515,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
 /* Mediate access to make a hard link. */
 SEC("lsm/path_link")
 int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
-          struct dentry *new_dentry)
+             struct dentry *new_dentry)
 {
     int ret = 0;
 
@@ -512,7 +546,7 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
 /* Mediate access to rename a file. */
 SEC("lsm/path_rename")
 int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
-          const struct path *new_dir, struct dentry *new_dentry)
+             const struct path *new_dir, struct dentry *new_dentry)
 {
     int ret = 0;
 
@@ -588,9 +622,9 @@ int BPF_PROG(path_chmod, const struct path *path)
  *
  * return: Converted access mask.
  */
-static __always_inline int mmap_permission(u64 container_id, struct file *file,
-                                           unsigned long prot,
-                                           unsigned long flags)
+static __always_inline int
+mmap_permission(u64 container_id, struct file *file, unsigned long prot,
+                unsigned long flags)
 {
     u32 access = 0;
 
@@ -614,7 +648,7 @@ static __always_inline int mmap_permission(u64 container_id, struct file *file,
 
 SEC("lsm/mmap_file")
 int BPF_PROG(mmap_file, struct file *file, unsigned long reqprot,
-          unsigned long prot, unsigned long flags)
+             unsigned long prot, unsigned long flags)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -629,7 +663,7 @@ int BPF_PROG(mmap_file, struct file *file, unsigned long reqprot,
 
 SEC("lsm/file_mprotect")
 int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
-          unsigned long prot)
+             unsigned long prot)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -647,10 +681,12 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
  * Network Policy                                                            *
  * ========================================================================= */
 
-static u8 family_to_category(int family) {
-    // Note: I think it makes sense to support these four protocol families for now.
-    // Support for others can be added in the future. In bpfbox, I made the mistake
-    // of trying to support everything and things got very complicated very quickly.
+static u8 family_to_category(int family)
+{
+    // Note: I think it makes sense to support these four protocol families for
+    // now. Support for others can be added in the future. In bpfbox, I made the
+    // mistake of trying to support everything and things got very complicated
+    // very quickly.
     switch (family) {
         case AF_UNIX:
         case AF_NETLINK:
@@ -729,12 +765,13 @@ int BPF_PROG(socket_create, int family, int type, int protocol, int kern)
 
     u8 category = family_to_category(family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CREATE);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_CREATE);
 }
 
 SEC("lsm/socket_bind")
 int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
-          int addrlen)
+             int addrlen)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -746,12 +783,13 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 
     u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_BIND);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_BIND);
 }
 
 SEC("lsm/socket_connect")
 int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
-          int addrlen)
+             int addrlen)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -763,12 +801,13 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
 
     u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_CONNECT);
 }
 
 SEC("lsm/unix_stream_connect")
 int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
-          struct socket *newsock)
+             struct socket *newsock)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -780,7 +819,8 @@ int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
 
     u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_CONNECT);
 }
 
 SEC("lsm/unix_may_send")
@@ -796,7 +836,8 @@ int BPF_PROG(unix_may_send, struct socket *sock, struct socket *other)
 
     u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_SEND);
 }
 
 SEC("lsm/socket_listen")
@@ -812,7 +853,8 @@ int BPF_PROG(socket_listen, struct socket *sock, int backlog)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_LISTEN);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_LISTEN);
 }
 
 SEC("lsm/socket_accept")
@@ -828,7 +870,8 @@ int BPF_PROG(socket_accept, struct socket *sock, struct socket *newsock)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_ACCEPT);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_ACCEPT);
 }
 
 SEC("lsm/socket_sendmsg")
@@ -844,12 +887,13 @@ int BPF_PROG(socket_sendmsg, struct socket *sock, struct msghdr *msg, int size)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_SEND);
 }
 
 SEC("lsm/socket_recvmsg")
 int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
-          int flags)
+             int flags)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -861,7 +905,8 @@ int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_RECV);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_RECV);
 }
 
 SEC("lsm/socket_shutdown")
@@ -877,7 +922,8 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process->container_id, category, BPFCON_NET_SHUTDOWN);
+    return bpfcontain_net_perm(process->container_id, category,
+                               BPFCON_NET_SHUTDOWN);
 }
 
 /* ========================================================================= *
@@ -890,7 +936,8 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
  *
  * return: Converted capability.
  */
-static __always_inline u32 cap_to_access(int cap) {
+static __always_inline u32 cap_to_access(int cap)
+{
     if (cap == CAP_NET_BIND_SERVICE) {
         return BPFCON_CAP_NET_BIND_SERVICE;
     }
@@ -916,8 +963,8 @@ static __always_inline u32 cap_to_access(int cap) {
 
 /* Restrict container capabilities */
 SEC("lsm/capable")
-int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns, int cap,
-          unsigned int opts)
+int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
+             int cap, unsigned int opts)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -930,7 +977,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns, int ca
     // Convert cap to an "access vector"
     // (even though only one bit will be on at a time)
     u32 access = cap_to_access(cap);
-    if (!access) { // One of our implicit-deny capbilities
+    if (!access) {  // One of our implicit-deny capbilities
         return -EACCES;
     }
 
