@@ -9,6 +9,7 @@ use anyhow::{bail, Result};
 use clap::ArgMatches;
 
 use crate::bpf;
+use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
 /// Main entrypoint for BPF program functionality.
@@ -64,15 +65,24 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 
     log::info!("Loaded and attached BPF objects!");
 
-    // FIXME: remove this, for testing
-    let key: libc::c_ulong = 42;
-    let mut value = crate::libbpfcontain::structs::bpfcon_container::default();
-    value.default_deny = 1;
-    let key = unsafe { plain::as_bytes(&key) };
-    let value = unsafe { plain::as_bytes(&value) };
-    skel.maps()
-        .containers()
-        .update(key, value, libbpf_rs::MapFlags::ANY)?;
+    // FIXME: delete this, testing code
+    let policy_str = "
+        name: discord
+        cmd: /bin/discord
+        default: deny
+        rights:
+          - fs: {path: /}
+          - fs: {path: /tmp}
+          - file: {path: /tmp/bpfcon, access: read-only}
+          - file: {path: /tmp/bpfcon, access: {flags: wx}}
+          - net: {category: www, access: client-server}
+          - capability: dac-override
+          - capability: net-bind-service
+        restrictions:
+          - fs: {path: /dev}
+        ";
+    let policy: Policy = serde_yaml::from_str(policy_str)?;
+    policy.load(&mut skel)?;
 
     std::thread::sleep(std::time::Duration::new(10000, 0));
 

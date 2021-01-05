@@ -19,6 +19,7 @@ plain = "0.2.3"
 bitflags = "1.2.1"
 serde_yaml = "0.8.14"
 serde = { version = "1.0.118", features = ["derive"] }
+glob = "0.3.0"
 
 [dev-dependencies]
 libbpf-cargo = "0.4.0"

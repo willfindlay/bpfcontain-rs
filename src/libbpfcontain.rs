@@ -35,11 +35,11 @@ pub mod structs {
     use bitflags::bitflags;
     use plain::Plain;
 
-    use bindings::capability_t;
-    use bindings::file_permission_t;
-    use bindings::net_category_t;
-    use bindings::net_operation_t;
-    use bindings::policy_decision_t;
+    pub use bindings::capability_t;
+    pub use bindings::file_permission_t;
+    pub use bindings::net_category_t;
+    pub use bindings::net_operation_t;
+    pub use bindings::policy_decision_t;
 
     bitflags! {
         /// Represents a policy decision from the BPF side.

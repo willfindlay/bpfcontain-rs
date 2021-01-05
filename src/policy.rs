@@ -5,9 +5,13 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+use crate::bpf::BpfcontainSkel as Skel;
 use crate::libbpfcontain::structs;
+
 use anyhow::{bail, Result};
+use libbpf_rs::MapFlags;
 use serde::Deserialize;
+use std::path::PathBuf;
 
 pub trait ToBitflags {
     type BitFlag;
@@ -193,8 +197,9 @@ impl ToBitflags for NetCategory {
 }
 
 impl Default for NetCategory {
+    /// NetCategory defaults to both WWW and IPC
     fn default() -> Self {
-        Self::WWW
+        Self::All
     }
 }
 
@@ -246,6 +251,7 @@ impl ToBitflags for NetAccess {
 }
 
 impl Default for NetAccess {
+    /// NetAccess defaults to ClientServer (with send and receive)
     fn default() -> Self {
         Self::ClientServer
     }
@@ -269,7 +275,11 @@ enum Rule {
     /// ```
     #[serde(rename = "filesystem")]
     #[serde(alias = "fs")]
-    Fs { path: String, access: FileAccess },
+    Fs {
+        path: String,
+        #[serde(default)]
+        access: FileAccess,
+    },
 
     /// A file access rule, specifying a path and an access vector.
     ///
@@ -285,7 +295,11 @@ enum Rule {
     ///   access: rwx
     /// ```
     #[serde(rename = "file")]
-    File { path: String, access: FileAccess },
+    File {
+        path: String,
+        #[serde(default)]
+        access: FileAccess,
+    },
 
     /// A capability rule, specifying a single capability.
     ///
@@ -322,7 +336,7 @@ enum Rule {
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 #[serde(deny_unknown_fields)]
-struct Policy {
+pub struct Policy {
     /// The policy's name. Should be unique.
     /// A policy _must_ specify a name.
     name: String,
@@ -342,12 +356,249 @@ struct Policy {
     restrictions: Vec<Rule>,
 }
 
+impl Policy {
+    pub fn compute_container_id(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        self.name.hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    pub fn load(&self, skel: &mut Skel) -> Result<()> {
+        // Load the `container_id` into the `containers` eBPF map
+        self.load_container(skel)?;
+
+        // Load rights
+        for rule in self.rights.iter() {
+            self.load_rule(skel, rule, PolicyDecision::Allow)?;
+        }
+
+        // Load restrictions
+        for rule in self.restrictions.iter() {
+            self.load_rule(skel, rule, PolicyDecision::Deny)?;
+        }
+
+        Ok(())
+    }
+
+    /// Returns a `(st_dev, st_ino)` pair for the path `path`.
+    fn path_to_dev_ino(path: &PathBuf) -> Result<(u64, u64)> {
+        use std::fs;
+        use std::os::linux::fs::MetadataExt;
+
+        let stat = fs::metadata(path)?;
+
+        Ok((stat.st_dev(), stat.st_ino()))
+    }
+
+    /// Returns a vector of (st_dev, st_ino) pairs for the glob `pattern`.
+    fn glob_to_dev_ino(pattern: &String) -> Result<Vec<(u64, u64)>> {
+        use glob::glob;
+        let mut results = vec![];
+
+        for entry in glob(pattern)? {
+            if let Ok(path) = entry {
+                match Self::path_to_dev_ino(&path) {
+                    Ok(res) => results.push(res),
+                    Err(e) => log::error!("{}", e),
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Loads a [`Rule`] into the eBPF map corresponding to the policy decision
+    /// [`PolicyDecision`].
+    fn load_rule(&self, skel: &mut Skel, rule: &Rule, action: PolicyDecision) -> Result<()> {
+        match rule {
+            // Handle filesystem rule
+            Rule::Fs { path, access } => self.load_fs_rule(skel, path, access, &action)?,
+
+            // Handle file rule
+            Rule::File { path, access } => self.load_file_rule(skel, path, access, &action)?,
+
+            // Handle capability rule
+            Rule::Capability(capability) => self.load_capability_rule(skel, capability, &action)?,
+
+            // Handle network rule
+            Rule::Network { category, access } => {
+                self.load_net_rule(skel, category, access, &action)?
+            }
+        };
+
+        Ok(())
+    }
+
+    fn load_fs_rule(
+        &self,
+        skel: &mut Skel,
+        path: &String,
+        access: &FileAccess,
+        action: &PolicyDecision,
+    ) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.fs_allow(),
+            PolicyDecision::Deny => maps.fs_deny(),
+        };
+
+        let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))?;
+
+        // Set key using st_dev and container_id
+        let mut key = structs::fs_policy_key::default();
+        key.container_id = self.compute_container_id();
+        key.device_id = st_dev as u32;
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Update old value with new value
+        let mut value: u32 = access.to_bitflags().bits();
+        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+            let old_value: u32 =
+                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+            value |= old_value;
+        }
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+
+    fn load_file_rule(
+        &self,
+        skel: &mut Skel,
+        path: &String,
+        access: &FileAccess,
+        action: &PolicyDecision,
+    ) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.file_allow(),
+            PolicyDecision::Deny => maps.file_deny(),
+        };
+
+        let (st_dev, st_ino) = Self::path_to_dev_ino(&PathBuf::from(path))?;
+
+        // Set key using st_dev, st_ino, and container_id
+        let mut key = structs::file_policy_key::default();
+        key.container_id = self.compute_container_id();
+        key.device_id = st_dev as u32;
+        key.inode_id = st_ino;
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Update old value with new value
+        let mut value: u32 = access.to_bitflags().bits();
+        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+            let old_value: u32 =
+                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+            value |= old_value;
+        }
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+
+    fn load_capability_rule(
+        &self,
+        skel: &mut Skel,
+        capability: &Capability,
+        action: &PolicyDecision,
+    ) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.cap_allow(),
+            PolicyDecision::Deny => maps.cap_deny(),
+        };
+
+        // Set key using container_id
+        let mut key = structs::cap_policy_key::default();
+        key.container_id = self.compute_container_id();
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Update old value with new value
+        let mut value: u32 = capability.to_bitflags().bits();
+        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+            let old_value: u32 =
+                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+            value |= old_value;
+        }
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+
+    fn load_net_rule(
+        &self,
+        skel: &mut Skel,
+        category: &NetCategory,
+        access: &NetAccess,
+        action: &PolicyDecision,
+    ) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.net_allow(),
+            PolicyDecision::Deny => maps.net_deny(),
+        };
+
+        // Set key using container_id
+        let mut key = structs::net_policy_key::default();
+        key.container_id = self.compute_container_id();
+        // This should be fine, as net category's bitmask will always be below 255
+        key.category = category.to_bitflags().bits() as u8;
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Update old value with new value
+        let mut value: u32 = access.to_bitflags().bits();
+        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+            let old_value: u32 =
+                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+            value |= old_value;
+        }
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+
+    /// Computes and loads the correct `container_id` into the `containers` eBPF
+    /// map.
+    fn load_container(&self, skel: &mut Skel) -> Result<()> {
+        let key = self.compute_container_id();
+        let mut value = structs::bpfcon_container::default();
+
+        match self.default {
+            PolicyDecision::Allow => value.default_deny = 0,
+            PolicyDecision::Deny => value.default_deny = 1,
+        };
+
+        let key = unsafe { plain::as_bytes(&key) };
+        let value = unsafe { plain::as_bytes(&value) };
+
+        skel.maps().containers().update(key, value, MapFlags::ANY)?;
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_policy_deserialzie() -> Result<()> {
+    fn test_policy_deserialize() -> Result<()> {
         let policy_str = "
             name: test_policy
             cmd: /bin/test
@@ -431,6 +682,58 @@ mod tests {
                     access: FileAccess::Flags("w".into())
                 }
             ]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_policy_deserialize_smoke() -> Result<()> {
+        let policy_str = "
+            name: testificate
+            cmd: /bin/testificate
+            default: allow
+
+            rights:
+            - file:
+                path: /bin/testificate
+                access: {flags: rxm}
+            - filesystem:
+                path: /tmp
+                access: {flags: rwx}
+            - fs:
+                path: /mnt
+                access: read-write
+            - fs:
+                path: /dev
+            - net:
+                category: www
+                access: client
+            - capability: net-bind-service
+
+            restrictions:
+            - capability: dac-override
+            - capability: dac-read-search
+            ";
+
+        let _policy: Policy = serde_yaml::from_str(policy_str)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_policy_id() -> Result<()> {
+        let mut policy_1 = Policy::default();
+        policy_1.name = "discord".into();
+        policy_1.cmd = "/bin/discord".into();
+
+        let mut policy_2 = Policy::default();
+        policy_2.name = "discord".into();
+        policy_2.cmd = "/bin/discord".into();
+
+        assert_eq!(
+            policy_1.compute_container_id(),
+            policy_2.compute_container_id()
         );
 
         Ok(())
