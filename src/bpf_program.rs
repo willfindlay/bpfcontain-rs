@@ -5,7 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 
 use crate::bpf;
@@ -71,7 +71,7 @@ pub fn main(args: &ArgMatches) -> Result<()> {
         cmd: /bin/discord
         default: deny
         rights:
-          - fs: {path: /}
+          - fs: {path: /a}
           - fs: {path: /tmp}
           - file: {path: /tmp/bpfcon, access: read-only}
           - file: {path: /tmp/bpfcon, access: {flags: wx}}
@@ -81,8 +81,10 @@ pub fn main(args: &ArgMatches) -> Result<()> {
         restrictions:
           - fs: {path: /dev}
         ";
-    let policy: Policy = serde_yaml::from_str(policy_str)?;
-    policy.load(&mut skel)?;
+    let policy: Policy = serde_yaml::from_str(policy_str).context("Failed to parse policy")?;
+    policy.load(&mut skel).context("Failed to load policy")?;
+
+    log::debug!("Done loading policy");
 
     std::thread::sleep(std::time::Duration::new(10000, 0));
 
@@ -128,7 +130,12 @@ impl SymbolUprobeExt for libbpf_rs::Program {
         binary_path.push_str("\0");
 
         // Use the offset we found to attach the uprobe or uretprobe
-        let result = self.attach_uprobe(retprobe, pid, &binary_path[..], func_offset)?;
+        let result = self
+            .attach_uprobe(retprobe, pid, &binary_path[..], func_offset)
+            .context(format!(
+                "Failed to attach uprobe binary_path=`{}` symbol_name=`{}`",
+                binary_path, symbol_name
+            ))?;
 
         Ok(result)
     }

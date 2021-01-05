@@ -8,7 +8,7 @@
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::libbpfcontain::structs;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use libbpf_rs::MapFlags;
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -369,16 +369,21 @@ impl Policy {
 
     pub fn load(&self, skel: &mut Skel) -> Result<()> {
         // Load the `container_id` into the `containers` eBPF map
-        self.load_container(skel)?;
+        self.load_container(skel)
+            .context(format!("Failed to load container ID "))?;
 
         // Load rights
         for rule in self.rights.iter() {
-            self.load_rule(skel, rule, PolicyDecision::Allow)?;
+            // TODO: Handle errors gracefully
+            self.load_rule(skel, rule, PolicyDecision::Allow)
+                .context(format!("Failed to load right {:?}", rule))?;
         }
 
         // Load restrictions
         for rule in self.restrictions.iter() {
-            self.load_rule(skel, rule, PolicyDecision::Deny)?;
+            // TODO: Handle errors gracefully
+            self.load_rule(skel, rule, PolicyDecision::Deny)
+                .context(format!("Failed to load restriction {:?}", rule))?;
         }
 
         Ok(())
@@ -389,7 +394,8 @@ impl Policy {
         use std::fs;
         use std::os::linux::fs::MetadataExt;
 
-        let stat = fs::metadata(path)?;
+        let stat =
+            fs::metadata(path).context(format!("Failed to look up metadata for {:?}", path))?;
 
         Ok((stat.st_dev(), stat.st_ino()))
     }
@@ -399,11 +405,11 @@ impl Policy {
         use glob::glob;
         let mut results = vec![];
 
-        for entry in glob(pattern)? {
+        for entry in glob(pattern).context(format!("Failed to glob {}", pattern))? {
             if let Ok(path) = entry {
                 match Self::path_to_dev_ino(&path) {
                     Ok(res) => results.push(res),
-                    Err(e) => log::error!("{}", e),
+                    Err(e) => log::warn!("Unable to get information for {:?}: {}", path, e),
                 }
             }
         }
@@ -447,7 +453,8 @@ impl Policy {
             PolicyDecision::Deny => maps.fs_deny(),
         };
 
-        let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))?;
+        let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))
+            .context(format!("Failed to get information for {}", path))?;
 
         // Set key using st_dev and container_id
         let mut key = structs::fs_policy_key::default();
@@ -457,14 +464,20 @@ impl Policy {
 
         // Update old value with new value
         let mut value: u32 = access.to_bitflags().bits();
-        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+        if let Some(old_value) = map
+            .lookup(key, MapFlags::ANY)
+            .context(format!("Exception during map lookup with key {:?}", key))?
+        {
             let old_value: u32 =
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = unsafe { plain::as_bytes(&value) };
 
-        map.update(key, value, MapFlags::ANY)?;
+        map.update(key, value, MapFlags::ANY).context(format!(
+            "Failed to update map key={:?} value={:?}",
+            key, value
+        ))?;
 
         Ok(())
     }
@@ -483,25 +496,33 @@ impl Policy {
             PolicyDecision::Deny => maps.file_deny(),
         };
 
-        let (st_dev, st_ino) = Self::path_to_dev_ino(&PathBuf::from(path))?;
+        for (st_dev, st_ino) in
+            Self::glob_to_dev_ino(&path).context(format!("Failed to glob {}", path))?
+        {
+            // Set key using st_dev, st_ino, and container_id
+            let mut key = structs::file_policy_key::default();
+            key.container_id = self.compute_container_id();
+            key.device_id = st_dev as u32;
+            key.inode_id = st_ino;
+            let key = unsafe { plain::as_bytes(&key) };
 
-        // Set key using st_dev, st_ino, and container_id
-        let mut key = structs::file_policy_key::default();
-        key.container_id = self.compute_container_id();
-        key.device_id = st_dev as u32;
-        key.inode_id = st_ino;
-        let key = unsafe { plain::as_bytes(&key) };
+            // Update old value with new value
+            let mut value: u32 = access.to_bitflags().bits();
+            if let Some(old_value) = map
+                .lookup(key, MapFlags::ANY)
+                .context(format!("Exception during map lookup with key {:?}", key))?
+            {
+                let old_value: u32 =
+                    *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                value |= old_value;
+            }
+            let value = unsafe { plain::as_bytes(&value) };
 
-        // Update old value with new value
-        let mut value: u32 = access.to_bitflags().bits();
-        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
-            let old_value: u32 =
-                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-            value |= old_value;
+            map.update(key, value, MapFlags::ANY).context(format!(
+                "Failed to update map key={:?} value={:?}",
+                key, value
+            ))?;
         }
-        let value = unsafe { plain::as_bytes(&value) };
-
-        map.update(key, value, MapFlags::ANY)?;
 
         Ok(())
     }
@@ -526,14 +547,20 @@ impl Policy {
 
         // Update old value with new value
         let mut value: u32 = capability.to_bitflags().bits();
-        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+        if let Some(old_value) = map
+            .lookup(key, MapFlags::ANY)
+            .context(format!("Exception during map lookup with key {:?}", key))?
+        {
             let old_value: u32 =
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = unsafe { plain::as_bytes(&value) };
 
-        map.update(key, value, MapFlags::ANY)?;
+        map.update(key, value, MapFlags::ANY).context(format!(
+            "Failed to update map key={:?} value={:?}",
+            key, value
+        ))?;
 
         Ok(())
     }
@@ -561,14 +588,20 @@ impl Policy {
 
         // Update old value with new value
         let mut value: u32 = access.to_bitflags().bits();
-        if let Some(old_value) = map.lookup(key, MapFlags::ANY)? {
+        if let Some(old_value) = map
+            .lookup(key, MapFlags::ANY)
+            .context(format!("Exception during map lookup with key {:?}", key))?
+        {
             let old_value: u32 =
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = unsafe { plain::as_bytes(&value) };
 
-        map.update(key, value, MapFlags::ANY)?;
+        map.update(key, value, MapFlags::ANY).context(format!(
+            "Failed to update map key={:?} value={:?}",
+            key, value
+        ))?;
 
         Ok(())
     }
@@ -587,7 +620,13 @@ impl Policy {
         let key = unsafe { plain::as_bytes(&key) };
         let value = unsafe { plain::as_bytes(&value) };
 
-        skel.maps().containers().update(key, value, MapFlags::ANY)?;
+        skel.maps()
+            .containers()
+            .update(key, value, MapFlags::ANY)
+            .context(format!(
+                "Failed to update map key={:?} value={:?}",
+                key, value
+            ))?;
 
         Ok(())
     }

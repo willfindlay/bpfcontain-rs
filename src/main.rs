@@ -5,7 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg, SubCommand};
 use simple_logger::SimpleLogger;
 
@@ -93,15 +93,15 @@ fn main() -> Result<()> {
 
     // Dispatch to subcommand
     let result = match args.subcommand() {
-        ("daemon", Some(args)) => daemon::main(args),
-        ("run", Some(args)) => run::main(args),
+        ("daemon", Some(args)) => daemon::main(args).context("Exited with error"),
+        ("run", Some(args)) => run::main(args).context("Exited with error"),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };
 
     // Log errors if they bubble up
     if let Err(e) = result {
-        log::error!("Exited with error: {}", e);
+        log::error!("{:?}", e);
         std::process::exit(1);
     }
 
