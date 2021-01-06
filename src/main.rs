@@ -84,10 +84,6 @@ fn main() -> Result<()> {
     // Parse arguments
     let args = app.get_matches();
 
-    // Get config path
-    let config_path = args.value_of("cfg");
-    let config = config::Settings::new(config_path).context("Failed to load configuration")?;
-
     // Set log level based on verbosity
     // Level 0: Warning
     // Level 1: Info
@@ -103,6 +99,13 @@ fn main() -> Result<()> {
     // Initialize the logger
     SimpleLogger::new().with_level(log_level).init()?;
 
+    // Initialize config
+    let config_path = args.value_of("cfg");
+    let config = config::Settings::new(config_path).context("Failed to load configuration")?;
+
+    // Pretty print current config to debug logs
+    log::debug!("{:#?}", config);
+
     // Dispatch to subcommand
     let result = match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args, &config).context("Exited with error"),
@@ -112,6 +115,7 @@ fn main() -> Result<()> {
     };
 
     // Log errors if they bubble up
+    // This effectively re-routes error messages to the log file
     if let Err(e) = result {
         log::error!("{:?}", e);
         std::process::exit(1);

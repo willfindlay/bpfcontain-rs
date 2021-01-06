@@ -9,11 +9,12 @@ use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 
 use crate::bpf;
+use crate::config::Settings;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
 /// Main entrypoint for BPF program functionality.
-pub fn main(args: &ArgMatches) -> Result<()> {
+pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Initializing BPF objects...");
 
     // Initialize the skeleton builder
@@ -65,28 +66,11 @@ pub fn main(args: &ArgMatches) -> Result<()> {
 
     log::info!("Loaded and attached BPF objects!");
 
-    // FIXME: delete this, testing code
-    let policy_str = "
-        name: discord
-        cmd: /bin/discord
-        default: deny
-        rights:
-          - fs: {path: /}
-          - fs: {path: /tmp}
-          - file: {path: /tmp/bpfcon, access: read-only}
-          - file: {path: /tmp/bpfcon, access: {flags: wx}}
-          - net: {category: www, access: client-server}
-          - capability: dac-override
-          - capability: net-bind-service
-        restrictions:
-          - fs: {path: /dev}
-        taints:
-          - fs: {path: /}
-        ";
-    let policy: Policy = serde_yaml::from_str(policy_str).context("Failed to parse policy")?;
-    policy.load(&mut skel).context("Failed to load policy")?;
-
-    log::debug!("Done loading policy");
+    // TODO: wrap this in a loop for all files in &config.policy.dir
+    log::info!("Loading policy...");
+    //let policy: Policy = serde_yaml::from_str(policy_str).context("Failed to parse policy")?;
+    //policy.load(&mut skel).context("Failed to load policy")?;
+    log::info!("Done loading policy!");
 
     std::thread::sleep(std::time::Duration::new(10000, 0));
 

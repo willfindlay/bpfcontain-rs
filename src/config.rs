@@ -4,31 +4,31 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Policy {
-    dir: String,
+pub struct Policy {
+    pub dir: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Daemon {
-    logfile: String,
-    pidfile: String,
-    workdir: String,
+pub struct Daemon {
+    pub logfile: String,
+    pub pidfile: String,
+    pub workdir: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
-    daemon: Daemon,
-    policy: Policy,
+    pub daemon: Daemon,
+    pub policy: Policy,
 }
 
 impl Settings {
     pub fn new(path: Option<&str>) -> Result<Self, ConfigError> {
         let mut s = Config::new();
 
-        // Default configuration TODO change this to s.default()
-        s.merge(File::with_name("config/default.yaml"))?;
+        // Set defaults
+        Self::set_defaults(&mut s)?;
 
         // User-supplied config file
         if let Some(path) = path {
@@ -36,13 +36,26 @@ impl Settings {
         }
         // Ordinary config hierarchy
         else {
-            // TODO
+            // Ignore results
+            let _ = s.merge(File::with_name("/etc/bpfcontain"));
         }
 
         // Read in from environment variables starting with `BPFCONTAIN_`
         s.merge(Environment::with_prefix("bpfcontain"))?;
 
         s.try_into()
+    }
+
+    fn set_defaults(s: &mut Config) -> Result<(), ConfigError> {
+        // Daemon defaults
+        s.set_default("daemon.logfile", "/var/log/bpfcontain.log")?;
+        s.set_default("daemon.pidfile", "/run/bpfcontain.pid")?;
+        s.set_default("daemon.workdir", "/var/lib/bpfcontain")?;
+
+        // Policy defaults
+        s.set_default("policy.dir", "/var/lib/bpfcontain/policy")?;
+
+        Ok(())
     }
 }
 
@@ -54,7 +67,7 @@ mod tests {
     fn test_default_smoke() -> Result<(), ConfigError> {
         let mut s = Config::new();
 
-        s.merge(File::with_name("config/default.yaml"))?;
+        Settings::set_defaults(&mut s).expect("Failed to set defaults");
 
         s.try_into::<Settings>().expect("Deserialization failed");
 

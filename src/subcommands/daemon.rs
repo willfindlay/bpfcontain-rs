@@ -15,16 +15,12 @@ use std::os::unix::fs::PermissionsExt;
 use crate::bpf_program;
 use crate::config::Settings;
 
-static PIDFILE: &str = "/run/bpfcontain.pid";
-static LOGFILE: &str = "/var/log/bpfcontain.log";
-static WORKDIR: &str = "/var/lib/bpfcontain";
-
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let result = match args.subcommand() {
-        ("start", Some(args)) => start_daemon(args),
-        ("restart", Some(args)) => restart_daemon(args),
-        ("stop", Some(_)) => stop_daemon(),
-        ("foreground", Some(args)) => bpf_program::main(args),
+        ("start", Some(args)) => start_daemon(args, config),
+        ("restart", Some(args)) => restart_daemon(args, config),
+        ("stop", Some(_)) => stop_daemon(config),
+        ("foreground", Some(args)) => bpf_program::main(args, config),
         _ => bail!("Bad subcommand name"),
     };
 
@@ -32,26 +28,30 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 }
 
 /// Starts the daemon.
-fn start_daemon(args: &ArgMatches) -> Result<()> {
+fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
 
+    let workdir = &config.daemon.workdir;
+    let logfile = &config.daemon.logfile;
+    let pidfile = &config.daemon.pidfile;
+
     // Open the log file
-    let stdout = OpenOptions::new().create(true).append(true).open(LOGFILE)?;
-    let stderr = OpenOptions::new().create(true).append(true).open(LOGFILE)?;
+    let stdout = OpenOptions::new().create(true).append(true).open(logfile)?;
+    let stderr = OpenOptions::new().create(true).append(true).open(logfile)?;
 
     // Create workdir and set permissions to rwxr-xr-t
-    create_dir_all(WORKDIR)?;
-    let mut perms = metadata(WORKDIR)?.permissions();
+    create_dir_all(workdir)?;
+    let mut perms = metadata(workdir)?.permissions();
     perms.set_mode(0o1755);
-    set_permissions(WORKDIR, perms)?;
+    set_permissions(workdir, perms)?;
 
     // Set up the daemon
     let daemonize = Daemonize::new()
-        .pid_file(PIDFILE)
+        .pid_file(pidfile)
         //.user("nobody")
         .stdout(stdout)
         .stderr(stderr)
-        .working_directory(WORKDIR)
+        .working_directory(workdir)
         .exit_action(|| log::info!("Started the daemon!"));
 
     // Try to start the daemon
@@ -62,20 +62,22 @@ fn start_daemon(args: &ArgMatches) -> Result<()> {
         }
     }
 
-    bpf_program::main(&args)?;
+    bpf_program::main(&args, config)?;
 
     Ok(())
 }
 
 /// Stops the daemon by parsing the daemon's [`PIDFILE`] and sending a `SIGTERM`
 /// using kill(2).
-fn stop_daemon() -> Result<()> {
+fn stop_daemon(config: &Settings) -> Result<()> {
     log::info!("Stopping daemon...");
+
+    let pidfile = &config.daemon.pidfile;
 
     // Parse pid from pidfile
     let pid: i32 = {
         // Open pidfile for reading
-        let mut pidfile = match File::open(PIDFILE) {
+        let mut pidfile = match File::open(pidfile) {
             Ok(file) => file,
             Err(e) => bail!("Failed to open pidfile: {}", e),
         };
@@ -112,24 +114,23 @@ fn stop_daemon() -> Result<()> {
 ///
 /// This behaviour should be changed in future versions to wait for the file to
 /// be unlocked.
-fn restart_daemon(args: &ArgMatches) -> Result<()> {
+fn restart_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Restarting daemon...");
 
     // Try to stop the daemon
-    match stop_daemon() {
+    match stop_daemon(config) {
         Ok(_) => {
             // FIXME: Should poll to see if the process has actually stopped
             std::thread::sleep(std::time::Duration::new(1, 0));
         }
         Err(e) => {
             log::warn!(
-                "Unable to stop the daemon while restarting (daemon may not \
-                be running): {}",
+                "Unable to stop the daemon while restarting (daemon may not be running): {}",
                 e
             );
         }
     }
 
     // Start the daemon
-    start_daemon(args)
+    start_daemon(args, config)
 }
