@@ -71,7 +71,7 @@ pub fn main(args: &ArgMatches) -> Result<()> {
         cmd: /bin/discord
         default: deny
         rights:
-          - fs: {path: /a}
+          - fs: {path: /}
           - fs: {path: /tmp}
           - file: {path: /tmp/bpfcon, access: read-only}
           - file: {path: /tmp/bpfcon, access: {flags: wx}}
@@ -80,6 +80,8 @@ pub fn main(args: &ArgMatches) -> Result<()> {
           - capability: net-bind-service
         restrictions:
           - fs: {path: /dev}
+        taints:
+          - fs: {path: /}
         ";
     let policy: Policy = serde_yaml::from_str(policy_str).context("Failed to parse policy")?;
     policy.load(&mut skel).context("Failed to load policy")?;

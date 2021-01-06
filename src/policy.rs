@@ -22,10 +22,11 @@ pub trait ToBitflags {
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 enum PolicyDecision {
-    /// Default-deny
     Deny,
-    /// Default-allow
     Allow,
+    // We don't want to allow the user to specify default-taint
+    #[serde(skip)]
+    Taint,
 }
 
 impl ToBitflags for PolicyDecision {
@@ -37,6 +38,7 @@ impl ToBitflags for PolicyDecision {
         match self {
             Self::Deny => Self::BitFlag::DENY,
             Self::Allow => Self::BitFlag::ALLOW,
+            Self::Taint => Self::BitFlag::TAINT,
         }
     }
 }
@@ -354,6 +356,9 @@ pub struct Policy {
     /// The restrictions (deny-rules) associated with the policy.
     #[serde(default)]
     restrictions: Vec<Rule>,
+    /// The taints (taint-rules) associated with the policy.
+    #[serde(default)]
+    taints: Vec<Rule>,
 }
 
 impl Policy {
@@ -384,6 +389,13 @@ impl Policy {
             // TODO: Handle errors gracefully
             self.load_rule(skel, rule, PolicyDecision::Deny)
                 .context(format!("Failed to load restriction {:?}", rule))?;
+        }
+
+        // Load taints
+        for rule in self.taints.iter() {
+            // TODO: Handle errors gracefully
+            self.load_rule(skel, rule, PolicyDecision::Taint)
+                .context(format!("Failed to load taint {:?}", rule))?;
         }
 
         Ok(())
@@ -451,6 +463,7 @@ impl Policy {
         let map = match action {
             PolicyDecision::Allow => maps.fs_allow(),
             PolicyDecision::Deny => maps.fs_deny(),
+            PolicyDecision::Taint => maps.fs_taint(),
         };
 
         let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))
@@ -494,6 +507,7 @@ impl Policy {
         let map = match action {
             PolicyDecision::Allow => maps.file_allow(),
             PolicyDecision::Deny => maps.file_deny(),
+            PolicyDecision::Taint => maps.file_taint(),
         };
 
         for (st_dev, st_ino) in
@@ -538,6 +552,7 @@ impl Policy {
         let map = match action {
             PolicyDecision::Allow => maps.cap_allow(),
             PolicyDecision::Deny => maps.cap_deny(),
+            PolicyDecision::Taint => maps.cap_taint(),
         };
 
         // Set key using container_id
@@ -577,6 +592,7 @@ impl Policy {
         let map = match action {
             PolicyDecision::Allow => maps.net_allow(),
             PolicyDecision::Deny => maps.net_deny(),
+            PolicyDecision::Taint => maps.net_taint(),
         };
 
         // Set key using container_id
@@ -612,9 +628,17 @@ impl Policy {
         let key = self.compute_container_id();
         let mut value = structs::bpfcon_container::default();
 
+        // No taint rules implies that we should be tainted by default
+        if self.taints.is_empty() {
+            value.tainted = 1;
+        } else {
+            value.tainted = 0;
+        }
+
         match self.default {
             PolicyDecision::Allow => value.default_deny = 0,
             PolicyDecision::Deny => value.default_deny = 1,
+            _ => bail!("Policy should be default-allow or default-deny"),
         };
 
         let key = unsafe { plain::as_bytes(&key) };
@@ -722,6 +746,15 @@ mod tests {
                 }
             ]
         );
+
+        // This should fail
+        let policy_str = "
+            name: test_policy
+            cmd: /bin/test
+            default: taint
+            ";
+        serde_yaml::from_str::<Policy>(policy_str)
+            .expect_err("Shouldn't be able to parse default taint");
 
         Ok(())
     }

@@ -52,6 +52,7 @@ pub mod structs {
             const NO_DECISION = 0x00;
             const ALLOW       = 0x01;
             const DENY        = 0x02;
+            const TAINT       = 0x04;
         }
     }
 

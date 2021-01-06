@@ -17,6 +17,7 @@ typedef enum {
     BPFCON_NO_DECISION = 0x00,
     BPFCON_ALLOW = 0x01,
     BPFCON_DENY = 0x02,
+    BPFCON_TAINT = 0x04,
 } policy_decision_t;
 
 /* Permissions, partly based on AppArmor */
@@ -68,6 +69,7 @@ typedef enum {
 
 struct bpfcon_container {
     unsigned char default_deny;
+    unsigned char tainted;
 };
 
 struct bpfcon_process {

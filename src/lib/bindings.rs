@@ -3,6 +3,7 @@
 pub const policy_decision_t_BPFCON_NO_DECISION: policy_decision_t = 0;
 pub const policy_decision_t_BPFCON_ALLOW: policy_decision_t = 1;
 pub const policy_decision_t_BPFCON_DENY: policy_decision_t = 2;
+pub const policy_decision_t_BPFCON_TAINT: policy_decision_t = 4;
 pub type policy_decision_t = ::std::os::raw::c_uint;
 pub const file_permission_t_BPFCON_MAY_EXEC: file_permission_t = 1;
 pub const file_permission_t_BPFCON_MAY_WRITE: file_permission_t = 2;
@@ -40,12 +41,13 @@ pub type net_operation_t = ::std::os::raw::c_uint;
 #[derive(Debug, Default, Copy, Clone)]
 pub struct bpfcon_container {
     pub default_deny: ::std::os::raw::c_uchar,
+    pub tainted: ::std::os::raw::c_uchar,
 }
 #[test]
 fn bindgen_test_layout_bpfcon_container() {
     assert_eq!(
         ::std::mem::size_of::<bpfcon_container>(),
-        1usize,
+        2usize,
         concat!("Size of: ", stringify!(bpfcon_container))
     );
     assert_eq!(
@@ -61,6 +63,16 @@ fn bindgen_test_layout_bpfcon_container() {
             stringify!(bpfcon_container),
             "::",
             stringify!(default_deny)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).tainted as *const _ as usize },
+        1usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(tainted)
         )
     );
 }
