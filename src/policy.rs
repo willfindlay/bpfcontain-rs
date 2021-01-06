@@ -18,14 +18,41 @@ pub trait ToBitflags {
     fn to_bitflags(&self) -> Self::BitFlag;
 }
 
+/// Represents a default policy decision.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+enum DefaultDecision {
+    Deny,
+    Allow,
+    // No Taint
+}
+
+impl Default for DefaultDecision {
+    /// Policy should default to default-deny if not specified.
+    fn default() -> Self {
+        DefaultDecision::Deny
+    }
+}
+
+impl ToBitflags for DefaultDecision {
+    type BitFlag = structs::PolicyDecision;
+
+    /// Convert a [`PolicyDecision`] into a bitflag representation for loading into an
+    /// eBPF map.
+    fn to_bitflags(&self) -> Self::BitFlag {
+        match self {
+            Self::Deny => Self::BitFlag::DENY,
+            Self::Allow => Self::BitFlag::ALLOW,
+        }
+    }
+}
+
 /// Represents a policy decision.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 enum PolicyDecision {
     Deny,
     Allow,
-    // We don't want to allow the user to specify default-taint
-    #[serde(skip)]
     Taint,
 }
 
@@ -40,13 +67,6 @@ impl ToBitflags for PolicyDecision {
             Self::Allow => Self::BitFlag::ALLOW,
             Self::Taint => Self::BitFlag::TAINT,
         }
-    }
-}
-
-impl Default for PolicyDecision {
-    /// Policy should default to default-deny if not specified.
-    fn default() -> Self {
-        PolicyDecision::Deny
     }
 }
 
@@ -349,7 +369,7 @@ pub struct Policy {
     /// Whether the policy is default-allow or default-deny. If this is not
     /// provided, we automatically assume default-deny.
     #[serde(default)]
-    default: PolicyDecision,
+    default: DefaultDecision,
     /// The rights (allow-rules) associated with the policy.
     #[serde(default)]
     rights: Vec<Rule>,
@@ -636,9 +656,8 @@ impl Policy {
         }
 
         match self.default {
-            PolicyDecision::Allow => value.default_deny = 0,
-            PolicyDecision::Deny => value.default_deny = 1,
-            _ => bail!("Policy should be default-allow or default-deny"),
+            DefaultDecision::Allow => value.default_deny = 0,
+            DefaultDecision::Deny => value.default_deny = 1,
         };
 
         let key = unsafe { plain::as_bytes(&key) };
@@ -670,7 +689,7 @@ mod tests {
         let policy: Policy = serde_yaml::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
-        assert_eq!(policy.default, PolicyDecision::Deny);
+        assert_eq!(policy.default, DefaultDecision::Deny);
         assert_eq!(policy.rights, Vec::<Rule>::new());
         assert_eq!(policy.restrictions, Vec::<Rule>::new());
 
@@ -683,7 +702,7 @@ mod tests {
         let policy: Policy = serde_yaml::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
-        assert_eq!(policy.default, PolicyDecision::Allow);
+        assert_eq!(policy.default, DefaultDecision::Allow);
         assert_eq!(policy.rights, Vec::<Rule>::new());
         assert_eq!(policy.restrictions, Vec::<Rule>::new());
 
@@ -696,7 +715,7 @@ mod tests {
         let policy: Policy = serde_yaml::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
-        assert_eq!(policy.default, PolicyDecision::Deny);
+        assert_eq!(policy.default, DefaultDecision::Deny);
         assert_eq!(policy.rights, Vec::<Rule>::new());
         assert_eq!(policy.restrictions, Vec::<Rule>::new());
 
@@ -719,7 +738,7 @@ mod tests {
         let policy: Policy = serde_yaml::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
-        assert_eq!(policy.default, PolicyDecision::Allow);
+        assert_eq!(policy.default, DefaultDecision::Allow);
         assert_eq!(
             policy.rights,
             vec![
