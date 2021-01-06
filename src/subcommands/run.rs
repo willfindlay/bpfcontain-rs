@@ -10,8 +10,9 @@ use clap::ArgMatches;
 use std::fs::File;
 use std::io::Read;
 
+use crate::config::Settings;
 use crate::libbpfcontain::containerize;
 
-pub fn main(args: &ArgMatches) -> Result<()> {
+pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     containerize(42)
 }

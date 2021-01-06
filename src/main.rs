@@ -11,6 +11,7 @@ use simple_logger::SimpleLogger;
 
 mod bpf;
 mod bpf_program;
+mod config;
 mod libbpfcontain;
 mod policy;
 mod subcommands;
@@ -24,6 +25,10 @@ fn main() -> Result<()> {
         .version("0.0.1")
         .about("Container security with eBPF")
         .author("William Findlay <william@williamfindlay.com>")
+        // If the user supplies no arguments, print help
+        .setting(AppSettings::ArgRequiredElseHelp)
+        // Make all commands print colored help if available
+        .global_setting(AppSettings::ColoredHelp)
         .arg(
             Arg::with_name("v")
                 .short("v")
@@ -31,10 +36,13 @@ fn main() -> Result<()> {
                 .global(true)
                 .help("Sets verbosity. Possible values are -v, -vv, or -vvv"),
         )
-        // If the user supplies no arguments, print help
-        .setting(AppSettings::ArgRequiredElseHelp)
-        // Make all commands print colored help if available
-        .global_setting(AppSettings::ColoredHelp)
+        .arg(
+            Arg::with_name("cfg")
+                .long("config")
+                .takes_value(true)
+                .validator(path_validator)
+                .help("Use a different config file"),
+        )
         // Daemon-related commands
         .subcommand(
             SubCommand::with_name("daemon")
@@ -59,7 +67,7 @@ fn main() -> Result<()> {
                     SubCommand::with_name("foreground")
                         .about("Run in the foreground")
                         .display_order(4)
-                        .alias("fg"),
+                        .visible_alias("fg"),
                 ),
         )
         // Run the BPF program without daemonizing
@@ -75,6 +83,10 @@ fn main() -> Result<()> {
 
     // Parse arguments
     let args = app.get_matches();
+
+    // Get config path
+    let config_path = args.value_of("cfg");
+    let config = config::Settings::new(config_path).context("Failed to load configuration")?;
 
     // Set log level based on verbosity
     // Level 0: Warning
@@ -93,8 +105,8 @@ fn main() -> Result<()> {
 
     // Dispatch to subcommand
     let result = match args.subcommand() {
-        ("daemon", Some(args)) => daemon::main(args).context("Exited with error"),
-        ("run", Some(args)) => run::main(args).context("Exited with error"),
+        ("daemon", Some(args)) => daemon::main(args, &config).context("Exited with error"),
+        ("run", Some(args)) => run::main(args, &config).context("Exited with error"),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };
@@ -103,6 +115,21 @@ fn main() -> Result<()> {
     if let Err(e) = result {
         log::error!("{:?}", e);
         std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// Argument validator that ensures a path `arg` exists.
+///
+/// # Errors
+///
+/// Returns an error if the path does not exist.
+fn path_validator(arg: String) -> Result<(), String> {
+    let path = std::path::PathBuf::from(&arg);
+
+    if !path.exists() {
+        return Err(format!("Path `{}` does not exist", &arg));
     }
 
     Ok(())

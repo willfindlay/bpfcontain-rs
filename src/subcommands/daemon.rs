@@ -13,12 +13,13 @@ use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
 use crate::bpf_program;
+use crate::config::Settings;
 
 static PIDFILE: &str = "/run/bpfcontain.pid";
 static LOGFILE: &str = "/var/log/bpfcontain.log";
 static WORKDIR: &str = "/var/lib/bpfcontain";
 
-pub fn main(args: &ArgMatches) -> Result<()> {
+pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let result = match args.subcommand() {
         ("start", Some(args)) => start_daemon(args),
         ("restart", Some(args)) => restart_daemon(args),
