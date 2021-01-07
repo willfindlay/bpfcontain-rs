@@ -351,6 +351,14 @@ enum Rule {
         #[serde(default)]
         access: NetAccess,
     },
+
+    /// An IPC rule, specifying IPC access to another container.
+    ///
+    /// # Examples
+    ///
+    /// TODO
+    #[serde(rename = "ipc")]
+    Ipc(String),
 }
 
 /// A high-level representation of a BPFContain policy that has been loaded
@@ -382,12 +390,16 @@ pub struct Policy {
 }
 
 impl Policy {
-    pub fn compute_container_id(&self) -> u64 {
+    pub fn container_id(&self) -> u64 {
+        Self::container_id_for_name(&self.name)
+    }
+
+    fn container_id_for_name(name: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        self.name.hash(&mut hasher);
+        name.hash(&mut hasher);
 
         hasher.finish()
     }
@@ -466,6 +478,9 @@ impl Policy {
             Rule::Network { category, access } => {
                 self.load_net_rule(skel, category, access, &action)?
             }
+
+            // Handle IPC rule
+            Rule::Ipc(other) => self.load_ipc_rule(skel, other, &action)?,
         };
 
         Ok(())
@@ -491,7 +506,7 @@ impl Policy {
 
         // Set key using st_dev and container_id
         let mut key = structs::fs_policy_key::default();
-        key.container_id = self.compute_container_id();
+        key.container_id = self.container_id();
         key.device_id = st_dev as u32;
         let key = unsafe { plain::as_bytes(&key) };
 
@@ -535,7 +550,7 @@ impl Policy {
         {
             // Set key using st_dev, st_ino, and container_id
             let mut key = structs::file_policy_key::default();
-            key.container_id = self.compute_container_id();
+            key.container_id = self.container_id();
             key.device_id = st_dev as u32;
             key.inode_id = st_ino;
             let key = unsafe { plain::as_bytes(&key) };
@@ -577,7 +592,7 @@ impl Policy {
 
         // Set key using container_id
         let mut key = structs::cap_policy_key::default();
-        key.container_id = self.compute_container_id();
+        key.container_id = self.container_id();
         let key = unsafe { plain::as_bytes(&key) };
 
         // Update old value with new value
@@ -617,7 +632,7 @@ impl Policy {
 
         // Set key using container_id
         let mut key = structs::net_policy_key::default();
-        key.container_id = self.compute_container_id();
+        key.container_id = self.container_id();
         // This should be fine, as net category's bitmask will always be below 255
         key.category = category.to_bitflags().bits() as u8;
         let key = unsafe { plain::as_bytes(&key) };
@@ -642,10 +657,37 @@ impl Policy {
         Ok(())
     }
 
+    fn load_ipc_rule(&self, skel: &mut Skel, other: &str, action: &PolicyDecision) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.ipc_allow(),
+            PolicyDecision::Deny => maps.ipc_deny(),
+            PolicyDecision::Taint => maps.ipc_taint(),
+        };
+
+        // Set key using container_id
+        let mut key = structs::ipc_policy_key::default();
+        key.container_id = self.container_id();
+        key.other_container_id = Self::container_id_for_name(other);
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Value doesn't matter
+        let value: u8 = 0;
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY).context(format!(
+            "Failed to update map key={:?} value={:?}",
+            key, value
+        ))?;
+
+        Ok(())
+    }
+
     /// Computes and loads the correct `container_id` into the `containers` eBPF
     /// map.
     fn load_container(&self, skel: &mut Skel) -> Result<()> {
-        let key = self.compute_container_id();
+        let key = self.container_id();
         let mut value = structs::bpfcon_container::default();
 
         // No taint rules implies that we should be tainted by default
@@ -822,10 +864,7 @@ mod tests {
         policy_2.name = "discord".into();
         policy_2.cmd = "/bin/discord".into();
 
-        assert_eq!(
-            policy_1.compute_container_id(),
-            policy_2.compute_container_id()
-        );
+        assert_eq!(policy_1.container_id(), policy_2.container_id());
 
         Ok(())
     }
@@ -1101,6 +1140,20 @@ mod tests {
                 category: NetCategory::IPC,
                 access: NetAccess::Server
             }
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_ipc_rule_deserialize() -> Result<()> {
+        let rule_str = "
+            ipc: other
+            ";
+
+        assert_eq!(
+            serde_yaml::from_str::<Rule>(rule_str)?,
+            Rule::Ipc("other".into())
         );
 
         Ok(())

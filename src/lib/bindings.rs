@@ -334,6 +334,47 @@ fn bindgen_test_layout_net_policy_key() {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
+pub struct ipc_policy_key {
+    pub container_id: ::std::os::raw::c_ulong,
+    pub other_container_id: ::std::os::raw::c_ulong,
+}
+#[test]
+fn bindgen_test_layout_ipc_policy_key() {
+    assert_eq!(
+        ::std::mem::size_of::<ipc_policy_key>(),
+        16usize,
+        concat!("Size of: ", stringify!(ipc_policy_key))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ipc_policy_key>(),
+        8usize,
+        concat!("Alignment of ", stringify!(ipc_policy_key))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).container_id as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ipc_policy_key),
+            "::",
+            stringify!(container_id)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<ipc_policy_key>())).other_container_id as *const _ as usize
+        },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ipc_policy_key),
+            "::",
+            stringify!(other_container_id)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct inode_key {
     pub inode_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,

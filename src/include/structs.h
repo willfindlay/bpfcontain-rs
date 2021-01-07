@@ -104,6 +104,11 @@ struct net_policy_key {
     unsigned char category;
 };
 
+struct ipc_policy_key {
+    unsigned long container_id;
+    unsigned long other_container_id;
+};
+
 struct inode_key {
     unsigned long inode_id;
     unsigned int device_id;
