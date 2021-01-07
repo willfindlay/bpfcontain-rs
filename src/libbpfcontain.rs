@@ -191,6 +191,14 @@ pub mod structs {
     pub use bindings::net_policy_key;
     unsafe impl Plain for net_policy_key {}
 
+    /// Represents a IPC policy key on the BPF side.
+    ///
+    /// # Warning
+    ///
+    /// Keep this in sync with [structs.h](src/include/structs.h)
+    pub use bindings::ipc_policy_key;
+    unsafe impl Plain for ipc_policy_key {}
+
     /// Represents a per-inode key on the BPF side.
     ///
     /// # Warning

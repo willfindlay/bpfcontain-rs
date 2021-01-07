@@ -45,6 +45,11 @@ BPF_HASH(net_allow, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
 BPF_HASH(net_deny, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
 BPF_HASH(net_taint, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
 
+/* IPC policy */
+BPF_HASH(ipc_allow, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_deny, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
+
 /* ========================================================================= *
  * Helpers                                                                   *
  * ========================================================================= */
@@ -121,6 +126,55 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
     }
 
     return access;
+}
+
+/* Check whether two processes are allowed to perform IPC with each other.
+ *
+ * @process: Pointer to the calling process.
+ * @other_pid: Process ID of the other process.
+ *
+ * return: Policy decision.
+ */
+static __always_inline policy_decision_t
+check_ipc_access(struct bpfcon_process *process, u32 other_pid)  {
+    policy_decision_t decision = BPFCON_NO_DECISION;
+
+    struct bpfcon_process *other_process = bpf_map_lookup_elem(&processes, &other_pid);
+    if (!other_process)
+        return BPFCON_DENY;
+
+    struct ipc_policy_key key = {};
+    key.container_id = process->container_id;
+    key.other_container_id = other_process->container_id;
+
+    struct ipc_policy_key other_key = {};
+    key.container_id = other_process->container_id;
+    key.other_container_id = process->container_id;
+
+    // Allowed access must be mututal
+    u32 *allowed = bpf_map_lookup_elem(&ipc_allow, &key);
+    u32 *other_allowed = bpf_map_lookup_elem(&ipc_allow, &other_key);
+    if (allowed && other_allowed) {
+        decision |= BPFCON_ALLOW;
+    }
+
+    // Any denied access results in a denial
+    if ((long)bpf_map_lookup_elem(&ipc_deny, &key)) {
+        decision |= BPFCON_DENY;
+    }
+    if ((long)bpf_map_lookup_elem(&ipc_deny, &other_key)) {
+        decision |= BPFCON_DENY;
+    }
+
+    //// Any tainted access results in a taint
+    if ((long)bpf_map_lookup_elem(&ipc_taint, &key)) {
+        decision |= BPFCON_TAINT;
+    }
+    if ((long)bpf_map_lookup_elem(&ipc_taint, &other_key)) {
+        decision |= BPFCON_TAINT;
+    }
+
+    return decision;
 }
 
 /* Update a policy map from the eBPF side. This will update the map using the
@@ -730,13 +784,10 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
 
 static u8 family_to_category(int family)
 {
-    // Note: I think it makes sense to support these four protocol families for
-    // now. Support for others can be added in the future. In bpfbox, I made the
-    // mistake of trying to support everything and things got very complicated
-    // very quickly.
+    // Note: I think it makes sense to support these protocol families for
+    // now. Support for others can be added in the future.
     switch (family) {
         case AF_UNIX:
-        case AF_NETLINK:
             return BPFCON_NET_IPC;
             break;
         case AF_INET:

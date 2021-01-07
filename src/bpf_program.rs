@@ -105,9 +105,9 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     }
     log::info!("Done loading policy!");
 
-    std::thread::sleep(std::time::Duration::new(10000, 0));
-
-    Ok(())
+    loop {
+        std::thread::sleep(std::time::Duration::new(1, 0));
+    }
 }
 
 /// Extends [`libbpf_rs::Program`] with a method to attach a uprobe to a given
