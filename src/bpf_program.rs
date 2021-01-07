@@ -7,6 +7,7 @@
 
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
+use glob::glob;
 
 use crate::bpf;
 use crate::config::Settings;
@@ -66,10 +67,42 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     log::info!("Loaded and attached BPF objects!");
 
-    // TODO: wrap this in a loop for all files in &config.policy.dir
+    // Load policy in `config.policy.dir`
     log::info!("Loading policy...");
-    //let policy: Policy = serde_yaml::from_str(policy_str).context("Failed to parse policy")?;
-    //policy.load(&mut skel).context("Failed to load policy")?;
+    for entry in glob(&format!("{}/**/*.yml", &config.policy.dir))
+        .context("Failed to glob policy directory")?
+    {
+        if let Ok(path) = entry {
+            log::info!("Loading policy {:?}...", path);
+
+            // Open file for reading
+            let reader = match std::fs::File::open(&path) {
+                Ok(reader) => reader,
+                Err(e) => {
+                    log::warn!("Unable to open {:?} for reading: {}", &path, e);
+                    continue;
+                }
+            };
+
+            // Parse policy
+            let policy: Policy = match serde_yaml::from_reader(reader) {
+                Ok(policy) => policy,
+                Err(e) => {
+                    log::warn!("Unable to parse policy {:?}: {}", &path, e);
+                    continue;
+                }
+            };
+
+            // Load policy
+            match policy.load(&mut skel) {
+                Ok(_) => {}
+                Err(e) => {
+                    log::warn!("Unable to load policy {:?}: {}", &path, e);
+                    continue;
+                }
+            };
+        }
+    }
     log::info!("Done loading policy!");
 
     std::thread::sleep(std::time::Duration::new(10000, 0));

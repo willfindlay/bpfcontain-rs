@@ -36,12 +36,11 @@ impl Settings {
         }
         // Ordinary config hierarchy
         else {
-            // Ignore results
-            let _ = s.merge(File::with_name("/etc/bpfcontain"));
+            s.merge(File::with_name("/etc/bpfcontain").required(false))?;
         }
 
-        // Read in from environment variables starting with `BPFCONTAIN_`
-        s.merge(Environment::with_prefix("bpfcontain"))?;
+        // Read in from environment variables starting with `BPFCON_`
+        s.merge(Environment::with_prefix("BPFCON").separator("_"))?;
 
         s.try_into()
     }

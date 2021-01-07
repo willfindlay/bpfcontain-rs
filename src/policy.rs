@@ -11,7 +11,7 @@ use crate::libbpfcontain::structs;
 use anyhow::{bail, Context, Result};
 use libbpf_rs::MapFlags;
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub trait ToBitflags {
     type BitFlag;
@@ -422,7 +422,7 @@ impl Policy {
     }
 
     /// Returns a `(st_dev, st_ino)` pair for the path `path`.
-    fn path_to_dev_ino(path: &PathBuf) -> Result<(u64, u64)> {
+    fn path_to_dev_ino(path: &Path) -> Result<(u64, u64)> {
         use std::fs;
         use std::os::linux::fs::MetadataExt;
 
@@ -433,7 +433,7 @@ impl Policy {
     }
 
     /// Returns a vector of (st_dev, st_ino) pairs for the glob `pattern`.
-    fn glob_to_dev_ino(pattern: &String) -> Result<Vec<(u64, u64)>> {
+    fn glob_to_dev_ino(pattern: &str) -> Result<Vec<(u64, u64)>> {
         use glob::glob;
         let mut results = vec![];
 
@@ -474,7 +474,7 @@ impl Policy {
     fn load_fs_rule(
         &self,
         skel: &mut Skel,
-        path: &String,
+        path: &str,
         access: &FileAccess,
         action: &PolicyDecision,
     ) -> Result<()> {
@@ -518,7 +518,7 @@ impl Policy {
     fn load_file_rule(
         &self,
         skel: &mut Skel,
-        path: &String,
+        path: &str,
         access: &FileAccess,
         action: &PolicyDecision,
     ) -> Result<()> {
@@ -531,7 +531,7 @@ impl Policy {
         };
 
         for (st_dev, st_ino) in
-            Self::glob_to_dev_ino(&path).context(format!("Failed to glob {}", path))?
+            Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
         {
             // Set key using st_dev, st_ino, and container_id
             let mut key = structs::file_policy_key::default();
