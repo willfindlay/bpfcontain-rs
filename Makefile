@@ -2,15 +2,13 @@ VMLINUX = vmlinux_$(shell uname -r).h
 
 .PHONY: build
 build: src/bpf/vmlinux.h
-	cargo libbpf build
-	cargo libbpf gen
+	cargo libbpf make
 	cargo build
 
 .PHONY: test
 test:
-	# An ugly hack, since cargo test wants to overwrite our build files
-	sudo cargo libbpf make --target-dir /tmp/bpfcontain-tests
-	sudo cargo test --target-dir /tmp/bpfcontain-tests -- $(ARGS)
+	cargo libbpf make
+	cargo test -- $(ARGS)
 
 .PHONY: vmlinux
 vmlinux: | src/bpf/vmlinux.h
