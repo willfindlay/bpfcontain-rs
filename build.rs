@@ -19,7 +19,7 @@ fn main() {
 
     // Save bindings
     bindings
-        .write_to_file("src/lib/bindings.rs")
+        .write_to_file("src/libbpfcontain/bindings.rs")
         .expect("Failed to save bindings");
 
     // Include bpfcontain as a C library
