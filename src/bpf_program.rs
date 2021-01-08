@@ -8,26 +8,23 @@
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use glob::glob;
+use std::path::Path;
 
 use crate::bpf;
 use crate::config::Settings;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
-/// Main entrypoint for BPF program functionality.
-pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
-    log::info!("Initializing BPF objects...");
+pub use crate::bpf::BpfcontainSkelBuilder;
 
-    // Initialize the skeleton builder
-    log::debug!("Initializing skeleton builder...");
-    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
-
-    // Log output from libbpf if we are -vvv
-    if args.occurrences_of("v") >= 3 {
-        skel_builder.obj_builder.debug(true);
-    } else {
-        skel_builder.obj_builder.debug(false);
-    }
+/// Open, load, and attach BPF programs and maps using the `builder` provided by
+/// libbpf-rs.
+pub fn load_bpf_program<'a>(
+    builder: &'a mut bpf::BpfcontainSkelBuilder,
+    debug: bool,
+) -> Result<bpf::BpfcontainSkel<'a>> {
+    // Log output from libbpf if we are -vv
+    builder.obj_builder.debug(debug);
 
     // We need to bump the memlock limit to allow even the smallest of maps to
     // load properly
@@ -36,13 +33,13 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     // Open eBPF objects
     log::debug!("Opening eBPF objects...");
-    let mut open_skel = match skel_builder.open() {
+    let open_skel = match builder.open() {
         Ok(open_skel) => open_skel,
         Err(e) => bail!("Failed to open skeleton: {}", e),
     };
 
-    // TODO: Set data here
-    log::debug!("Setting data...");
+    // TODO: Set data sections here
+    //log::debug!("Setting data...");
 
     // Loading eBPF objects into kernel
     log::debug!("Loading eBPF objects into kernel...");
@@ -65,49 +62,81 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Keep a reference count
     skel.links.do_containerize = Some(_link);
 
-    log::info!("Loaded and attached BPF objects!");
+    Ok(skel)
+}
 
-    // Load policy in `config.policy.dir`
-    log::info!("Loading policy...");
-    for entry in glob(&format!("{}/**/*.yml", &config.policy.dir))
-        .context("Failed to glob policy directory")?
+/// Load policy into the kernel from a YAML string.
+pub fn load_policy_str(mut skel: &mut bpf::BpfcontainSkel, policy_str: &str) -> Result<()> {
+    // Parse policy
+    let policy: Policy = match serde_yaml::from_str(policy_str) {
+        Ok(policy) => policy,
+        Err(e) => {
+            bail!("Unable to parse policy: {}", e);
+        }
+    };
+
+    // Load policy
+    match policy.load(&mut skel) {
+        Ok(_) => {}
+        Err(e) => {
+            bail!("Unable to load policy: {}", e);
+        }
+    };
+
+    Ok(())
+}
+
+/// Load policy into the kernel from a YAML file at `path`.
+pub fn load_policy_file(mut skel: &mut bpf::BpfcontainSkel, path: &Path) -> Result<()> {
+    log::info!("Loading policy {:?}...", path);
+
+    // Open file for reading
+    let reader = match std::fs::File::open(&path) {
+        Ok(reader) => reader,
+        Err(e) => {
+            bail!("Unable to open {:?} for reading: {}", &path, e);
+        }
+    };
+
+    // Parse policy
+    let policy: Policy = match serde_yaml::from_reader(reader) {
+        Ok(policy) => policy,
+        Err(e) => {
+            bail!("Unable to parse policy {:?}: {}", &path, e);
+        }
+    };
+
+    // Load policy
+    match policy.load(&mut skel) {
+        Ok(_) => {}
+        Err(e) => {
+            bail!("Unable to load policy {:?}: {}", &path, e);
+        }
+    };
+
+    Ok(())
+}
+
+/// Recursively load YAML policy into the kernel from `policy_dir`.
+pub fn load_policy_recursive(skel: &mut bpf::BpfcontainSkel, policy_dir: &str) -> Result<()> {
+    log::info!("Loading policy from {}...", policy_dir);
+
+    // Use glob to match all YAML files in the directory tree
+    for entry in
+        glob(&format!("{}/**/*.yml", policy_dir)).context("Failed to glob policy directory")?
     {
         if let Ok(path) = entry {
-            log::info!("Loading policy {:?}...", path);
-
-            // Open file for reading
-            let reader = match std::fs::File::open(&path) {
-                Ok(reader) => reader,
-                Err(e) => {
-                    log::warn!("Unable to open {:?} for reading: {}", &path, e);
-                    continue;
-                }
-            };
-
-            // Parse policy
-            let policy: Policy = match serde_yaml::from_reader(reader) {
-                Ok(policy) => policy,
-                Err(e) => {
-                    log::warn!("Unable to parse policy {:?}: {}", &path, e);
-                    continue;
-                }
-            };
-
-            // Load policy
-            match policy.load(&mut skel) {
-                Ok(_) => {}
-                Err(e) => {
-                    log::warn!("Unable to load policy {:?}: {}", &path, e);
-                    continue;
-                }
-            };
+            // We want to keep going if we fail to load a policy, but warn the
+            // user
+            if let Err(e) = load_policy_file(skel, &path) {
+                log::warn!("Error loading policy {:?}: {}", path, e);
+            }
         }
     }
+
     log::info!("Done loading policy!");
 
-    loop {
-        std::thread::sleep(std::time::Duration::new(1, 0));
-    }
+    Ok(())
 }
 
 /// Extends [`libbpf_rs::Program`] with a method to attach a uprobe to a given

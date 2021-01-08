@@ -14,7 +14,7 @@ use anyhow::{bail, Result};
 
 /// Include bindings from [`bindings.rs`](lib/bindings.rs)
 mod bindings {
-    include!("lib/bindings.rs");
+    include!("libbpfcontain/bindings.rs");
 }
 
 /// Place the current process into a container with ID `container_id`.
