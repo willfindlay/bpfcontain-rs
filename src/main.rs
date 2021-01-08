@@ -9,13 +9,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg, SubCommand};
 use simple_logger::SimpleLogger;
 
-mod bpf;
-mod bpf_program;
-mod config;
-mod libbpfcontain;
-mod policy;
-mod subcommands;
-mod utils;
+use bpfcontain::*;
 
 use subcommands::daemon;
 use subcommands::run;
@@ -34,7 +28,7 @@ fn main() -> Result<()> {
                 .short("v")
                 .multiple(true)
                 .global(true)
-                .help("Sets verbosity. Possible values are -v, -vv, or -vvv"),
+                .help("Sets verbosity. Possible values are -v or -vv"),
         )
         .arg(
             Arg::with_name("cfg")
@@ -85,15 +79,13 @@ fn main() -> Result<()> {
     let args = app.get_matches();
 
     // Set log level based on verbosity
-    // Level 0: Warning
-    // Level 1: Info
-    // Level 2: Debug
-    // Level 3: Trace
+    // Level 0: Info
+    // Level 1: Debug
+    // Level 2: Trace
     let log_level = match args.occurrences_of("v") {
-        0 => log::LevelFilter::Warn,
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
-        3 | _ => log::LevelFilter::Trace,
+        0 => log::LevelFilter::Info,
+        1 => log::LevelFilter::Debug,
+        2 | _ => log::LevelFilter::Trace,
     };
 
     // Initialize the logger
@@ -108,8 +100,8 @@ fn main() -> Result<()> {
 
     // Dispatch to subcommand
     let result = match args.subcommand() {
-        ("daemon", Some(args)) => daemon::main(args, &config).context("Exited with error"),
-        ("run", Some(args)) => run::main(args, &config).context("Exited with error"),
+        ("daemon", Some(args)) => daemon::main(args, &config).context("Daemon exited with error"),
+        ("run", Some(args)) => run::main(args, &config).context("Run exited with error"),
         // TODO: match other subcommands
         (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
     };

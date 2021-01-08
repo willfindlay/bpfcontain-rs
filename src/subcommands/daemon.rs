@@ -5,7 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use daemonize::Daemonize;
 use nix::sys::signal::{kill, Signal};
@@ -13,7 +13,10 @@ use nix::unistd::Pid;
 use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
+use std::thread::sleep;
+use std::time::Duration;
 
+use crate::bpf;
 use crate::bpf_program;
 use crate::config::Settings;
 
@@ -22,11 +25,33 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
         ("start", Some(args)) => start_daemon(args, config),
         ("restart", Some(args)) => restart_daemon(args, config),
         ("stop", Some(_)) => stop_daemon(config),
-        ("foreground", Some(args)) => bpf_program::main(args, config),
+        ("foreground", Some(args)) => work_loop(args, config),
         _ => bail!("Bad subcommand name"),
     };
 
     result
+}
+
+/// Starts the BPF program.
+fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
+    log::info!("Initializing BPF objects...");
+
+    // Initialize the skeleton builder
+    log::debug!("Initializing skeleton builder...");
+    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
+
+    let mut skel = bpf_program::load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
+        .context("Failed to load BPF program")?;
+
+    // Load policy in `config.policy.dir`
+    bpf_program::load_policy_recursive(&mut skel, &config.policy.dir)
+        .context("Failed to load policy")?;
+
+    // Loop forever
+    loop {
+        // TODO: handle logging here
+        sleep(Duration::new(1, 0));
+    }
 }
 
 /// Starts the daemon.
@@ -64,9 +89,7 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
         }
     }
 
-    bpf_program::main(&args, config)?;
-
-    Ok(())
+    work_loop(args, config)
 }
 
 /// Stops the daemon by parsing the daemon's [`PIDFILE`] and sending a `SIGTERM`
@@ -122,7 +145,7 @@ fn restart_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     match stop_daemon(config) {
         Ok(_) => {
             // FIXME: Should poll to see if the process has actually stopped
-            std::thread::sleep(std::time::Duration::new(1, 0));
+            sleep(Duration::new(1, 0));
         }
         Err(e) => {
             log::warn!(
