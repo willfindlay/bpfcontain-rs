@@ -136,10 +136,12 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
  * return: Policy decision.
  */
 static __always_inline policy_decision_t
-check_ipc_access(struct bpfcon_process *process, u32 other_pid)  {
+check_ipc_access(struct bpfcon_process *process, u32 other_pid)
+{
     policy_decision_t decision = BPFCON_NO_DECISION;
 
-    struct bpfcon_process *other_process = bpf_map_lookup_elem(&processes, &other_pid);
+    struct bpfcon_process *other_process =
+        bpf_map_lookup_elem(&processes, &other_pid);
     if (!other_process)
         return BPFCON_DENY;
 
@@ -158,19 +160,27 @@ check_ipc_access(struct bpfcon_process *process, u32 other_pid)  {
         decision |= BPFCON_ALLOW;
     }
 
+    // The following if-statements need to be mixed like this in order to
+    // prevent an unfortunate LLVM optimization that triggers the verifier
+    // TODO: Find a more future-proof solution
+
     // Any denied access results in a denial
-    if ((long)bpf_map_lookup_elem(&ipc_deny, &key)) {
-        decision |= BPFCON_DENY;
-    }
-    if ((long)bpf_map_lookup_elem(&ipc_deny, &other_key)) {
+    if (bpf_map_lookup_elem(&ipc_deny, &key)) {
         decision |= BPFCON_DENY;
     }
 
-    //// Any tainted access results in a taint
-    if ((long)bpf_map_lookup_elem(&ipc_taint, &key)) {
+    // Any tainted access results in a taint
+    if (bpf_map_lookup_elem(&ipc_taint, &key)) {
         decision |= BPFCON_TAINT;
     }
-    if ((long)bpf_map_lookup_elem(&ipc_taint, &other_key)) {
+
+    // Any denied access results in a denial
+    if (bpf_map_lookup_elem(&ipc_deny, &other_key)) {
+        decision |= BPFCON_DENY;
+    }
+
+    // Any tainted access results in a taint
+    if (bpf_map_lookup_elem(&ipc_taint, &other_key)) {
         decision |= BPFCON_TAINT;
     }
 
@@ -219,7 +229,8 @@ do_update_policy(void *map, const void *key, const u32 *value)
 static __always_inline int
 do_policy_decision(struct bpfcon_process *process, policy_decision_t decision)
 {
-    struct bpfcon_container *container = bpf_map_lookup_elem(&containers, &process->container_id);
+    struct bpfcon_container *container =
+        bpf_map_lookup_elem(&containers, &process->container_id);
     // Something went wrong
     if (!container) {
         return -EACCES;
@@ -420,8 +431,8 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int
-bpfcontain_inode_perm(struct bpfcon_process *process, struct inode *inode, u32 access)
+static int bpfcontain_inode_perm(struct bpfcon_process *process,
+                                 struct inode *inode, u32 access)
 {
     int ret = 0;
     policy_decision_t decision = BPFCON_NO_DECISION;
@@ -435,9 +446,11 @@ bpfcontain_inode_perm(struct bpfcon_process *process, struct inode *inode, u32 a
     decision |= do_dev_permission(process->container_id, inode, access);
 
     // procfs and file decisions are special, so remember them
-    policy_decision_t procfs_decision = do_procfs_permission(process->container_id, inode, access);
+    policy_decision_t procfs_decision =
+        do_procfs_permission(process->container_id, inode, access);
     decision |= procfs_decision;
-    policy_decision_t file_decision = do_file_permission(process->container_id, inode, access);
+    policy_decision_t file_decision =
+        do_file_permission(process->container_id, inode, access);
     decision |= file_decision;
 
     ret = do_policy_decision(process, decision);
@@ -485,24 +498,21 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 
     struct inode *file = bprm->file->f_inode;
     if (file->i_ino) {
-        ret =
-            bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
+        ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
         if (ret)
             return ret;
     }
 
     struct inode *executable = bprm->executable->f_inode;
     if (executable->i_ino) {
-        ret = bpfcontain_inode_perm(process, executable,
-                                    BPFCON_MAY_EXEC);
+        ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
         if (ret)
             return ret;
     }
 
     struct inode *interpreter = bprm->interpreter->f_inode;
     if (interpreter->i_ino) {
-        ret = bpfcontain_inode_perm(process, interpreter,
-                                    BPFCON_MAY_EXEC);
+        ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
         if (ret)
             return ret;
     }
@@ -524,8 +534,7 @@ int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
 
     struct inode *inode = dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, inode,
-                                 BPFCON_MAY_DELETE);
+    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to unlink a directory. */
@@ -542,8 +551,7 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
 
     struct inode *inode = dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, inode,
-                                 BPFCON_MAY_DELETE);
+    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to create a file. */
@@ -561,8 +569,7 @@ int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
 
     struct inode *inode = dir->dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, inode,
-                                 BPFCON_MAY_CREATE);
+    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_CREATE);
 
     // TODO: also check access based on the type of file
 
@@ -584,8 +591,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
 
     struct inode *dir_inode = dir->dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, dir_inode,
-                                 BPFCON_MAY_CREATE);
+    return bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
 
     // TODO: add to the process' list of owned files if permission succeeded
     // _then_ return
@@ -606,8 +612,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
 
     struct inode *dir_inode = dir->dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, dir_inode,
-                                 BPFCON_MAY_CREATE);
+    return bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
 
     // TODO: add to the process' list of owned files if permission succeeded
     // _then_ return
@@ -631,13 +636,11 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
     struct inode *old_inode = old_dentry->d_inode;
     struct inode *dir_inode = new_dir->dentry->d_inode;
 
-    ret = bpfcontain_inode_perm(process, dir_inode,
-                                BPFCON_MAY_CREATE);
+    ret = bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
     if (ret)
         return ret;
 
-    ret = bpfcontain_inode_perm(process, old_inode,
-                                BPFCON_MAY_LINK);
+    ret = bpfcontain_inode_perm(process, old_inode, BPFCON_MAY_LINK);
     if (ret)
         return ret;
 
@@ -664,13 +667,11 @@ int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
     struct inode *new_dir_inode = new_dir->dentry->d_inode;
     struct inode *new_inode = new_dentry->d_inode;
 
-    ret = bpfcontain_inode_perm(process, old_inode,
-                                BPFCON_MAY_RENAME);
+    ret = bpfcontain_inode_perm(process, old_inode, BPFCON_MAY_RENAME);
     if (ret)
         return ret;
 
-    ret = bpfcontain_inode_perm(process, new_dir_inode,
-                                BPFCON_MAY_CREATE);
+    ret = bpfcontain_inode_perm(process, new_dir_inode, BPFCON_MAY_CREATE);
     if (ret)
         return ret;
 
@@ -709,8 +710,7 @@ int BPF_PROG(path_chmod, const struct path *path)
 
     struct inode *inode = path->dentry->d_inode;
 
-    return bpfcontain_inode_perm(process, inode,
-                                 BPFCON_MAY_CHMOD);
+    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_CHMOD);
 }
 
 /* Convert mmap prot and flags into an access vector and then do a permission
@@ -724,8 +724,8 @@ int BPF_PROG(path_chmod, const struct path *path)
  * return: Converted access mask.
  */
 static __always_inline int
-mmap_permission(struct bpfcon_process *process, struct file *file, unsigned long prot,
-                unsigned long flags)
+mmap_permission(struct bpfcon_process *process, struct file *file,
+                unsigned long prot, unsigned long flags)
 {
     u32 access = 0;
 
@@ -810,7 +810,8 @@ static u8 family_to_category(int family)
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category, u32 access)
+static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category,
+                               u32 access, struct socket *sock)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -836,6 +837,11 @@ static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category, u32 
         decision |= BPFCON_TAINT;
     }
 
+    u32 pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
+    if (pid) {
+        decision |= check_ipc_access(process, pid);
+    }
+
     return do_policy_decision(process, decision);
 }
 
@@ -852,8 +858,7 @@ int BPF_PROG(socket_create, int family, int type, int protocol, int kern)
 
     u8 category = family_to_category(family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_CREATE);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_CREATE, NULL);
 }
 
 SEC("lsm/socket_bind")
@@ -870,8 +875,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 
     u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_BIND);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_BIND, sock);
 }
 
 SEC("lsm/socket_connect")
@@ -888,8 +892,7 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
 
     u8 category = family_to_category(address->sa_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_CONNECT, sock);
 }
 
 SEC("lsm/unix_stream_connect")
@@ -906,8 +909,7 @@ int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
 
     u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_CONNECT);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_CONNECT, sock);
 }
 
 SEC("lsm/unix_may_send")
@@ -923,8 +925,7 @@ int BPF_PROG(unix_may_send, struct socket *sock, struct socket *other)
 
     u8 category = family_to_category(AF_UNIX);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_SEND, sock);
 }
 
 SEC("lsm/socket_listen")
@@ -940,8 +941,7 @@ int BPF_PROG(socket_listen, struct socket *sock, int backlog)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_LISTEN);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_LISTEN, sock);
 }
 
 SEC("lsm/socket_accept")
@@ -957,8 +957,7 @@ int BPF_PROG(socket_accept, struct socket *sock, struct socket *newsock)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_ACCEPT);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_ACCEPT, sock);
 }
 
 SEC("lsm/socket_sendmsg")
@@ -974,8 +973,7 @@ int BPF_PROG(socket_sendmsg, struct socket *sock, struct msghdr *msg, int size)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_SEND);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_SEND, sock);
 }
 
 SEC("lsm/socket_recvmsg")
@@ -992,8 +990,7 @@ int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_RECV);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_RECV, sock);
 }
 
 SEC("lsm/socket_shutdown")
@@ -1009,8 +1006,7 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
 
     u8 category = family_to_category(sock->sk->__sk_common.skc_family);
 
-    return bpfcontain_net_perm(process, category,
-                               BPFCON_NET_SHUTDOWN);
+    return bpfcontain_net_perm(process, category, BPFCON_NET_SHUTDOWN, sock);
 }
 
 /* ========================================================================= *
@@ -1376,6 +1372,42 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
     process = add_process(cpid, ctgid, parent_process->container_id);
     if (!process) {
         // TODO log error
+    }
+
+    return 0;
+}
+
+/* ========================================================================= *
+ * Filesystem Mounts                                                         *
+ * ========================================================================= */
+
+SEC("lsm/sb_mount")
+int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
+             const char *type, unsigned long flags, void *data)
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+
+    if (flags & MS_REMOUNT) {
+        // TODO handle remount
+    } else if (flags & MS_BIND) {
+        // TODO handle bind
+    } else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE)) {
+        // TODO handle change type
+    } else if (flags & MS_MOVE) {
+        // TODO handle mount move
+    } else {
+        u32 inum = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+        u32 pid = BPF_CORE_READ(task, pid);
+        char comm[16];
+        bpf_get_current_comm(comm, sizeof(comm));
+        u64 cgroup_id = bpf_get_current_cgroup_id();
+        bpf_printk("  cgroup = %lu", cgroup_id);
+        bpf_printk("  mnt_ns = %u", inum);
+        bpf_printk("     pid = %u", pid);
+        bpf_printk("    comm = %s", comm);
+        bpf_printk("dev_name = %s", dev_name);
+        bpf_printk("    type = %s\n", type);
+        // TODO handle new mount
     }
 
     return 0;
