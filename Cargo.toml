@@ -6,6 +6,10 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[[bench]]
+name = "raw_overhead"
+harness = false
+
 [dependencies]
 anyhow = "1.0.36"
 libbpf-rs = "0.6.1"
@@ -21,6 +25,7 @@ serde_yaml = "0.8.14"
 serde = { version = "1.0.118", features = ["derive"] }
 glob = "0.3.0"
 config = "0.10.1"
+nix = "0.19.1"
 
 [dev-dependencies]
 libbpf-cargo = "0.4.0"
