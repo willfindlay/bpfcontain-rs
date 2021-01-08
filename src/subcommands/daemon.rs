@@ -8,6 +8,8 @@
 use anyhow::{bail, Result};
 use clap::ArgMatches;
 use daemonize::Daemonize;
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -97,10 +99,9 @@ fn stop_daemon(config: &Settings) -> Result<()> {
     };
 
     // Invoke kill(2) to send a SIGTERM to the process running under pid
-    if unsafe { libc::kill(pid, libc::SIGTERM) } != 0 {
-        let err = std::io::Error::last_os_error();
-        bail!("Failed to kill the daemon ({}): {}", pid, err);
-    };
+    if let Err(e) = kill(Pid::from_raw(pid), Signal::SIGINT) {
+        bail!("Failed to kill daemon: {}", e);
+    }
 
     Ok(())
 }
