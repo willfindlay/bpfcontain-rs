@@ -70,6 +70,7 @@ add_process(u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
 {
     // Initialize a new process
     struct bpfcon_process new_process = {};
+
     new_process.pid = pid;
     new_process.tgid = tgid;
     new_process.container_id = container_id;
@@ -157,10 +158,12 @@ check_ipc_access(struct bpfcon_process *process, u32 other_pid)
         return BPFCON_DENY;
 
     struct ipc_policy_key key = {};
+
     key.container_id = process->container_id;
     key.other_container_id = other_process->container_id;
 
     struct ipc_policy_key other_key = {};
+
     key.container_id = other_process->container_id;
     key.other_container_id = process->container_id;
 
@@ -289,6 +292,7 @@ static __always_inline int
 do_fs_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
+
     struct fs_policy_key key = {};
 
     key.container_id = container_id;
@@ -328,6 +332,7 @@ static __always_inline int
 do_file_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
+
     struct file_policy_key key = {};
 
     key.container_id = container_id;
@@ -367,6 +372,7 @@ static __always_inline int
 do_dev_permission(u64 container_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
+
     struct dev_policy_key key = {};
 
     // Look up policy by device major number and container ID
@@ -415,6 +421,7 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
     int decision = BPFCON_NO_DECISION;
 
     struct inode_key key = {};
+
     key.device_id = new_encode_dev(inode->i_sb->s_dev);
     key.inode_id = inode->i_ino;
 
@@ -817,6 +824,7 @@ bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     struct net_policy_key key = {};
+
     key.container_id = process->container_id;
 
     // If we are allowing the _entire_ access, allow
@@ -1101,6 +1109,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
     }
 
     struct cap_policy_key key = {};
+
     key.container_id = process->container_id;
 
     u32 *allowed = bpf_map_lookup_elem(&cap_allow, &key);
@@ -1319,8 +1328,7 @@ int fentry_commit_creds(struct cred *new)
     if (process->in_execve)
         return 0;
 
-    // FIXME: this was killing benign processes
-    // bpf_send_signal(SIGKILL);
+    bpf_send_signal(SIGKILL);
 
     return 0;
 }
@@ -1432,6 +1440,7 @@ int BPF_PROG(sb_set_mnt_opts, struct super_block *sb, void *mnt_opts,
     // struct file_system_type *type = sb->s_type;
 
     struct mnt_ns_fs key = {};
+
     key.device_id = new_encode_dev(sb->s_dev);
     key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
 
@@ -1455,6 +1464,7 @@ int BPF_PROG(sb_free_security, struct super_block *sb)
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
 
     struct mnt_ns_fs key = {};
+
     key.device_id = new_encode_dev(sb->s_dev);
     key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
 
