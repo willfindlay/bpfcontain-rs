@@ -238,12 +238,14 @@ do_update_policy(void *map, const void *key, const u32 *value)
  * return: Converted access mask.
  */
 static __always_inline int
-do_policy_decision(struct bpfcon_process *process, policy_decision_t decision)
+do_policy_decision(struct bpfcon_process *process, policy_decision_t decision,
+                   u8 ignore_taint)
 {
+    u8 tainted = process->tainted || ignore_taint;
+
     // Taint process
     if (decision & BPFCON_TAINT) {
         process->tainted = 1;
-        goto out;
     }
 
     // Always deny if denied
@@ -264,11 +266,10 @@ do_policy_decision(struct bpfcon_process *process, policy_decision_t decision)
     }
 
     // If tainted and default-deny with no policy decision, deny
-    if (process->tainted && container->default_deny) {
+    if (tainted && container->default_deny) {
         return -EACCES;
     }
 
-out:
     return 0;
 }
 
@@ -464,7 +465,7 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
         do_file_permission(process->container_id, inode, access);
     decision |= file_decision;
 
-    ret = do_policy_decision(process, decision);
+    ret = do_policy_decision(process, decision, 0);
 
     // Allow procfs permissions to override denials
     if (procfs_decision == BPFCON_ALLOW)
@@ -876,7 +877,7 @@ static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category,
     else if (category == BPFCON_NET_IPC)
         decision = bpfcontain_net_ipc_perm(process, access, sock);
 
-    return do_policy_decision(process, decision);
+    return do_policy_decision(process, decision, 0);
 }
 
 SEC("lsm/socket_create")
@@ -1117,7 +1118,9 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_TAINT;
     }
 
-    return do_policy_decision(process, decision);
+    bpf_printk("decision: %d", decision);
+
+    return do_policy_decision(process, decision, 1);
 }
 
 // TODO COME BACK HERE
