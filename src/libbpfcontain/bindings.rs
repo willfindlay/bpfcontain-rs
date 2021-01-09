@@ -41,7 +41,7 @@ pub type net_operation_t = ::std::os::raw::c_uint;
 #[derive(Debug, Default, Copy, Clone)]
 pub struct bpfcon_container {
     pub default_deny: ::std::os::raw::c_uchar,
-    pub tainted: ::std::os::raw::c_uchar,
+    pub default_taint: ::std::os::raw::c_uchar,
 }
 #[test]
 fn bindgen_test_layout_bpfcon_container() {
@@ -66,13 +66,13 @@ fn bindgen_test_layout_bpfcon_container() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).tainted as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).default_taint as *const _ as usize },
         1usize,
         concat!(
             "Offset of field: ",
             stringify!(bpfcon_container),
             "::",
-            stringify!(tainted)
+            stringify!(default_taint)
         )
     );
 }
@@ -83,6 +83,7 @@ pub struct bpfcon_process {
     pub pid: ::std::os::raw::c_uint,
     pub tgid: ::std::os::raw::c_uint,
     pub in_execve: ::std::os::raw::c_uchar,
+    pub tainted: ::std::os::raw::c_uchar,
 }
 #[test]
 fn bindgen_test_layout_bpfcon_process() {
@@ -134,6 +135,55 @@ fn bindgen_test_layout_bpfcon_process() {
             stringify!(bpfcon_process),
             "::",
             stringify!(in_execve)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).tainted as *const _ as usize },
+        17usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_process),
+            "::",
+            stringify!(tainted)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct mnt_ns_fs {
+    pub mnt_ns: ::std::os::raw::c_uint,
+    pub device_id: ::std::os::raw::c_ulong,
+}
+#[test]
+fn bindgen_test_layout_mnt_ns_fs() {
+    assert_eq!(
+        ::std::mem::size_of::<mnt_ns_fs>(),
+        16usize,
+        concat!("Size of: ", stringify!(mnt_ns_fs))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<mnt_ns_fs>(),
+        8usize,
+        concat!("Alignment of ", stringify!(mnt_ns_fs))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<mnt_ns_fs>())).mnt_ns as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(mnt_ns_fs),
+            "::",
+            stringify!(mnt_ns)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<mnt_ns_fs>())).device_id as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(mnt_ns_fs),
+            "::",
+            stringify!(device_id)
         )
     );
 }
@@ -297,13 +347,12 @@ fn bindgen_test_layout_cap_policy_key() {
 #[derive(Debug, Default, Copy, Clone)]
 pub struct net_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
-    pub category: ::std::os::raw::c_uchar,
 }
 #[test]
 fn bindgen_test_layout_net_policy_key() {
     assert_eq!(
         ::std::mem::size_of::<net_policy_key>(),
-        16usize,
+        8usize,
         concat!("Size of: ", stringify!(net_policy_key))
     );
     assert_eq!(
@@ -319,16 +368,6 @@ fn bindgen_test_layout_net_policy_key() {
             stringify!(net_policy_key),
             "::",
             stringify!(container_id)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<net_policy_key>())).category as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(net_policy_key),
-            "::",
-            stringify!(category)
         )
     );
 }

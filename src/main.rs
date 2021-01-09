@@ -69,9 +69,9 @@ fn main() -> Result<()> {
             SubCommand::with_name("run")
                 .about("Run in the foreground.")
                 .arg(
-                    Arg::with_name("manifest")
+                    Arg::with_name("policy")
                         .required(true)
-                        .help("Path the manifest to run"),
+                        .help("The policy to run"),
                 ),
         );
 

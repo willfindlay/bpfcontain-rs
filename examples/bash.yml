@@ -1,0 +1,5 @@
+name: bash
+cmd: /bin/bash
+default: deny
+taints:
+  - net: any

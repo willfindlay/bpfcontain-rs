@@ -1,7 +1,0 @@
-name: discord
-cmd: /bin/discord
-default: deny
-rights:
-  - net: {category: www, access: client-server}
-taints:
-  - net: {}

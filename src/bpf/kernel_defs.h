@@ -576,11 +576,56 @@ static inline u32 new_encode_dev(dev_t dev)
 #define MOUNT_ATTR_NOEXEC 0x00000008
 /* Setting on how atime should be updated */
 #define MOUNT_ATTR__ATIME 0x00000070
-/* - Update atime relative to mtime/ctime. */
+/* Update atime relative to mtime/ctime. */
 #define MOUNT_ATTR_RELATIME    0x00000000
-#define MOUNT_ATTR_NOATIME     0x00000010 /* - Do not update access times. */
-#define MOUNT_ATTR_STRICTATIME 0x00000020 /* - Always perform atime updates */
+#define MOUNT_ATTR_NOATIME     0x00000010 /* Do not update access times. */
+#define MOUNT_ATTR_STRICTATIME 0x00000020 /* Always perform atime updates */
+#define MOUNT_ATTR_NODIRATIME  0x00000080
 /* Do not update directory access times */
-#define MOUNT_ATTR_NODIRATIME 0x00000080
+
+/* ========================================================================= *
+ * linux/fs.h                                                                *
+ * ========================================================================= */
+
+/*
+ * sb->s_flags.  Note that these mirror the equivalent MS_* flags where
+ * represented in both.
+ */
+#define SB_RDONLY      1 /* Mount read-only */
+#define SB_NOSUID      2 /* Ignore suid and sgid bits */
+#define SB_NODEV       4 /* Disallow access to device special files */
+#define SB_NOEXEC      8 /* Disallow program execution */
+#define SB_SYNCHRONOUS 16 /* Writes are synced at once */
+#define SB_MANDLOCK    64 /* Allow mandatory locks on an FS */
+#define SB_DIRSYNC     128 /* Directory modifications are synchronous */
+#define SB_NOATIME     1024 /* Do not update access times. */
+#define SB_NODIRATIME  2048 /* Do not update directory access times */
+#define SB_SILENT      32768
+#define SB_POSIXACL    (1 << 16) /* VFS does not apply the umask */
+#define SB_INLINECRYPT (1 << 17) /* Use blk-crypto for encrypted files */
+#define SB_KERNMOUNT   (1 << 22) /* this is a kern_mount call */
+#define SB_I_VERSION   (1 << 23) /* Update inode I_version field */
+#define SB_LAZYTIME    (1 << 25) /* Update the on-disk [acm]times lazily */
+
+/* These sb flags are internal to the kernel */
+#define SB_SUBMOUNT (1 << 26)
+#define SB_FORCE    (1 << 27)
+#define SB_NOSEC    (1 << 28)
+#define SB_BORN     (1 << 29)
+#define SB_ACTIVE   (1 << 30)
+#define SB_NOUSER   (1 << 31)
+
+/* sb->s_iflags */
+#define SB_I_CGROUPWB  0x00000001 /* cgroup-aware writeback enabled */
+#define SB_I_NOEXEC    0x00000002 /* Ignore executables on this fs */
+#define SB_I_NODEV     0x00000004 /* Ignore devices on this fs */
+#define SB_I_MULTIROOT 0x00000008 /* Multiple roots to the dentry tree */
+
+/* sb->s_iflags to limit user namespace mounts */
+#define SB_I_USERNS_VISIBLE             0x00000010 /* fstype already mounted */
+#define SB_I_IMA_UNVERIFIABLE_SIGNATURE 0x00000020
+#define SB_I_UNTRUSTED_MOUNTER          0x00000040
+
+#define SB_I_SKIP_SYNC 0x00000100 /* Skip superblock at global sync */
 
 #endif /* ifndef KERNEL_DEFS_H */

@@ -8,7 +8,7 @@
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::libbpfcontain::structs;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use libbpf_rs::MapFlags;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -197,35 +197,6 @@ impl Default for FileAccess {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "lowercase")]
-enum NetCategory {
-    WWW,
-    IPC,
-    All,
-}
-
-impl ToBitflags for NetCategory {
-    type BitFlag = structs::NetCategory;
-
-    /// Convert a [`NetCategory`] into a bitflag representation for loading into an
-    /// eBPF map.
-    fn to_bitflags(&self) -> Self::BitFlag {
-        match self {
-            Self::WWW => Self::BitFlag::WWW,
-            Self::IPC => Self::BitFlag::IPC,
-            Self::All => Self::BitFlag::all(),
-        }
-    }
-}
-
-impl Default for NetCategory {
-    /// NetCategory defaults to both WWW and IPC
-    fn default() -> Self {
-        Self::All
-    }
-}
-
-#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 enum NetAccess {
     ClientSend,
@@ -237,6 +208,7 @@ enum NetAccess {
     ClientServerSend,
     ClientServerRecv,
     ClientServer,
+    Any,
 }
 
 impl ToBitflags for NetAccess {
@@ -268,6 +240,7 @@ impl ToBitflags for NetAccess {
                     | Self::BitFlag::MASK_SEND
                     | Self::BitFlag::MASK_RECV
             }
+            Self::Any => Self::BitFlag::all(),
         }
     }
 }
@@ -345,12 +318,7 @@ enum Rule {
     /// TODO
     #[serde(rename = "network")]
     #[serde(alias = "net")]
-    Network {
-        #[serde(default)]
-        category: NetCategory,
-        #[serde(default)]
-        access: NetAccess,
-    },
+    Network(NetAccess),
 
     /// An IPC rule, specifying IPC access to another container.
     ///
@@ -369,11 +337,11 @@ enum Rule {
 pub struct Policy {
     /// The policy's name. Should be unique.
     /// A policy _must_ specify a name.
-    name: String,
+    pub name: String,
     /// The command associated with the policy. This will be run when the user
     /// invokes `bpfcontain-rs run </path/to/policy.yml>`.
     /// A policy _must_ specify a command.
-    cmd: String,
+    pub cmd: String,
     /// Whether the policy is default-allow or default-deny. If this is not
     /// provided, we automatically assume default-deny.
     #[serde(default)]
@@ -392,6 +360,15 @@ pub struct Policy {
 impl Policy {
     pub fn container_id(&self) -> u64 {
         Self::container_id_for_name(&self.name)
+    }
+
+    /// Construct a new policy by parsing the policy file located at `path`.
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        use std::fs::File;
+
+        let reader = File::open(&path).context("Failed to open policy file for reading")?;
+
+        serde_yaml::from_reader(reader).context("Failed to parse policy file")
     }
 
     fn container_id_for_name(name: &str) -> u64 {
@@ -475,9 +452,7 @@ impl Policy {
             Rule::Capability(capability) => self.load_capability_rule(skel, capability, &action)?,
 
             // Handle network rule
-            Rule::Network { category, access } => {
-                self.load_net_rule(skel, category, access, &action)?
-            }
+            Rule::Network(access) => self.load_net_rule(skel, access, &action)?,
 
             // Handle IPC rule
             Rule::Ipc(other) => self.load_ipc_rule(skel, other, &action)?,
@@ -618,7 +593,6 @@ impl Policy {
     fn load_net_rule(
         &self,
         skel: &mut Skel,
-        category: &NetCategory,
         access: &NetAccess,
         action: &PolicyDecision,
     ) -> Result<()> {
@@ -633,8 +607,6 @@ impl Policy {
         // Set key using container_id
         let mut key = structs::net_policy_key::default();
         key.container_id = self.container_id();
-        // This should be fine, as net category's bitmask will always be below 255
-        key.category = category.to_bitflags().bits() as u8;
         let key = unsafe { plain::as_bytes(&key) };
 
         // Update old value with new value
@@ -692,9 +664,9 @@ impl Policy {
 
         // No taint rules implies that we should be tainted by default
         if self.taints.is_empty() {
-            value.tainted = 1;
+            value.default_taint = 1;
         } else {
-            value.tainted = 0;
+            value.default_taint = 0;
         }
 
         match self.default {
@@ -839,9 +811,7 @@ mod tests {
                 access: read-write
             - fs:
                 path: /dev
-            - net:
-                category: www
-                access: client
+            - net: client
             - capability: net-bind-service
 
             restrictions:
@@ -1105,41 +1075,21 @@ mod tests {
     #[test]
     fn test_net_rule_deserialize() -> Result<()> {
         let rule_str = "
-            network: {}
+            network: client-send
             ";
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Network {
-                category: NetCategory::default(),
-                access: NetAccess::default()
-            }
+            Rule::Network(NetAccess::ClientSend)
         );
 
         let rule_str = "
-            network:
-                category: www
-                access: client-send
+            net: server
             ";
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Network {
-                category: NetCategory::WWW,
-                access: NetAccess::ClientSend
-            }
-        );
-
-        let rule_str = "
-            net: {category: ipc, access: server}
-            ";
-
-        assert_eq!(
-            serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Network {
-                category: NetCategory::IPC,
-                access: NetAccess::Server
-            }
+            Rule::Network(NetAccess::Server)
         );
 
         Ok(())

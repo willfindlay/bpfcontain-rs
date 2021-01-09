@@ -69,7 +69,7 @@ typedef enum {
 
 struct bpfcon_container {
     unsigned char default_deny;
-    unsigned char tainted;
+    unsigned char default_taint;
 };
 
 struct bpfcon_process {
@@ -77,6 +77,14 @@ struct bpfcon_process {
     unsigned int pid;
     unsigned int tgid;
     unsigned char in_execve;
+    unsigned char tainted;
+};
+
+struct mnt_ns_fs {
+    // Namespace ID of the mount namespace
+    unsigned int mnt_ns;
+    // Device ID of the filesystem
+    unsigned long device_id;
 };
 
 struct fs_policy_key {
@@ -101,7 +109,6 @@ struct cap_policy_key {
 
 struct net_policy_key {
     unsigned long container_id;
-    unsigned char category;
 };
 
 struct ipc_policy_key {
