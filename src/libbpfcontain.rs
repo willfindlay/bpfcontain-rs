@@ -253,7 +253,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_bitflag_defaults() {
+    fn bitflag_defaults_test() {
         assert_eq!(structs::PolicyDecision::default().bits(), 0);
         assert_eq!(structs::FileAccess::default().bits(), 0);
         assert_eq!(structs::Capability::default().bits(), 0);

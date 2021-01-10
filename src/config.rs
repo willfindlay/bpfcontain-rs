@@ -63,7 +63,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_smoke() -> Result<(), ConfigError> {
+    fn default_smoke_test() -> Result<(), ConfigError> {
         let mut s = Config::new();
 
         Settings::set_defaults(&mut s).expect("Failed to set defaults");

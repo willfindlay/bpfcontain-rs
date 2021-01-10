@@ -80,13 +80,13 @@ mod tests {
 
     #[test]
     #[ignore = "TODO"]
-    fn test_get_symbol() -> Result<()> {
+    fn get_symbol_test() -> Result<()> {
         todo!()
     }
 
     #[test]
     #[ignore = "TODO"]
-    fn test_get_symbol_offset() -> Result<()> {
+    fn get_symbol_offset_test() -> Result<()> {
         todo!()
     }
 }

@@ -206,6 +206,7 @@ impl Default for NetAccess {
 
 /// A parseable rule
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
 enum Rule {
     /// A filesystem access rule, specifying a path and an access vector.
     ///
@@ -220,9 +221,8 @@ enum Rule {
     ///   path: /path/to/fs
     ///   access: rwx
     /// ```
-    #[serde(rename = "filesystem")]
     #[serde(alias = "fs")]
-    Fs {
+    Filesystem {
         path: String,
         #[serde(default)]
         access: FileAccess,
@@ -241,7 +241,6 @@ enum Rule {
     ///   path: /path/to/file
     ///   access: rwx
     /// ```
-    #[serde(rename = "file")]
     File {
         path: String,
         #[serde(default)]
@@ -259,7 +258,6 @@ enum Rule {
     /// # Long-form
     /// capability: net-bind-service
     /// ```
-    #[serde(rename = "capability")]
     #[serde(alias = "cap")]
     Capability(Capability),
 
@@ -268,7 +266,6 @@ enum Rule {
     /// # Examples
     ///
     /// TODO
-    #[serde(rename = "network")]
     #[serde(alias = "net")]
     Network(NetAccess),
 
@@ -277,7 +274,6 @@ enum Rule {
     /// # Examples
     ///
     /// TODO
-    #[serde(rename = "ipc")]
     Ipc(String),
 
     // High-level policy starts here
@@ -400,7 +396,7 @@ impl Policy {
     fn load_rule(&self, skel: &mut Skel, rule: &Rule, action: PolicyDecision) -> Result<()> {
         match rule {
             // Handle filesystem rule
-            Rule::Fs { path, access } => self.load_fs_rule(skel, path, access, &action)?,
+            Rule::Filesystem { path, access } => self.load_fs_rule(skel, path, access, &action)?,
 
             // Handle file rule
             Rule::File { path, access } => self.load_file_rule(skel, path, access, &action)?,
@@ -690,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_deserialize() -> Result<()> {
+    fn policy_deserialize_test() -> Result<()> {
         let policy_str = "
             name: test_policy
             cmd: /bin/test
@@ -752,11 +748,11 @@ mod tests {
         assert_eq!(
             policy.rights,
             vec![
-                Rule::Fs {
+                Rule::Filesystem {
                     path: "/".into(),
                     access: FileAccess::ReadWrite,
                 },
-                Rule::Fs {
+                Rule::Filesystem {
                     path: "/tmp".into(),
                     access: FileAccess::ReadOnly,
                 }
@@ -765,7 +761,7 @@ mod tests {
         assert_eq!(
             policy.restrictions,
             vec![
-                Rule::Fs {
+                Rule::Filesystem {
                     path: "/".into(),
                     access: FileAccess::Flags("w".into())
                 },
@@ -790,7 +786,7 @@ mod tests {
 
     /// Make sure policy in examples/*.yml parses
     #[test]
-    fn test_parse_examples_smoke() -> Result<()> {
+    fn parse_examples_smoke_test() -> Result<()> {
         let examples_path = get_project_path("examples");
         let mut examples_str = examples_path
             .to_str()
@@ -810,7 +806,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_deserialize_smoke() -> Result<()> {
+    fn policy_deserialize_smoke_test() -> Result<()> {
         let policy_str = "
             name: testificate
             cmd: /bin/testificate
@@ -842,7 +838,7 @@ mod tests {
     }
 
     #[test]
-    fn test_policy_id() -> Result<()> {
+    fn policy_id_test() -> Result<()> {
         let mut policy_1 = Policy::default();
         policy_1.name = "discord".into();
         policy_1.cmd = "/bin/discord".into();
@@ -857,7 +853,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fs_rule_deserialize() -> Result<()> {
+    fn fs_rule_deserialize_test() -> Result<()> {
         let rule_str = "
             fs:
                 path: /tmp
@@ -866,7 +862,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::ReadOnly,
                 path: "/tmp".into(),
             }
@@ -880,7 +876,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::ReadOnly,
                 path: "/tmp".into(),
             }
@@ -892,7 +888,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::ReadOnly,
                 path: "/tmp".into(),
             }
@@ -906,7 +902,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::ReadAppend,
                 path: "/tmp".into(),
             }
@@ -920,7 +916,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::ReadWrite,
                 path: "/tmp".into(),
             }
@@ -934,7 +930,7 @@ mod tests {
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Fs {
+            Rule::Filesystem {
                 access: FileAccess::Flags("rwx".into()),
                 path: "/tmp".into(),
             }
@@ -944,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    fn test_file_rule_deserialize() -> Result<()> {
+    fn file_rule_deserialize_test() -> Result<()> {
         let rule_str = "
             file:
                 path: /tmp
@@ -1031,7 +1027,7 @@ mod tests {
     }
 
     #[test]
-    fn test_capability_rule_deserialize() -> Result<()> {
+    fn capability_rule_deserialize_test() -> Result<()> {
         let rule_str = "
             cap: netBindService
             ";
@@ -1090,7 +1086,7 @@ mod tests {
     }
 
     #[test]
-    fn test_net_rule_deserialize() -> Result<()> {
+    fn net_rule_deserialize_test() -> Result<()> {
         let rule_str = "
             network: clientSend
             ";
@@ -1113,7 +1109,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ipc_rule_deserialize() -> Result<()> {
+    fn ipc_rule_deserialize_test() -> Result<()> {
         let rule_str = "
             ipc: other
             ";
