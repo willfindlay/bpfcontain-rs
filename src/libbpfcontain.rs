@@ -41,6 +41,8 @@ pub mod structs {
     pub use bindings::net_operation_t;
     pub use bindings::policy_decision_t;
 
+    pub const MINOR_WILDCARD: i64 = bindings::MINOR_WILDCARD as i64;
+
     bitflags! {
         /// Represents a policy decision from the BPF side.
         ///

@@ -278,8 +278,10 @@ enum Rule {
 
     // High-level policy starts here
     /// Grants read, write, and append access to /dev/pts/* devices
-    #[serde(rename = "terminal")]
     Terminal,
+
+    /// Grants read access to /dev/[u]random
+    Random,
 }
 
 /// A high-level representation of a BPFContain policy that has been loaded
@@ -412,6 +414,7 @@ impl Policy {
 
             // Handle high level policy
             Rule::Terminal => self.load_terminal_rule(skel, &action)?,
+            Rule::Random => self.load_random_rule(skel, &action)?,
         };
 
         Ok(())
@@ -621,10 +624,11 @@ impl Policy {
             PolicyDecision::Taint => maps.dev_taint(),
         };
 
-        // Set key using container_id
+        // Any /dev/pts device
         let mut key = structs::dev_policy_key::default();
         key.container_id = self.container_id();
         key.major = 136; // /dev/pts/* major number
+        key.minor = structs::MINOR_WILDCARD; // any minor number
         let key = unsafe { plain::as_bytes(&key) };
 
         // Set value to rwa file access
@@ -635,6 +639,37 @@ impl Policy {
             "Failed to update map key={:?} value={:?}",
             key, value
         ))?;
+
+        Ok(())
+    }
+
+    fn load_random_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.dev_allow(),
+            PolicyDecision::Deny => maps.dev_deny(),
+            PolicyDecision::Taint => maps.dev_taint(),
+        };
+
+        // Set value to read file access
+        let value: u32 = structs::FileAccess::from_flags("r").bits();
+        let value = unsafe { plain::as_bytes(&value) };
+
+        // /dev/random and /dev/urandom
+        for &(major, minor) in &[(1, 8), (1, 9)] {
+            // Set key using container_id
+            let mut key = structs::dev_policy_key::default();
+            key.container_id = self.container_id();
+            key.major = major;
+            key.minor = minor;
+            let key = unsafe { plain::as_bytes(&key) };
+
+            map.update(key, value, MapFlags::ANY).context(format!(
+                "Failed to update map key={:?} value={:?}",
+                key, value
+            ))?;
+        }
 
         Ok(())
     }

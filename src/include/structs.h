@@ -102,9 +102,11 @@ struct file_policy_key {
     unsigned int device_id;
 };
 
+#define MINOR_WILDCARD -1L
 struct dev_policy_key {
     unsigned long container_id;
     unsigned int major;
+    long minor;  // -1 is wildcard
 };
 
 struct cap_policy_key {

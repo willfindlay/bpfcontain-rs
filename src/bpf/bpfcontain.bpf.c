@@ -379,9 +379,15 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
     key.container_id = container_id;
     key.major = MAJOR(inode->i_rdev);
 
+    // Not a device driver
     if (!key.major) {
         return BPFCON_NO_DECISION;
     }
+
+    /*
+     * Try with minor = -1 first (wildcard)
+     */
+    key.minor = MINOR_WILDCARD;
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&dev_allow, &key);
@@ -397,6 +403,29 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
 
     // If we are tainting _any part_ of the access, taint
     u32 *tainted = bpf_map_lookup_elem(&dev_taint, &key);
+    if (tainted && (*tainted & access)) {
+        decision |= BPFCON_TAINT;
+    }
+
+    /*
+     * Try with minor = i_rdev's minor second
+     */
+    key.minor = MINOR(inode->i_rdev);
+
+    // If we are allowing the _entire_ access, allow
+    allowed = bpf_map_lookup_elem(&dev_allow, &key);
+    if (allowed && ((*allowed & access) == access)) {
+        decision |= BPFCON_ALLOW;
+    }
+
+    // If we are denying _any part_ of the access, deny
+    denied = bpf_map_lookup_elem(&dev_deny, &key);
+    if (denied && (*denied & access)) {
+        decision |= BPFCON_DENY;
+    }
+
+    // If we are tainting _any part_ of the access, taint
+    tainted = bpf_map_lookup_elem(&dev_taint, &key);
     if (tainted && (*tainted & access)) {
         decision |= BPFCON_TAINT;
     }
