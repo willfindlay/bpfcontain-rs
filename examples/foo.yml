@@ -1,0 +1,12 @@
+name: foo
+cmd: /bin/foo
+default: deny
+rights:
+  - terminal
+  - fs: {path: /dev}
+  - fs: {path: /}
+restrictions:
+  - fs: {path: /, access: {flags: wa}}
+taints:
+ # Taint on any net access
+  - net: any
