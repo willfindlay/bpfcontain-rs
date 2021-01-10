@@ -12,6 +12,7 @@ name = "bpfcontain"
 [lib]
 name = "bpfcontain"
 
+# Criterion benchmark
 [[bench]]
 name = "overhead"
 harness = false

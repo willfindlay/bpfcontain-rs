@@ -2,12 +2,10 @@ VMLINUX = vmlinux_$(shell uname -r).h
 
 .PHONY: build
 build: src/bpf/vmlinux.h
-	cargo libbpf make
 	cargo build
 
 .PHONY: test
 test:
-	cargo libbpf make
 	cargo test -- $(ARGS)
 
 .PHONY: vmlinux
