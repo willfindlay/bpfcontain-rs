@@ -19,7 +19,7 @@ src/bpf/vmlinux.h: src/bpf/$(VMLINUX)
 
 .PHONY: install
 install:
-	cargo install
+	cargo install --path .
 
 .PHONY: clean
 clean:

@@ -51,12 +51,13 @@ If you want/need to generate a new `vmlinux.h` (e.g. to support a non-standard k
 * You must install `bpftool` from your kernel sources
     * Available in [tools/bpf/bpftool](https://github.com/torvalds/linux/tree/master/tools/bpf/bpftool)
       in Linus' source tree
+* You can run `make vmlinux` to update your `vmlinux.h` with `bpftool`
 
 ### Installation
 
 1. Make sure you have all the dependencies above.
 1. Clone this repo: `git clone https://github.com/willfindlay/bpfcontain-rs/ && cd bpfcontain-rs`
-1. Run cargo install: `cargo install --path .`
+1. Install bpfcontain: `cargo install --path .`
 1. Add `$HOME/.cargo/bin` to your `$PATH`
 
 ## Usage
