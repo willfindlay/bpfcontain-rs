@@ -1450,7 +1450,8 @@ int BPF_PROG(sb_set_mnt_opts, struct super_block *sb, void *mnt_opts,
 
     bpf_printk("alloc mount ns");
     bpf_printk("dev_id = %lu", key.device_id);
-    bpf_printk("mnt_ns = %u\n", key.mnt_ns);
+    bpf_printk("mnt_ns = %u", key.mnt_ns);
+    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
 
     u8 val = 1;
     bpf_map_update_elem(&mnt_ns_active_fs, &key, &val, 0);
@@ -1470,7 +1471,8 @@ int BPF_PROG(sb_free_security, struct super_block *sb)
 
     bpf_printk("free mount ns");
     bpf_printk("dev_id = %lu", key.device_id);
-    bpf_printk("mnt_ns = %u\n", key.mnt_ns);
+    bpf_printk("mnt_ns = %u", key.mnt_ns);
+    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
 
     if (!key.mnt_ns) {
         return 0;
