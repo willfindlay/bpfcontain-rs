@@ -20,7 +20,7 @@ pub trait ToBitflags {
 
 /// Represents a default policy decision.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum DefaultDecision {
     Deny,
     Allow,
@@ -49,7 +49,7 @@ impl ToBitflags for DefaultDecision {
 
 /// Represents a policy decision.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum PolicyDecision {
     Deny,
     Allow,
@@ -72,7 +72,7 @@ impl ToBitflags for PolicyDecision {
 
 /// A parseable capability
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum Capability {
     /// The CAP_NET_BIND_SERVICE capability.
     /// In YAML this is written as `net-bind-service`.
@@ -109,7 +109,7 @@ impl ToBitflags for Capability {
 
 /// A parseable file access
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum FileAccess {
     /// Read-Only access.
     /// In YAML this is written as `read-only`.
@@ -126,54 +126,6 @@ enum FileAccess {
     Flags(String),
 }
 
-impl FileAccess {
-    /// Convert a file access flag string to a bitmask.
-    fn flags_to_access(flags: &String) -> structs::FileAccess {
-        let mut access = structs::FileAccess::default();
-
-        // 'x': MAY_EXEC,
-        // 'w': MAY_WRITE,
-        // 'r': MAY_READ,
-        // 'a': MAY_APPEND,
-        // 'c': MAY_CREATE,
-        // 'd': MAY_DELETE,
-        // 'n': MAY_RENAME,
-        // 's': MAY_SETATTR,
-        // 'p': MAY_CHMOD,
-        // 'o': MAY_CHOWN,
-        // 'l': MAY_LINK,
-        // 'm': MAY_EXEC_MMAP,
-        // 't': MAY_CHDIR,
-
-        // Iterate through the characters in our access flags, creating the
-        // bitmask as we go.
-        for c in flags.chars() {
-            // Because of weird Rust-isms, to_lowercase returns a string. We
-            // only care about ASCII chars, so we will match on length-1
-            // strings.
-            let c_lo = &c.to_lowercase().to_string()[..];
-            match c_lo {
-                "x" => access |= structs::FileAccess::MAY_EXEC,
-                "w" => access |= structs::FileAccess::MAY_WRITE,
-                "r" => access |= structs::FileAccess::MAY_READ,
-                "a" => access |= structs::FileAccess::MAY_APPEND,
-                "c" => access |= structs::FileAccess::MAY_CREATE,
-                "d" => access |= structs::FileAccess::MAY_DELETE,
-                "n" => access |= structs::FileAccess::MAY_RENAME,
-                "s" => access |= structs::FileAccess::MAY_SETATTR,
-                "p" => access |= structs::FileAccess::MAY_CHMOD,
-                "o" => access |= structs::FileAccess::MAY_CHOWN,
-                "l" => access |= structs::FileAccess::MAY_LINK,
-                "m" => access |= structs::FileAccess::MAY_EXEC_MMAP,
-                "t" => access |= structs::FileAccess::MAY_CHDIR,
-                _ => log::warn!("Unknown access flag {}", c),
-            };
-        }
-
-        access
-    }
-}
-
 impl ToBitflags for FileAccess {
     type BitFlag = structs::FileAccess;
 
@@ -184,7 +136,7 @@ impl ToBitflags for FileAccess {
             Self::ReadOnly => Self::BitFlag::RO_MASK,
             Self::ReadAppend => Self::BitFlag::RA_MASK,
             Self::ReadWrite => Self::BitFlag::RW_MASK,
-            Self::Flags(flags) => Self::flags_to_access(flags),
+            Self::Flags(flags) => Self::BitFlag::from_flags(flags),
         }
     }
 }
@@ -197,7 +149,7 @@ impl Default for FileAccess {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 enum NetAccess {
     ClientSend,
     ServerSend,
@@ -327,6 +279,11 @@ enum Rule {
     /// TODO
     #[serde(rename = "ipc")]
     Ipc(String),
+
+    // High-level policy starts here
+    /// Grants read, write, and append access to /dev/pts/* devices
+    #[serde(rename = "terminal")]
+    Terminal,
 }
 
 /// A high-level representation of a BPFContain policy that has been loaded
@@ -456,6 +413,9 @@ impl Policy {
 
             // Handle IPC rule
             Rule::Ipc(other) => self.load_ipc_rule(skel, other, &action)?,
+
+            // Handle high level policy
+            Rule::Terminal => self.load_terminal_rule(skel, &action)?,
         };
 
         Ok(())
@@ -645,7 +605,34 @@ impl Policy {
         let key = unsafe { plain::as_bytes(&key) };
 
         // Value doesn't matter
-        let value: u8 = 0;
+        let value: u8 = 1;
+        let value = unsafe { plain::as_bytes(&value) };
+
+        map.update(key, value, MapFlags::ANY).context(format!(
+            "Failed to update map key={:?} value={:?}",
+            key, value
+        ))?;
+
+        Ok(())
+    }
+
+    fn load_terminal_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
+        // Look up the correct map
+        let mut maps = skel.maps();
+        let map = match action {
+            PolicyDecision::Allow => maps.dev_allow(),
+            PolicyDecision::Deny => maps.dev_deny(),
+            PolicyDecision::Taint => maps.dev_taint(),
+        };
+
+        // Set key using container_id
+        let mut key = structs::dev_policy_key::default();
+        key.container_id = self.container_id();
+        key.major = 136; // /dev/pts/* major number
+        let key = unsafe { plain::as_bytes(&key) };
+
+        // Set value to rwa file access
+        let value: u32 = structs::FileAccess::from_flags("rwa").bits();
         let value = unsafe { plain::as_bytes(&value) };
 
         map.update(key, value, MapFlags::ANY).context(format!(
@@ -693,6 +680,15 @@ impl Policy {
 mod tests {
     use super::*;
 
+    fn get_project_path<P: AsRef<Path>>(path: P) -> PathBuf {
+        let project_path = Path::new(file!()).parent().expect("Failed to get parent");
+        project_path
+            .join("..")
+            .join(path)
+            .canonicalize()
+            .expect("Failed to canonicalize path")
+    }
+
     #[test]
     fn test_policy_deserialize() -> Result<()> {
         let policy_str = "
@@ -738,8 +734,8 @@ mod tests {
             cmd: /bin/test
             default: allow
             rights:
-                - fs: {path: /, access: read-write}
-                - filesystem: {path: /tmp, access: read-only}
+                - fs: {path: /, access: readWrite}
+                - filesystem: {path: /tmp, access: readOnly}
             restrictions:
                 - fs:
                     path: /
@@ -792,6 +788,27 @@ mod tests {
         Ok(())
     }
 
+    /// Make sure policy in examples/*.yml parses
+    #[test]
+    fn test_parse_examples_smoke() -> Result<()> {
+        let examples_path = get_project_path("examples");
+        let mut examples_str = examples_path
+            .to_str()
+            .expect("Failed to convert examples_path to string")
+            .to_string();
+        examples_str.push_str("/**/*.yml");
+
+        for path in glob::glob(&examples_str)
+            .expect("Failed to glob")
+            .filter_map(Result::ok)
+        {
+            Policy::from_path(&path)
+                .context(format!("Failed to parse policy from path {:?}", path))?;
+        }
+
+        Ok(())
+    }
+
     #[test]
     fn test_policy_deserialize_smoke() -> Result<()> {
         let policy_str = "
@@ -808,15 +825,15 @@ mod tests {
                 access: {flags: rwx}
             - fs:
                 path: /mnt
-                access: read-write
+                access: readWrite
             - fs:
                 path: /dev
             - net: client
-            - capability: net-bind-service
+            - capability: netBindService
 
             restrictions:
-            - capability: dac-override
-            - capability: dac-read-search
+            - capability: dacOverride
+            - capability: dacReadSearch
             ";
 
         let _policy: Policy = serde_yaml::from_str(policy_str)?;
@@ -844,7 +861,7 @@ mod tests {
         let rule_str = "
             fs:
                 path: /tmp
-                access: read-only
+                access: readOnly
             ";
 
         assert_eq!(
@@ -858,7 +875,7 @@ mod tests {
         let rule_str = "
             filesystem:
                 path: /tmp
-                access: read-only
+                access: readOnly
             ";
 
         assert_eq!(
@@ -870,7 +887,7 @@ mod tests {
         );
 
         let rule_str = "
-            filesystem: {path: /tmp, access: read-only}
+            filesystem: {path: /tmp, access: readOnly}
             ";
 
         assert_eq!(
@@ -884,7 +901,7 @@ mod tests {
         let rule_str = "
             filesystem:
                 path: /tmp
-                access: read-append
+                access: readAppend
             ";
 
         assert_eq!(
@@ -898,7 +915,7 @@ mod tests {
         let rule_str = "
             filesystem:
                 path: /tmp
-                access: read-write
+                access: readWrite
             ";
 
         assert_eq!(
@@ -931,7 +948,7 @@ mod tests {
         let rule_str = "
             file:
                 path: /tmp
-                access: read-only
+                access: readOnly
             ";
 
         assert_eq!(
@@ -945,7 +962,7 @@ mod tests {
         let rule_str = "
             file:
                 path: /tmp
-                access: read-only
+                access: readOnly
             ";
 
         assert_eq!(
@@ -957,7 +974,7 @@ mod tests {
         );
 
         let rule_str = "
-            file: {path: /tmp, access: read-only}
+            file: {path: /tmp, access: readOnly}
             ";
 
         assert_eq!(
@@ -971,7 +988,7 @@ mod tests {
         let rule_str = "
             file:
                 path: /tmp
-                access: read-append
+                access: readAppend
             ";
 
         assert_eq!(
@@ -985,7 +1002,7 @@ mod tests {
         let rule_str = "
             file:
                 path: /tmp
-                access: read-write
+                access: readWrite
             ";
 
         assert_eq!(
@@ -1016,7 +1033,7 @@ mod tests {
     #[test]
     fn test_capability_rule_deserialize() -> Result<()> {
         let rule_str = "
-            cap: net-bind-service
+            cap: netBindService
             ";
 
         assert_eq!(
@@ -1025,7 +1042,7 @@ mod tests {
         );
 
         let rule_str = "
-            capability: net-bind-service
+            capability: netBindService
             ";
 
         assert_eq!(
@@ -1034,7 +1051,7 @@ mod tests {
         );
 
         let rule_str = "
-            capability: net-raw
+            capability: netRaw
             ";
 
         assert_eq!(
@@ -1043,7 +1060,7 @@ mod tests {
         );
 
         let rule_str = "
-            capability: net-broadcast
+            capability: netBroadcast
             ";
 
         assert_eq!(
@@ -1052,7 +1069,7 @@ mod tests {
         );
 
         let rule_str = "
-            capability: dac-override
+            capability: dacOverride
             ";
 
         assert_eq!(
@@ -1061,7 +1078,7 @@ mod tests {
         );
 
         let rule_str = "
-            capability: dac-read-search
+            capability: dacReadSearch
             ";
 
         assert_eq!(
@@ -1075,7 +1092,7 @@ mod tests {
     #[test]
     fn test_net_rule_deserialize() -> Result<()> {
         let rule_str = "
-            network: client-send
+            network: clientSend
             ";
 
         assert_eq!(

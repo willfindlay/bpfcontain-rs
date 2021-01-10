@@ -81,45 +81,55 @@ where
         }
     }
 }
-pub const policy_decision_t_BPFCON_NO_DECISION: policy_decision_t = 0;
-pub const policy_decision_t_BPFCON_ALLOW: policy_decision_t = 1;
-pub const policy_decision_t_BPFCON_DENY: policy_decision_t = 2;
-pub const policy_decision_t_BPFCON_TAINT: policy_decision_t = 4;
-pub type policy_decision_t = ::std::os::raw::c_uint;
-pub const file_permission_t_BPFCON_MAY_EXEC: file_permission_t = 1;
-pub const file_permission_t_BPFCON_MAY_WRITE: file_permission_t = 2;
-pub const file_permission_t_BPFCON_MAY_READ: file_permission_t = 4;
-pub const file_permission_t_BPFCON_MAY_APPEND: file_permission_t = 8;
-pub const file_permission_t_BPFCON_MAY_CREATE: file_permission_t = 16;
-pub const file_permission_t_BPFCON_MAY_DELETE: file_permission_t = 32;
-pub const file_permission_t_BPFCON_MAY_RENAME: file_permission_t = 64;
-pub const file_permission_t_BPFCON_MAY_SETATTR: file_permission_t = 128;
-pub const file_permission_t_BPFCON_MAY_CHMOD: file_permission_t = 256;
-pub const file_permission_t_BPFCON_MAY_CHOWN: file_permission_t = 512;
-pub const file_permission_t_BPFCON_MAY_LINK: file_permission_t = 1024;
-pub const file_permission_t_BPFCON_MAY_EXEC_MMAP: file_permission_t = 2048;
-pub const file_permission_t_BPFCON_MAY_CHDIR: file_permission_t = 4096;
-pub type file_permission_t = ::std::os::raw::c_uint;
-pub const capability_t_BPFCON_CAP_NET_BIND_SERVICE: capability_t = 1;
-pub const capability_t_BPFCON_CAP_NET_RAW: capability_t = 2;
-pub const capability_t_BPFCON_CAP_NET_BROADCAST: capability_t = 4;
-pub const capability_t_BPFCON_CAP_DAC_OVERRIDE: capability_t = 8;
-pub const capability_t_BPFCON_CAP_DAC_READ_SEARCH: capability_t = 16;
-pub type capability_t = ::std::os::raw::c_uint;
-pub const net_category_t_BPFCON_NET_WWW: net_category_t = 1;
-pub const net_category_t_BPFCON_NET_IPC: net_category_t = 2;
-pub type net_category_t = ::std::os::raw::c_uint;
-pub const net_operation_t_BPFCON_NET_CONNECT: net_operation_t = 1;
-pub const net_operation_t_BPFCON_NET_BIND: net_operation_t = 2;
-pub const net_operation_t_BPFCON_NET_ACCEPT: net_operation_t = 4;
-pub const net_operation_t_BPFCON_NET_LISTEN: net_operation_t = 8;
-pub const net_operation_t_BPFCON_NET_SEND: net_operation_t = 16;
-pub const net_operation_t_BPFCON_NET_RECV: net_operation_t = 32;
-pub const net_operation_t_BPFCON_NET_CREATE: net_operation_t = 64;
-pub const net_operation_t_BPFCON_NET_SHUTDOWN: net_operation_t = 128;
-pub type net_operation_t = ::std::os::raw::c_uint;
+pub mod policy_decision_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_NO_DECISION: Type = 0;
+    pub const BPFCON_ALLOW: Type = 1;
+    pub const BPFCON_DENY: Type = 2;
+    pub const BPFCON_TAINT: Type = 4;
+}
+pub mod file_permission_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_MAY_EXEC: Type = 1;
+    pub const BPFCON_MAY_WRITE: Type = 2;
+    pub const BPFCON_MAY_READ: Type = 4;
+    pub const BPFCON_MAY_APPEND: Type = 8;
+    pub const BPFCON_MAY_CREATE: Type = 16;
+    pub const BPFCON_MAY_DELETE: Type = 32;
+    pub const BPFCON_MAY_RENAME: Type = 64;
+    pub const BPFCON_MAY_SETATTR: Type = 128;
+    pub const BPFCON_MAY_CHMOD: Type = 256;
+    pub const BPFCON_MAY_CHOWN: Type = 512;
+    pub const BPFCON_MAY_LINK: Type = 1024;
+    pub const BPFCON_MAY_EXEC_MMAP: Type = 2048;
+    pub const BPFCON_MAY_CHDIR: Type = 4096;
+}
+pub mod capability_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_CAP_NET_BIND_SERVICE: Type = 1;
+    pub const BPFCON_CAP_NET_RAW: Type = 2;
+    pub const BPFCON_CAP_NET_BROADCAST: Type = 4;
+    pub const BPFCON_CAP_DAC_OVERRIDE: Type = 8;
+    pub const BPFCON_CAP_DAC_READ_SEARCH: Type = 16;
+}
+pub mod net_category_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_NET_WWW: Type = 1;
+    pub const BPFCON_NET_IPC: Type = 2;
+}
+pub mod net_operation_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_NET_CONNECT: Type = 1;
+    pub const BPFCON_NET_BIND: Type = 2;
+    pub const BPFCON_NET_ACCEPT: Type = 4;
+    pub const BPFCON_NET_LISTEN: Type = 8;
+    pub const BPFCON_NET_SEND: Type = 16;
+    pub const BPFCON_NET_RECV: Type = 32;
+    pub const BPFCON_NET_CREATE: Type = 64;
+    pub const BPFCON_NET_SHUTDOWN: Type = 128;
+}
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_container {
     pub default_deny: ::std::os::raw::c_uchar,
     pub default_taint: ::std::os::raw::c_uchar,
@@ -158,7 +168,7 @@ fn bindgen_test_layout_bpfcon_container() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_process {
     pub container_id: ::std::os::raw::c_ulong,
     pub pid: ::std::os::raw::c_uint,
@@ -251,7 +261,7 @@ impl bpfcon_process {
     }
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct mnt_ns_fs {
     pub mnt_ns: ::std::os::raw::c_uint,
     pub device_id: ::std::os::raw::c_ulong,
@@ -290,7 +300,7 @@ fn bindgen_test_layout_mnt_ns_fs() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct fs_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
@@ -329,7 +339,7 @@ fn bindgen_test_layout_fs_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct file_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub inode_id: ::std::os::raw::c_ulong,
@@ -379,7 +389,7 @@ fn bindgen_test_layout_file_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub major: ::std::os::raw::c_uint,
@@ -418,7 +428,7 @@ fn bindgen_test_layout_dev_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
 }
@@ -446,7 +456,7 @@ fn bindgen_test_layout_cap_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct net_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
 }
@@ -474,7 +484,7 @@ fn bindgen_test_layout_net_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub other_container_id: ::std::os::raw::c_ulong,
@@ -515,7 +525,7 @@ fn bindgen_test_layout_ipc_policy_key() {
     );
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct inode_key {
     pub inode_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
