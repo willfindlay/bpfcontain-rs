@@ -80,8 +80,8 @@ struct bpfcon_process {
     unsigned long container_id;
     unsigned int pid;
     unsigned int tgid;
-    unsigned char in_execve;
-    unsigned char tainted;
+    unsigned char in_execve : 1;
+    unsigned char tainted : 1;
 };
 
 struct mnt_ns_fs {
