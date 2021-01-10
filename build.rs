@@ -32,23 +32,21 @@ fn main() {
         .write_to_file("src/libbpfcontain/bindings.rs")
         .expect("Failed to save bindings");
 
-    // Run cargo-libbpf-gen
-    Command::new("cargo")
-        .arg("libbpf")
-        .arg("gen")
-        .spawn()
-        .expect("Failed to run cargo libbpf gen")
-        .wait()
-        .expect("Failed to wait for cargo libbpf gen");
-
     // Run cargo-libbpf-build
-    Command::new("cargo")
+    let status = Command::new("cargo")
         .arg("libbpf")
         .arg("build")
-        .spawn()
-        .expect("Failed to run cargo libbpf build")
-        .wait()
-        .expect("Failed to wait for cargo libbpf build");
+        .status()
+        .expect("Failed to run cargo libbpf build");
+    assert!(status.success());
+
+    // Run cargo-libbpf-gen
+    let status = Command::new("cargo")
+        .arg("libbpf")
+        .arg("gen")
+        .status()
+        .expect("Failed to run cargo libbpf gen");
+    assert!(status.success());
 
     // Include bpfcontain as a C library
     println!("cargo:rustc-link-lib=dylib=bpfcontain");
