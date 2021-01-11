@@ -65,72 +65,23 @@ pub fn load_bpf_program<'a>(
     Ok(skel)
 }
 
-/// Load policy into the kernel from a YAML string.
-pub fn load_policy_str(mut skel: &mut bpf::BpfcontainSkel, policy_str: &str) -> Result<()> {
-    // Parse policy
-    let policy: Policy = match serde_yaml::from_str(policy_str) {
-        Ok(policy) => policy,
-        Err(e) => {
-            bail!("Unable to parse policy: {}", e);
-        }
-    };
-
-    // Load policy
-    match policy.load(&mut skel) {
-        Ok(_) => {}
-        Err(e) => {
-            bail!("Unable to load policy: {}", e);
-        }
-    };
-
-    Ok(())
-}
-
-/// Load policy into the kernel from a YAML file at `path`.
-pub fn load_policy_file(mut skel: &mut bpf::BpfcontainSkel, path: &Path) -> Result<()> {
-    log::info!("Loading policy {:?}...", path);
-
-    // Open file for reading
-    let reader = match std::fs::File::open(&path) {
-        Ok(reader) => reader,
-        Err(e) => {
-            bail!("Unable to open {:?} for reading: {}", &path, e);
-        }
-    };
-
-    // Parse policy
-    let policy: Policy = match serde_yaml::from_reader(reader) {
-        Ok(policy) => policy,
-        Err(e) => {
-            bail!("Unable to parse policy {:?}: {}", &path, e);
-        }
-    };
-
-    // Load policy
-    match policy.load(&mut skel) {
-        Ok(_) => {}
-        Err(e) => {
-            bail!("Unable to load policy {:?}: {}", &path, e);
-        }
-    };
-
-    Ok(())
-}
-
 /// Recursively load YAML policy into the kernel from `policy_dir`.
 pub fn load_policy_recursive(skel: &mut bpf::BpfcontainSkel, policy_dir: &str) -> Result<()> {
     log::info!("Loading policy from {}...", policy_dir);
 
     // Use glob to match all YAML files in the directory tree
-    for entry in
-        glob(&format!("{}/**/*.yml", policy_dir)).context("Failed to glob policy directory")?
+    for path in glob(&format!("{}/**/*.yml", policy_dir))
+        .context("Failed to glob policy directory")?
+        .filter_map(Result::ok)
     {
-        if let Ok(path) = entry {
-            // We want to keep going if we fail to load a policy, but warn the
-            // user
-            if let Err(e) = load_policy_file(skel, &path) {
-                log::warn!("Error loading policy {:?}: {}", path, e);
-            }
+        if let Err(e) = || -> Result<()> {
+            let policy = Policy::from_path(&path).context("Failed to parse policy")?;
+            policy
+                .load(skel)
+                .context("Failed to load policy into kernel")?;
+            Ok(())
+        }() {
+            log::warn!("Error loading policy {}: {}", path.display(), e);
         }
     }
 
