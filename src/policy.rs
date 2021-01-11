@@ -317,13 +317,18 @@ impl Policy {
         Self::container_id_for_name(&self.name)
     }
 
-    /// Construct a new policy by parsing the policy file located at `path`.
+    /// Construct a new policy by parsing the YAML policy file located at `path`.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         use std::fs::File;
 
         let reader = File::open(&path).context("Failed to open policy file for reading")?;
 
         serde_yaml::from_reader(reader).context("Failed to parse policy file")
+    }
+
+    /// Construct a new policy by parsing a YAML `string`.
+    pub fn from_str(string: &str) -> Result<Self> {
+        serde_yaml::from_str(string).context("Failed to parse policy string")
     }
 
     fn container_id_for_name(name: &str) -> u64 {
@@ -727,7 +732,7 @@ mod tests {
             cmd: /bin/test
             ";
 
-        let policy: Policy = serde_yaml::from_str(policy_str)?;
+        let policy: Policy = Policy::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
         assert_eq!(policy.default, DefaultDecision::Deny);
@@ -740,7 +745,7 @@ mod tests {
             default: allow
             ";
 
-        let policy: Policy = serde_yaml::from_str(policy_str)?;
+        let policy: Policy = Policy::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
         assert_eq!(policy.default, DefaultDecision::Allow);
@@ -753,7 +758,7 @@ mod tests {
             default: deny
             ";
 
-        let policy: Policy = serde_yaml::from_str(policy_str)?;
+        let policy: Policy = Policy::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
         assert_eq!(policy.default, DefaultDecision::Deny);
@@ -776,7 +781,7 @@ mod tests {
                     access: {flags: w}
             ";
 
-        let policy: Policy = serde_yaml::from_str(policy_str)?;
+        let policy: Policy = Policy::from_str(policy_str)?;
         assert_eq!(policy.name, "test_policy");
         assert_eq!(policy.cmd, "/bin/test");
         assert_eq!(policy.default, DefaultDecision::Allow);
@@ -813,8 +818,7 @@ mod tests {
             cmd: /bin/test
             default: taint
             ";
-        serde_yaml::from_str::<Policy>(policy_str)
-            .expect_err("Shouldn't be able to parse default taint");
+        Policy::from_str(policy_str).expect_err("Shouldn't be able to parse default taint");
 
         Ok(())
     }
@@ -867,7 +871,7 @@ mod tests {
             - capability: dacReadSearch
             ";
 
-        let _policy: Policy = serde_yaml::from_str(policy_str)?;
+        let _policy: Policy = Policy::from_str(policy_str)?;
 
         Ok(())
     }
