@@ -76,7 +76,7 @@ typedef enum {
 } event_category_t;
 
 typedef struct event {
-    event_category_t category;
+    unsigned int category;
     unsigned long container_id;
     unsigned int pid;
     unsigned int tgid;

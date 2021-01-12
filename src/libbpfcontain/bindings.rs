@@ -129,31 +129,79 @@ pub mod net_operation_t {
     pub const BPFCON_NET_CREATE: Type = 64;
     pub const BPFCON_NET_SHUTDOWN: Type = 128;
 }
+pub mod event_category_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BPFCON_NO_SUCH_CONTAINER: Type = 0;
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct event {
-    pub unused: ::std::os::raw::c_int,
+    pub category: ::std::os::raw::c_uint,
+    pub container_id: ::std::os::raw::c_ulong,
+    pub pid: ::std::os::raw::c_uint,
+    pub tgid: ::std::os::raw::c_uint,
+    pub comm: [::std::os::raw::c_char; 16usize],
 }
 #[test]
 fn bindgen_test_layout_event() {
     assert_eq!(
         ::std::mem::size_of::<event>(),
-        4usize,
+        40usize,
         concat!("Size of: ", stringify!(event))
     );
     assert_eq!(
         ::std::mem::align_of::<event>(),
-        4usize,
+        8usize,
         concat!("Alignment of ", stringify!(event))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).unused as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<event>())).category as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(event),
             "::",
-            stringify!(unused)
+            stringify!(category)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).container_id as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(container_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).pid as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(pid)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).tgid as *const _ as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(tgid)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).comm as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(comm)
         )
     );
 }
