@@ -98,8 +98,7 @@ pub fn load_bpf_program<'a>(
 fn handle_event(_cpu: i32, data: &[u8]) {
     let mut event: structs::event = structs::event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
-
-    log::info!("{}", event.unused);
+    // TODO
 }
 
 /// Handle lost perf buffer events
