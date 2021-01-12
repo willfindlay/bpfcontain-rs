@@ -16,8 +16,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::thread::sleep;
 use std::time::Duration;
 
-use crate::bpf;
-use crate::bpf_program;
+use crate::bpf_program::work_loop;
 use crate::config::Settings;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -32,28 +31,6 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     result
 }
 
-/// Starts the BPF program.
-fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
-    log::info!("Initializing BPF objects...");
-
-    // Initialize the skeleton builder
-    log::debug!("Initializing skeleton builder...");
-    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
-
-    let mut skel = bpf_program::load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
-        .context("Failed to load BPF program")?;
-
-    // Load policy in `config.policy.dir`
-    bpf_program::load_policy_recursive(&mut skel, &config.policy.dir)
-        .context("Failed to load policy")?;
-
-    // Loop forever
-    loop {
-        // TODO: handle logging here
-        sleep(Duration::new(1, 0));
-    }
-}
-
 /// Starts the daemon.
 fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
@@ -63,14 +40,24 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     let pidfile = &config.daemon.pidfile;
 
     // Open the log file
-    let stdout = OpenOptions::new().create(true).append(true).open(logfile)?;
-    let stderr = OpenOptions::new().create(true).append(true).open(logfile)?;
+    let stdout = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logfile)
+        .context("Failed opening logfile stdout")?;
+    let stderr = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(logfile)
+        .context("Failed opening logfile stderr")?;
 
     // Create workdir and set permissions to rwxr-xr-t
-    create_dir_all(workdir)?;
-    let mut perms = metadata(workdir)?.permissions();
+    create_dir_all(workdir).context("Failed creating policy directory")?;
+    let mut perms = metadata(workdir)
+        .context("Failed getting policy directory permissions")?
+        .permissions();
     perms.set_mode(0o1755);
-    set_permissions(workdir, perms)?;
+    set_permissions(workdir, perms).context("Failed setting policy directory permissions")?;
 
     // Set up the daemon
     let daemonize = Daemonize::new()

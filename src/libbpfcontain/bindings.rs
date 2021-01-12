@@ -131,6 +131,35 @@ pub mod net_operation_t {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct event {
+    pub unused: ::std::os::raw::c_int,
+}
+#[test]
+fn bindgen_test_layout_event() {
+    assert_eq!(
+        ::std::mem::size_of::<event>(),
+        4usize,
+        concat!("Size of: ", stringify!(event))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<event>(),
+        4usize,
+        concat!("Alignment of ", stringify!(event))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).unused as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(unused)
+        )
+    );
+}
+pub type event_t = event;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_container {
     pub default_deny: ::std::os::raw::c_uchar,
     pub default_taint: ::std::os::raw::c_uchar,

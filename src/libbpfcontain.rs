@@ -177,6 +177,9 @@ pub mod structs {
         }
     }
 
+    pub use bindings::event;
+    unsafe impl Plain for event {}
+
     /// Represents a container on the BPF side.
     ///
     /// # Warning

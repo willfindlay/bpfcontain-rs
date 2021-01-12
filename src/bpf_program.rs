@@ -8,14 +8,46 @@
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use glob::glob;
-use std::path::Path;
+use std::thread::sleep;
+use std::time::Duration;
+
+use libbpf_rs::PerfBufferBuilder;
 
 use crate::bpf;
+pub use crate::bpf::BpfcontainSkelBuilder;
 use crate::config::Settings;
+use crate::libbpfcontain::structs;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
-pub use crate::bpf::BpfcontainSkelBuilder;
+/// Main BPF program work loop.
+pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
+    log::info!("Initializing BPF objects...");
+
+    // Initialize the skeleton builder
+    log::debug!("Initializing skeleton builder...");
+    let mut skel_builder = bpf::BpfcontainSkelBuilder::default();
+
+    let mut skel = load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
+        .context("Failed to load BPF program")?;
+
+    let perf = PerfBufferBuilder::new(skel.maps().events())
+        .sample_cb(handle_event)
+        .lost_cb(handle_lost_events)
+        .build()
+        .context("Failed to initialize perf output")?;
+
+    // Load policy in `config.policy.dir`
+    load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
+
+    // Loop forever
+    loop {
+        if let Err(e) = perf.poll(Duration::new(1, 0)) {
+            log::warn!("Failed to poll perf buffer: {}", e);
+        }
+        sleep(Duration::new(1, 0));
+    }
+}
 
 /// Open, load, and attach BPF programs and maps using the `builder` provided by
 /// libbpf-rs.
@@ -29,7 +61,7 @@ pub fn load_bpf_program<'a>(
     // We need to bump the memlock limit to allow even the smallest of maps to
     // load properly
     log::debug!("Bumping memlock...");
-    bump_memlock_rlimit()?;
+    bump_memlock_rlimit().context("Failed bumping memlock limit")?;
 
     // Open eBPF objects
     log::debug!("Opening eBPF objects...");
@@ -37,9 +69,6 @@ pub fn load_bpf_program<'a>(
         Ok(open_skel) => open_skel,
         Err(e) => bail!("Failed to open skeleton: {}", e),
     };
-
-    // TODO: Set data sections here
-    //log::debug!("Setting data...");
 
     // Loading eBPF objects into kernel
     log::debug!("Loading eBPF objects into kernel...");
@@ -53,16 +82,29 @@ pub fn load_bpf_program<'a>(
     skel.attach()?;
 
     // Attach to do_containerize from /usr/lib/libbpfcontain.so
-    let _link = skel.progs().do_containerize().attach_uprobe_symbol(
+    let link = skel.progs().do_containerize().attach_uprobe_symbol(
         false,
         -1,
         "/usr/lib/libbpfcontain.so",
         "do_containerize",
     )?;
     // Keep a reference count
-    skel.links.do_containerize = Some(_link);
+    skel.links.do_containerize = Some(link);
 
     Ok(skel)
+}
+
+/// Handle perf buffer events
+fn handle_event(_cpu: i32, data: &[u8]) {
+    let mut event: structs::event = structs::event::default();
+    plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
+
+    log::info!("{}", event.unused);
+}
+
+/// Handle lost perf buffer events
+fn handle_lost_events(cpu: i32, count: u64) {
+    log::warn!("Lost {} log events on CPU {}", cpu, count);
 }
 
 /// Recursively load YAML policy into the kernel from `policy_dir`.
