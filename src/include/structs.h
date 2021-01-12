@@ -71,6 +71,18 @@ typedef enum {
 
 // clang-format on
 
+typedef enum {
+    BPFCON_NO_SUCH_CONTAINER,
+} event_category_t;
+
+typedef struct event {
+    event_category_t category;
+    unsigned long container_id;
+    unsigned int pid;
+    unsigned int tgid;
+    char comm[16];
+} event_t;
+
 struct bpfcon_container {
     unsigned char default_deny;
     unsigned char default_taint;

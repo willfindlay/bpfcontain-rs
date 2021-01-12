@@ -28,9 +28,8 @@
  * General-Purpose Helpers
  * ========================================================================= */
 
-static __always_inline void *bpf_map_lookup_or_try_init(void *map,
-                                                        const void *key,
-                                                        const void *val)
+static __always_inline void *
+bpf_map_lookup_or_try_init(void *map, const void *key, const void *val)
 {
     void *res = bpf_map_lookup_elem(map, key);
     if (!res) {
@@ -49,6 +48,13 @@ static __always_inline void *bpf_map_lookup_or_try_init(void *map,
         __uint(type, BPF_MAP_TYPE_RINGBUF);              \
         __uint(max_entries, ((1 << PAGES) * PAGE_SIZE)); \
     } NAME SEC(".maps")
+
+#define BPF_PERFBUF(NAME)                            \
+    struct {                                         \
+        __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY); \
+        __uint(key_size, sizeof(u32));               \
+        __uint(value_size, sizeof(u32));             \
+    } NAME SEC(".maps");
 
 /* Declare a BPF hashmap @NAME with key type @KEY, value type @VALUE, and @SIZE
  * max entries. The map creation flags may be specified with @FLAGS. */

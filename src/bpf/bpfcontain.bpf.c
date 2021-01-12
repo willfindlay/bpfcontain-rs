@@ -11,6 +11,10 @@
  * BPF Maps                                                                  *
  * ========================================================================= */
 
+volatile const event_t event_allocator = {};
+
+BPF_PERFBUF(events);
+
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
 
@@ -57,6 +61,52 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  * Helpers                                                                   *
  * ========================================================================= */
 
+/* Log an event to userspace.
+ *
+ * @ctx: Pointer to ctx.
+ * @category: Event category to use.
+ * @container_id: Current container ID.
+ *
+ * return: Pointer to the container.
+ */
+static __always_inline void
+log_event(void *ctx, event_category_t category, u64 container_id)
+{
+    struct event event = event_allocator;
+
+    // Set category and container_id explicitly
+    event.category = category;
+    event.container_id = container_id;
+
+    // Set pid, tgid, comm implicitly
+    event.pid = bpf_get_current_pid_tgid();
+    event.tgid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(event.comm, sizeof(event.comm));
+
+    // Push event to perf buffer
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
+                          sizeof(struct event));
+}
+
+/* Get the container with ID @container_id.
+ *
+ * TODO: call this everywhere we currently use bpf_map_lookup_elem
+ *
+ * @container_id: Container ID to lookup.
+ *
+ * return: Pointer to the container.
+ */
+static __always_inline struct bpfcon_container *
+get_container(void *ctx, u64 container_id)
+{
+    struct bpfcon_container *container =
+        bpf_map_lookup_elem(&containers, &container_id);
+    if (!container)
+        log_event(ctx, BPFCON_NO_SUCH_CONTAINER, container_id);
+
+    return container;
+}
+
 /* Add process to the processes map and associate it with @container_id.
  *
  * @pid:          PID of the process.
@@ -66,7 +116,7 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  * return: Pointer to the added process.
  */
 static __always_inline struct bpfcon_process *
-add_process(u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
+add_process(void *ctx, u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
 {
     // Initialize a new process
     struct bpfcon_process new_process = {};
@@ -1444,7 +1494,7 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
     }
 
     // Create the child
-    process = add_process(cpid, ctgid, parent_process->container_id,
+    process = add_process(args, cpid, ctgid, parent_process->container_id,
                           parent_process->tainted);
     if (!process) {
         // TODO log error
@@ -1577,7 +1627,7 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
 
     // Try to add a process to `processes` with `pid`/`tgid`, associated with
     // `container_id`
-    if (!add_process(pid, tgid, container_id, 0)) {
+    if (!add_process(ctx, pid, tgid, container_id, 0)) {
         ret = -EINVAL;
         goto out;
     }
