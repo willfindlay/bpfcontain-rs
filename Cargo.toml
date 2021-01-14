@@ -19,7 +19,9 @@ harness = false
 
 [dependencies]
 anyhow = "1.0.36"
-libbpf-rs = "0.6.1"
+#libbpf-rs = "0.6.1"
+# For now until my PR gets merged
+libbpf-rs = { git = "https://github.com/willfindlay/libbpf-rs", branch = "ringbuf" }
 clap = "2.33.3"
 libc = "0.2.81"
 daemonize = "0.4.1"
