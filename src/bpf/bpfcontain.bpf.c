@@ -123,8 +123,6 @@ add_process(void *ctx, u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
     new_process.container_id = container_id;
     new_process.in_execve = 0;
 
-    log_event(BPFCON_NO_SUCH_CONTAINER, container_id);
-
     struct bpfcon_container *container =
         bpf_map_lookup_elem(&containers, &new_process.container_id);
     if (!container) {
