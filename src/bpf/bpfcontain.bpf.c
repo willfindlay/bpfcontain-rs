@@ -59,35 +59,50 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  * Helpers                                                                   *
  * ========================================================================= */
 
-/* Log an event to userspace.
- *
- * @ctx: Pointer to ctx.
- * @category: Event category to use.
- * @container_id: Current container ID.
- *
- * return: Pointer to the container.
- */
-static __always_inline void log_event(EventCategory category, u64 container_id)
+static __always_inline void
+__log_event_common(struct event *event, EventType type, EventAction action,
+                   u64 container_id)
 {
-    // Reserve space for the event on the ring buffer
-    Event *event = bpf_ringbuf_reserve(&events, sizeof(Event), 0);
-    if (!event)
-        return;
-
-    // Set category and container_id explicitly
-    event->category = category;
+    // Set action, type, and container_id explicitly
+    event->action = action;
+    event->info.type = type;
     event->container_id = container_id;
 
     // Set pid, tgid, comm implicitly
     event->pid = bpf_get_current_pid_tgid();
     event->tgid = bpf_get_current_pid_tgid() >> 32;
     bpf_get_current_comm(event->comm, sizeof(event->comm));
+}
+
+/* Log a filesystem policy event to userspace.
+ *
+ * @category: Event category to use.
+ * @container_id: Current container ID.
+ *
+ * return: Pointer to the container.
+ */
+static __always_inline void
+log_file_policy_decision(EventAction action, u64 container_id,
+                         struct inode *inode, FilePermission access)
+{
+    // Reserve space for the event on the ring buffer
+    Event *event = bpf_ringbuf_reserve(&events, sizeof(Event), 0);
+    if (!event)
+        return;
+
+    __log_event_common(event, ET_FILE, action, container_id);
+
+    event->info.info.file_info.inode_id = inode->i_ino;
+    event->info.info.file_info.device_id = new_encode_dev(inode->i_sb->s_dev);
+    event->info.info.file_info.access = access;
 
     // Submit the event
     bpf_ringbuf_submit(event, 0);
 }
 
 /* Get the container with ID @container_id.
+ *
+ * TODO: call this instead wherever we get the current container
  *
  * @container_id: Container ID to lookup.
  *
@@ -97,8 +112,8 @@ static __always_inline struct bpfcon_container *get_container(u64 container_id)
 {
     struct bpfcon_container *container =
         bpf_map_lookup_elem(&containers, &container_id);
-    if (!container)
-        log_event(EV_NO_SUCH_CONTAINER, container_id);
+    // if (!container)
+    //    log_event(ET_NO_SUCH_CONTAINER, EA_ERROR, container_id);
 
     return container;
 }
@@ -547,6 +562,10 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
         do_file_permission(process->container_id, inode, access);
     decision |= file_decision;
 
+    if (decision & BPFCON_TAINT)
+        log_file_policy_decision(EA_TAINT, process->container_id, inode,
+                                 access);
+
     ret = do_policy_decision(process, decision, 0);
 
     // Allow procfs permissions to override denials
@@ -556,6 +575,9 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     // Allow specific file permissions to override denials
     if (file_decision == BPFCON_ALLOW)
         return 0;
+
+    if (decision & BPFCON_DENY)
+        log_file_policy_decision(EA_DENY, process->container_id, inode, access);
 
     return ret;
 }
@@ -590,26 +612,28 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     if (!process)
         return 0;
 
-    struct inode *file = bprm->file->f_inode;
-    if (file && file->i_ino) {
-        ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
-        if (ret)
-            return ret;
-    }
+    // FIXME: fix nullptr dereference here
 
-    struct inode *executable = bprm->executable->f_inode;
-    if (executable && executable->i_ino) {
-        ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
-        if (ret)
-            return ret;
-    }
+    // struct inode *file = BPF_CORE_READ(bprm, file, f_inode);
+    // if (file && file->i_ino) {
+    //    ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
+    //    if (ret)
+    //        return ret;
+    //}
 
-    struct inode *interpreter = bprm->interpreter->f_inode;
-    if (interpreter && interpreter->i_ino) {
-        ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
-        if (ret)
-            return ret;
-    }
+    // struct inode *executable = BPF_CORE_READ(bprm, executable, f_inode);
+    // if (executable && executable->i_ino) {
+    //    ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
+    //    if (ret)
+    //        return ret;
+    //}
+
+    // struct inode *interpreter = BPF_CORE_READ(bprm, interpreter, f_inode);
+    // if (interpreter && interpreter->i_ino) {
+    //    ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
+    //    if (ret)
+    //        return ret;
+    //}
 
     return 0;
 }
