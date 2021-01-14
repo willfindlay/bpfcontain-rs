@@ -19,6 +19,8 @@ use crate::config::Settings;
 use crate::libbpfcontain::structs;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
+use structs::EventCategory;
+use structs::ObjectType;
 
 /// Main BPF program work loop.
 pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -95,10 +97,22 @@ pub fn load_bpf_program(
 
 /// Handle perf buffer events
 fn handle_event(data: &[u8]) -> i32 {
-    let mut event: structs::event = structs::event::default();
+    let mut event = structs::Event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
 
-    log::debug!("{:#?}", event);
+    match event.category {
+        EventCategory::EV_NO_SUCH_CONTAINER => {}
+        EventCategory::EV_IMPLICIT_DENY => {}
+        EventCategory::EV_DENY => {}
+        EventCategory::EV_TAINT => {}
+    }
+
+    match event.object_type {
+        ObjectType::OBJ_NONE => {}
+        ObjectType::OBJ_FILE => {}
+        ObjectType::OBJ_CAP => {}
+        ObjectType::OBJ_NET => {}
+    }
 
     0
 }

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 

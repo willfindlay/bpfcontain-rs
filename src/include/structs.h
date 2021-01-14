@@ -12,6 +12,10 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
+/* ========================================================================= *
+ * Enum Types for Writing Policy                                             *
+ * ========================================================================= */
+
 // clang-format off
 
 /* Possible policy decisions */
@@ -20,7 +24,7 @@ typedef enum {
     BPFCON_ALLOW       = 0x01,
     BPFCON_DENY        = 0x02,
     BPFCON_TAINT       = 0x04,
-} policy_decision_t;
+} PolicyDecision;
 
 /* Permissions, partly based on AppArmor */
 typedef enum {
@@ -37,7 +41,7 @@ typedef enum {
     BPFCON_MAY_LINK      = 0x00000400,
     BPFCON_MAY_EXEC_MMAP = 0x00000800,
     BPFCON_MAY_CHDIR     = 0x00001000,
-} file_permission_t;
+} FilePermission;
 
 /* Tunable capabilities */
 typedef enum {
@@ -46,7 +50,7 @@ typedef enum {
     BPFCON_CAP_NET_BROADCAST    = 0x00000004,
     BPFCON_CAP_DAC_OVERRIDE     = 0x00000008,
     BPFCON_CAP_DAC_READ_SEARCH  = 0x00000010,
-} capability_t;
+} Capability;
 // Note: Fow now, we only support these capabilities. Most of the other
 // capabilities don't really make sense in the context of a container, but may
 // be required later for compatibility with other container implementations.
@@ -55,7 +59,7 @@ typedef enum {
 typedef enum {
     BPFCON_NET_WWW = 0x01,
     BPFCON_NET_IPC = 0x02,
-} net_category_t;
+} NetCategory;
 
 /* Network operations */
 typedef enum {
@@ -67,79 +71,117 @@ typedef enum {
     BPFCON_NET_RECV     = 0x00000020,
     BPFCON_NET_CREATE   = 0x00000040,
     BPFCON_NET_SHUTDOWN = 0x00000080,
-} net_operation_t;
+} NetOperation;
 
 // clang-format on
+
+/* ========================================================================= *
+ * Per-Event Logging                                                         *
+ * ========================================================================= */
 
 typedef enum {
     EV_NO_SUCH_CONTAINER,
     EV_DENY,
+    EV_IMPLICIT_DENY,
     EV_TAINT,
-    EV_ALLOW,
-} event_category_t;
+} EventCategory;
+
+typedef enum {
+    OBJ_NONE,
+    OBJ_FILE,
+    OBJ_CAP,
+    OBJ_NET,
+    OBJ_IPC,
+} ObjectType;
+
+typedef struct file_info {
+    unsigned long inode_id;
+    unsigned int device_id;
+} FileInfo;
+
+typedef struct cap_info {
+    Capability cap;
+} CapInfo;
+
+typedef struct net_info {
+    NetOperation operation;
+} NetInfo;
+
+typedef struct ipc_info {
+    unsigned long sender_id;
+    unsigned long receiver_id;
+} IPCInfo;
 
 typedef struct event {
-    unsigned int category;
+    EventCategory category;
+    ObjectType object_type;
     unsigned long container_id;
     unsigned int pid;
     unsigned int tgid;
     char comm[16];
-} event_t;
+    union {
+        FileInfo file_info;
+        CapInfo cap_info;
+        NetInfo net_info;
+        IPCInfo ipc_info;
+    };
+} Event;
 
-struct bpfcon_container {
+/* ========================================================================= *
+ * Process and Container State                                               *
+ * ========================================================================= */
+
+typedef struct bpfcon_container {
     unsigned char default_deny;
     unsigned char default_taint;
-};
+} Container;
 
-struct bpfcon_process {
+typedef struct bpfcon_process {
     unsigned long container_id;
     unsigned int pid;
     unsigned int tgid;
     unsigned char in_execve : 1;
     unsigned char tainted : 1;
-};
+} Process;
 
-struct mnt_ns_fs {
-    // Namespace ID of the mount namespace
-    unsigned int mnt_ns;
-    // Device ID of the filesystem
-    unsigned long device_id;
-};
+/* ========================================================================= *
+ * Keys for BPF Maps                                                         *
+ * ========================================================================= */
 
-struct fs_policy_key {
+typedef struct fs_policy_key {
     unsigned long container_id;
     unsigned int device_id;
-};
+} FsPolicyKey;
 
-struct file_policy_key {
+typedef struct file_policy_key {
     unsigned long container_id;
     unsigned long inode_id;
     unsigned int device_id;
-};
+} FilePolicyKey;
 
 #define MINOR_WILDCARD -1L
-struct dev_policy_key {
+typedef struct dev_policy_key {
     unsigned long container_id;
     unsigned int major;
     long minor;  // -1 is wildcard
-};
+} DevPolicyKey;
 
-struct cap_policy_key {
+typedef struct cap_policy_key {
     unsigned long container_id;
-};
+} CapPolicyKey;
 
-struct net_policy_key {
+typedef struct net_policy_key {
     unsigned long container_id;
-};
+} NetPolicyKey;
 
-struct ipc_policy_key {
+typedef struct ipc_policy_key {
     unsigned long container_id;
     unsigned long other_container_id;
-};
+} IPCPolicyKey;
 
-struct inode_key {
+typedef struct inode_key {
     unsigned long inode_id;
     unsigned int device_id;
-};
+} InodeKey;
 
 #endif /* STRUCTS_H */
