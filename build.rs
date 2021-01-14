@@ -24,6 +24,8 @@ fn main() {
         .derive_eq(true)
         .derive_partialeq(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
+        .rustified_enum("EventCategory")
+        .rustified_enum("ObjectType")
         .generate()
         .expect("Failed to generate bindings");
 
