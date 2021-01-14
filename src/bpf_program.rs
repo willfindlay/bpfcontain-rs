@@ -11,7 +11,7 @@ use glob::glob;
 use std::thread::sleep;
 use std::time::Duration;
 
-use libbpf_rs::PerfBufferBuilder;
+use libbpf_rs::RingBufferManager;
 
 use crate::bpf;
 pub use crate::bpf::BpfcontainSkelBuilder;
@@ -31,18 +31,17 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     let mut skel = load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
         .context("Failed to load BPF program")?;
 
-    let perf = PerfBufferBuilder::new(skel.maps().events())
-        .sample_cb(handle_event)
-        .lost_cb(handle_lost_events)
-        .build()
-        .context("Failed to initialize perf output")?;
+    let mut mgr = RingBufferManager::default();
+
+    mgr.add_ringbuf(skel.maps().events(), handle_event as fn(&[u8]) -> i32)
+        .context("Failed to add ringbuf")?;
 
     // Load policy in `config.policy.dir`
     load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
 
     // Loop forever
     loop {
-        if let Err(e) = perf.poll(Duration::new(1, 0)) {
+        if let Err(e) = mgr.poll(Duration::new(1, 0)) {
             log::warn!("Failed to poll perf buffer: {}", e);
         }
         sleep(Duration::new(1, 0));
@@ -51,10 +50,10 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 
 /// Open, load, and attach BPF programs and maps using the `builder` provided by
 /// libbpf-rs.
-pub fn load_bpf_program<'a>(
-    builder: &'a mut bpf::BpfcontainSkelBuilder,
+pub fn load_bpf_program(
+    builder: &mut bpf::BpfcontainSkelBuilder,
     debug: bool,
-) -> Result<bpf::BpfcontainSkel<'a>> {
+) -> Result<bpf::BpfcontainSkel> {
     // Log output from libbpf if we are -vv
     builder.obj_builder.debug(debug);
 
@@ -95,15 +94,13 @@ pub fn load_bpf_program<'a>(
 }
 
 /// Handle perf buffer events
-fn handle_event(_cpu: i32, data: &[u8]) {
+fn handle_event(data: &[u8]) -> i32 {
     let mut event: structs::event = structs::event::default();
     plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
-    // TODO
-}
 
-/// Handle lost perf buffer events
-fn handle_lost_events(cpu: i32, count: u64) {
-    log::warn!("Lost {} log events on CPU {}", cpu, count);
+    log::debug!("{:#?}", event);
+
+    0
 }
 
 /// Recursively load YAML policy into the kernel from `policy_dir`.

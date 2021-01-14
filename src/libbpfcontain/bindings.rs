@@ -131,7 +131,10 @@ pub mod net_operation_t {
 }
 pub mod event_category_t {
     pub type Type = ::std::os::raw::c_uint;
-    pub const BPFCON_NO_SUCH_CONTAINER: Type = 0;
+    pub const EV_NO_SUCH_CONTAINER: Type = 0;
+    pub const EV_DENY: Type = 1;
+    pub const EV_TAINT: Type = 2;
+    pub const EV_ALLOW: Type = 3;
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
