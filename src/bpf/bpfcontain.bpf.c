@@ -11,9 +11,7 @@
  * BPF Maps                                                                  *
  * ========================================================================= */
 
-volatile const event_t event_allocator = {};
-
-BPF_PERFBUF(events);
+BPF_RINGBUF(events, 4);
 
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
@@ -70,39 +68,38 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  * return: Pointer to the container.
  */
 static __always_inline void
-log_event(void *ctx, event_category_t category, u64 container_id)
+log_event(event_category_t category, u64 container_id)
 {
-    struct event event = event_allocator;
+    // Reserve space for the event on the ring buffer
+    event_t *event = bpf_ringbuf_reserve(&events, sizeof(event_t), 0);
+    if (!event)
+        return;
 
     // Set category and container_id explicitly
-    event.category = category;
-    event.container_id = container_id;
+    event->category = category;
+    event->container_id = container_id;
 
     // Set pid, tgid, comm implicitly
-    event.pid = bpf_get_current_pid_tgid();
-    event.tgid = bpf_get_current_pid_tgid() >> 32;
-    bpf_get_current_comm(event.comm, sizeof(event.comm));
+    event->pid = bpf_get_current_pid_tgid();
+    event->tgid = bpf_get_current_pid_tgid() >> 32;
+    bpf_get_current_comm(event->comm, sizeof(event->comm));
 
-    // Push event to perf buffer
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &event,
-                          sizeof(struct event));
+    // Submit the event
+    bpf_ringbuf_submit(event, 0);
 }
 
 /* Get the container with ID @container_id.
- *
- * TODO: call this everywhere we currently use bpf_map_lookup_elem
  *
  * @container_id: Container ID to lookup.
  *
  * return: Pointer to the container.
  */
-static __always_inline struct bpfcon_container *
-get_container(void *ctx, u64 container_id)
+static __always_inline struct bpfcon_container *get_container(u64 container_id)
 {
     struct bpfcon_container *container =
         bpf_map_lookup_elem(&containers, &container_id);
     if (!container)
-        log_event(ctx, BPFCON_NO_SUCH_CONTAINER, container_id);
+        log_event(EV_NO_SUCH_CONTAINER, container_id);
 
     return container;
 }
@@ -125,6 +122,8 @@ add_process(void *ctx, u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
     new_process.tgid = tgid;
     new_process.container_id = container_id;
     new_process.in_execve = 0;
+
+    log_event(BPFCON_NO_SUCH_CONTAINER, container_id);
 
     struct bpfcon_container *container =
         bpf_map_lookup_elem(&containers, &new_process.container_id);

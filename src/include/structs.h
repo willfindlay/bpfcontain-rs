@@ -72,7 +72,10 @@ typedef enum {
 // clang-format on
 
 typedef enum {
-    BPFCON_NO_SUCH_CONTAINER,
+    EV_NO_SUCH_CONTAINER,
+    EV_DENY,
+    EV_TAINT,
+    EV_ALLOW,
 } event_category_t;
 
 typedef struct event {

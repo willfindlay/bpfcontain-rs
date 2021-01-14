@@ -9,7 +9,6 @@ use anyhow::{Context, Result};
 use clap::ArgMatches;
 use std::ffi::CString;
 use std::path::Path;
-use std::process::{Command, Stdio};
 
 use crate::config::Settings;
 use crate::libbpfcontain::containerize;
