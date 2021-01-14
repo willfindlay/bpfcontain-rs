@@ -92,8 +92,10 @@ log_file_policy_decision(EventAction action, u64 container_id,
 
     __log_event_common(event, ET_FILE, action, container_id);
 
-    event->info.info.file_info.inode_id = inode->i_ino;
-    event->info.info.file_info.device_id = new_encode_dev(inode->i_sb->s_dev);
+    event->info.info.file_info.inode_id = BPF_CORE_READ(inode, i_ino);
+    event->info.info.file_info.device_id =
+        new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+
     event->info.info.file_info.access = access;
 
     // Submit the event
@@ -163,7 +165,8 @@ add_process(void *ctx, u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
  */
 static __always_inline int mediated_fs(struct inode *inode)
 {
-    return !(inode->i_sb->s_flags & SB_NOUSER);
+    unsigned long flags = BPF_CORE_READ(inode, i_sb, s_flags);
+    return !(flags & SB_NOUSER);
 }
 
 /* Convert a kernel file access mask to a BPFContain access, based on the
@@ -192,7 +195,7 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
 
     // Executing will be BPFCON_MAY_CHDIR if the inode is a directory
     if (mask & MAY_EXEC) {
-        if (S_ISDIR(inode->i_mode))
+        if (S_ISDIR(BPF_CORE_READ(inode, i_mode)))
             access |= BPFCON_MAY_CHDIR;
         else
             access |= BPFCON_MAY_EXEC;
@@ -357,7 +360,7 @@ do_fs_permission(u64 container_id, struct inode *inode, u32 access)
     struct fs_policy_key key = {};
 
     key.container_id = container_id;
-    key.device_id = new_encode_dev(inode->i_sb->s_dev);
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&fs_allow, &key);
@@ -397,8 +400,8 @@ do_file_permission(u64 container_id, struct inode *inode, u32 access)
     struct file_policy_key key = {};
 
     key.container_id = container_id;
-    key.device_id = new_encode_dev(inode->i_sb->s_dev);
-    key.inode_id = inode->i_ino;
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&file_allow, &key);
@@ -438,7 +441,7 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
 
     // Look up policy by device major number and container ID
     key.container_id = container_id;
-    key.major = MAJOR(inode->i_rdev);
+    key.major = MAJOR(BPF_CORE_READ(inode, i_rdev));
 
     // Not a device driver
     if (!key.major) {
@@ -471,7 +474,7 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
     /*
      * Try with minor = i_rdev's minor second
      */
-    key.minor = MINOR(inode->i_rdev);
+    key.minor = MINOR(BPF_CORE_READ(inode, i_rdev));
 
     // If we are allowing the _entire_ access, allow
     allowed = bpf_map_lookup_elem(&dev_allow, &key);
@@ -512,8 +515,8 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
 
     struct inode_key key = {};
 
-    key.device_id = new_encode_dev(inode->i_sb->s_dev);
-    key.inode_id = inode->i_ino;
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
 
     // Is this inode in the procfs_inodes map
     u32 *pid = bpf_map_lookup_elem(&procfs_inodes, &key);
@@ -612,28 +615,26 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     if (!process)
         return 0;
 
-    // FIXME: fix nullptr dereference here
+    struct inode *file = BPF_CORE_READ(bprm, file, f_inode);
+    if (file) {
+        ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
 
-    // struct inode *file = BPF_CORE_READ(bprm, file, f_inode);
-    // if (file && file->i_ino) {
-    //    ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
-    //    if (ret)
-    //        return ret;
-    //}
+    struct inode *executable = BPF_CORE_READ(bprm, executable, f_inode);
+    if (executable) {
+        ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
 
-    // struct inode *executable = BPF_CORE_READ(bprm, executable, f_inode);
-    // if (executable && executable->i_ino) {
-    //    ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
-    //    if (ret)
-    //        return ret;
-    //}
-
-    // struct inode *interpreter = BPF_CORE_READ(bprm, interpreter, f_inode);
-    // if (interpreter && interpreter->i_ino) {
-    //    ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
-    //    if (ret)
-    //        return ret;
-    //}
+    struct inode *interpreter = BPF_CORE_READ(bprm, interpreter, f_inode);
+    if (interpreter) {
+        ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
 
     return 0;
 }
@@ -1487,8 +1488,8 @@ int BPF_PROG(task_to_inode, struct task_struct *task, struct inode *inode)
     if (!process)
         return 0;
 
-    key.device_id = new_encode_dev(inode->i_sb->s_dev);
-    key.inode_id = inode->i_ino;
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
 
     bpf_map_update_elem(&procfs_inodes, &key, &pid, 0);
 
