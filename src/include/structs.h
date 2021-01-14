@@ -80,23 +80,26 @@ typedef enum {
  * ========================================================================= */
 
 typedef enum {
-    EV_NO_SUCH_CONTAINER,
-    EV_DENY,
-    EV_IMPLICIT_DENY,
-    EV_TAINT,
-} EventCategory;
+    EA_UNKNOWN = 0,
+    EA_ERROR,
+    EA_DENY,
+    EA_IMPLICIT_DENY,
+    EA_TAINT,
+} EventAction;
 
 typedef enum {
-    OBJ_NONE,
-    OBJ_FILE,
-    OBJ_CAP,
-    OBJ_NET,
-    OBJ_IPC,
-} ObjectType;
+    ET_NONE = 0,
+    ET_FILE,
+    ET_CAP,
+    ET_NET,
+    ET_IPC,
+    ET_NO_SUCH_CONTAINER,
+} EventType;
 
 typedef struct file_info {
     unsigned long inode_id;
     unsigned int device_id;
+    FilePermission access;
 } FileInfo;
 
 typedef struct cap_info {
@@ -108,23 +111,29 @@ typedef struct net_info {
 } NetInfo;
 
 typedef struct ipc_info {
+    unsigned int sender_pid;
+    unsigned int receiver_pid;
     unsigned long sender_id;
     unsigned long receiver_id;
 } IPCInfo;
 
-typedef struct event {
-    EventCategory category;
-    ObjectType object_type;
-    unsigned long container_id;
-    unsigned int pid;
-    unsigned int tgid;
-    char comm[16];
+typedef struct bpfcon_event_info {
+    EventType type;
     union {
         FileInfo file_info;
         CapInfo cap_info;
         NetInfo net_info;
         IPCInfo ipc_info;
-    };
+    } info;
+} EventInfo;
+
+typedef struct event {
+    EventAction action;
+    unsigned long container_id;
+    unsigned int pid;
+    unsigned int tgid;
+    unsigned char comm[16];
+    EventInfo info;
 } Event;
 
 /* ========================================================================= *

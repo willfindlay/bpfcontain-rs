@@ -34,7 +34,7 @@ pub mod structs {
     use super::bindings;
     use bitflags::bitflags;
     use plain::Plain;
-    use std::convert::TryFrom;
+    use std::fmt::{Display, Formatter};
 
     pub const MINOR_WILDCARD: i64 = bindings::MINOR_WILDCARD as i64;
 
@@ -172,19 +172,31 @@ pub mod structs {
         }
     }
 
-    /// A rustified enum representing event category on the BPF side.
+    /// A rustified enum representing event action.
     ///
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::EventCategory;
+    pub use bindings::EventAction;
 
-    /// A rustified enum representing object type for events on the BPF side.
+    impl Display for EventAction {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::EA_UNKNOWN => write!(f, "none"),
+                Self::EA_ERROR => write!(f, "error"),
+                Self::EA_DENY => write!(f, "policy deny"),
+                Self::EA_IMPLICIT_DENY => write!(f, "implicit deny"),
+                Self::EA_TAINT => write!(f, "policy taint"),
+            }
+        }
+    }
+
+    /// A rustified enum representing event type.
     ///
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::ObjectType;
+    pub use bindings::EventType;
 
     /// Represents an event for logging on the BPF side.
     ///
@@ -193,6 +205,48 @@ pub mod structs {
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::Event;
     unsafe impl Plain for Event {}
+
+    impl Display for Event {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
+            let general_info = format!(
+                "action={} comm={} pid={} tid={} container_id={} type={:?}",
+                self.action, comm, self.pid, self.tgid, self.container_id, self.info.type_
+            );
+            let specific_info = unsafe {
+                match self.info.type_ {
+                    EventType::ET_NONE => "".to_string(),
+                    EventType::ET_FILE => format!(
+                        "inode={}, device_id={} operation={:?}",
+                        self.info.info.file_info.inode_id,
+                        self.info.info.file_info.device_id,
+                        FileAccess::from_bits(self.info.info.file_info.access)
+                    ),
+                    EventType::ET_CAP => format!(
+                        "capability={:?}",
+                        Capability::from_bits(self.info.info.cap_info.cap)
+                    ),
+                    EventType::ET_NET => format!(
+                        "operation={:?}",
+                        NetOperation::from_bits(self.info.info.net_info.operation)
+                    ),
+                    EventType::ET_IPC => format!(
+                        "sender_pid={} sender_container_id={} \
+                        receiver_pid={} receiver_container_id={}",
+                        self.info.info.ipc_info.sender_pid,
+                        self.info.info.ipc_info.sender_id,
+                        self.info.info.ipc_info.receiver_pid,
+                        self.info.info.ipc_info.receiver_id
+                    ),
+                    EventType::ET_NO_SUCH_CONTAINER => {
+                        format!("msg=\"No such container with ID {}\"", self.container_id)
+                    }
+                }
+            };
+
+            write!(f, "{} {}", general_info, specific_info)
+        }
+    }
 
     /// Represents a container on the BPF side.
     ///
