@@ -67,11 +67,10 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  *
  * return: Pointer to the container.
  */
-static __always_inline void
-log_event(event_category_t category, u64 container_id)
+static __always_inline void log_event(EventCategory category, u64 container_id)
 {
     // Reserve space for the event on the ring buffer
-    event_t *event = bpf_ringbuf_reserve(&events, sizeof(event_t), 0);
+    Event *event = bpf_ringbuf_reserve(&events, sizeof(Event), 0);
     if (!event)
         return;
 
@@ -194,10 +193,10 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
  *
  * return: Policy decision.
  */
-static __always_inline policy_decision_t
+static __always_inline PolicyDecision
 check_ipc_access(struct bpfcon_process *process, u32 other_pid)
 {
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
 
     struct bpfcon_process *other_process =
         bpf_map_lookup_elem(&processes, &other_pid);
@@ -288,7 +287,7 @@ do_update_policy(void *map, const void *key, const u32 *value)
  * return: Converted access mask.
  */
 static __always_inline int
-do_policy_decision(struct bpfcon_process *process, policy_decision_t decision,
+do_policy_decision(struct bpfcon_process *process, PolicyDecision decision,
                    u8 ignore_taint)
 {
     u8 tainted = process->tainted || ignore_taint;
@@ -530,7 +529,7 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
                                  struct inode *inode, u32 access)
 {
     int ret = 0;
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
 
     // Do we care about the filesystem?
     if (!mediated_fs(inode))
@@ -541,10 +540,10 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     decision |= do_dev_permission(process->container_id, inode, access);
 
     // procfs and file decisions are special, so remember them
-    policy_decision_t procfs_decision =
+    PolicyDecision procfs_decision =
         do_procfs_permission(process->container_id, inode, access);
     decision |= procfs_decision;
-    policy_decision_t file_decision =
+    PolicyDecision file_decision =
         do_file_permission(process->container_id, inode, access);
     decision |= file_decision;
 
@@ -894,10 +893,10 @@ static u8 family_to_category(int family)
     }
 }
 
-static policy_decision_t
+static PolicyDecision
 bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
 {
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
 
     struct net_policy_key key = {};
 
@@ -924,11 +923,10 @@ bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
     return decision;
 }
 
-static policy_decision_t
-bpfcontain_net_ipc_perm(struct bpfcon_process *process, u32 access,
-                        struct socket *sock)
+static PolicyDecision bpfcontain_net_ipc_perm(struct bpfcon_process *process,
+                                              u32 access, struct socket *sock)
 {
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
 
     u32 pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
     if (pid) {
@@ -954,7 +952,7 @@ bpfcontain_net_ipc_perm(struct bpfcon_process *process, u32 access,
 static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category,
                                u32 access, struct socket *sock)
 {
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
 
     if (category == BPFCON_NET_WWW)
         decision = bpfcontain_net_www_perm(process, access);
@@ -1168,7 +1166,7 @@ SEC("lsm/capable")
 int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
              int cap, unsigned int opts)
 {
-    policy_decision_t decision = BPFCON_NO_DECISION;
+    PolicyDecision decision = BPFCON_NO_DECISION;
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
@@ -1503,6 +1501,11 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
 /* ========================================================================= *
  * Filesystem Mounts                                                         *
  * ========================================================================= */
+
+struct mnt_ns_fs {
+    u64 device_id;
+    int mnt_ns;
+};
 
 /* TODO: Updating the mnt_ns_active_fs map makes sense here, but we need to
  * figure out how we are going to delete afterwards. Otherwise, incorrect data

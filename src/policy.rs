@@ -444,7 +444,7 @@ impl Policy {
             .context(format!("Failed to get information for {}", path))?;
 
         // Set key using st_dev and container_id
-        let mut key = structs::fs_policy_key::default();
+        let mut key = structs::FsPolicyKey::default();
         key.container_id = self.container_id();
         key.device_id = st_dev as u32;
         let key = unsafe { plain::as_bytes(&key) };
@@ -488,7 +488,7 @@ impl Policy {
             Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
         {
             // Set key using st_dev, st_ino, and container_id
-            let mut key = structs::file_policy_key::default();
+            let mut key = structs::FilePolicyKey::default();
             key.container_id = self.container_id();
             key.device_id = st_dev as u32;
             key.inode_id = st_ino;
@@ -530,7 +530,7 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::cap_policy_key::default();
+        let mut key = structs::CapPolicyKey::default();
         key.container_id = self.container_id();
         let key = unsafe { plain::as_bytes(&key) };
 
@@ -569,7 +569,7 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::net_policy_key::default();
+        let mut key = structs::NetPolicyKey::default();
         key.container_id = self.container_id();
         let key = unsafe { plain::as_bytes(&key) };
 
@@ -603,7 +603,7 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::ipc_policy_key::default();
+        let mut key = structs::IPCPolicyKey::default();
         key.container_id = self.container_id();
         key.other_container_id = Self::container_id_for_name(other);
         let key = unsafe { plain::as_bytes(&key) };
@@ -630,7 +630,7 @@ impl Policy {
         };
 
         // Any /dev/pts device
-        let mut key = structs::dev_policy_key::default();
+        let mut key = structs::DevPolicyKey::default();
         key.container_id = self.container_id();
         key.major = 136; // /dev/pts/* major number
         key.minor = structs::MINOR_WILDCARD; // any minor number
@@ -664,7 +664,7 @@ impl Policy {
         // /dev/random and /dev/urandom
         for &(major, minor) in &[(1, 8), (1, 9)] {
             // Set key using container_id
-            let mut key = structs::dev_policy_key::default();
+            let mut key = structs::DevPolicyKey::default();
             key.container_id = self.container_id();
             key.major = major;
             key.minor = minor;
@@ -683,7 +683,7 @@ impl Policy {
     /// map.
     fn load_container(&self, skel: &mut Skel) -> Result<()> {
         let key = self.container_id();
-        let mut value = structs::bpfcon_container::default();
+        let mut value = structs::Container::default();
 
         // No taint rules implies that we should be tainted by default
         if self.taints.is_empty() {

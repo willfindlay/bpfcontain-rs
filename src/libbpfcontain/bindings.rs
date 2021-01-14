@@ -82,14 +82,14 @@ where
     }
 }
 pub const MINOR_WILDCARD: i32 = -1;
-pub mod policy_decision_t {
+pub mod PolicyDecision {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NO_DECISION: Type = 0;
     pub const BPFCON_ALLOW: Type = 1;
     pub const BPFCON_DENY: Type = 2;
     pub const BPFCON_TAINT: Type = 4;
 }
-pub mod file_permission_t {
+pub mod FilePermission {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_MAY_EXEC: Type = 1;
     pub const BPFCON_MAY_WRITE: Type = 2;
@@ -105,7 +105,7 @@ pub mod file_permission_t {
     pub const BPFCON_MAY_EXEC_MMAP: Type = 2048;
     pub const BPFCON_MAY_CHDIR: Type = 4096;
 }
-pub mod capability_t {
+pub mod Capability {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_CAP_NET_BIND_SERVICE: Type = 1;
     pub const BPFCON_CAP_NET_RAW: Type = 2;
@@ -113,12 +113,12 @@ pub mod capability_t {
     pub const BPFCON_CAP_DAC_OVERRIDE: Type = 8;
     pub const BPFCON_CAP_DAC_READ_SEARCH: Type = 16;
 }
-pub mod net_category_t {
+pub mod NetCategory {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NET_WWW: Type = 1;
     pub const BPFCON_NET_IPC: Type = 2;
 }
-pub mod net_operation_t {
+pub mod NetOperation {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NET_CONNECT: Type = 1;
     pub const BPFCON_NET_BIND: Type = 2;
@@ -129,17 +129,27 @@ pub mod net_operation_t {
     pub const BPFCON_NET_CREATE: Type = 64;
     pub const BPFCON_NET_SHUTDOWN: Type = 128;
 }
-pub mod event_category_t {
-    pub type Type = ::std::os::raw::c_uint;
-    pub const EV_NO_SUCH_CONTAINER: Type = 0;
-    pub const EV_DENY: Type = 1;
-    pub const EV_TAINT: Type = 2;
-    pub const EV_ALLOW: Type = 3;
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum EventCategory {
+    EV_NO_SUCH_CONTAINER = 0,
+    EV_DENY = 1,
+    EV_IMPLICIT_DENY = 2,
+    EV_TAINT = 3,
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum ObjectType {
+    OBJ_NONE = 0,
+    OBJ_FILE = 1,
+    OBJ_CAP = 2,
+    OBJ_NET = 3,
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct event {
-    pub category: ::std::os::raw::c_uint,
+    pub category: EventCategory,
+    pub object_type: ObjectType,
     pub container_id: ::std::os::raw::c_ulong,
     pub pid: ::std::os::raw::c_uint,
     pub tgid: ::std::os::raw::c_uint,
@@ -165,6 +175,16 @@ fn bindgen_test_layout_event() {
             stringify!(event),
             "::",
             stringify!(category)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<event>())).object_type as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(event),
+            "::",
+            stringify!(object_type)
         )
     );
     assert_eq!(
@@ -208,7 +228,12 @@ fn bindgen_test_layout_event() {
         )
     );
 }
-pub type event_t = event;
+impl Default for event {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type Event = event;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_container {
@@ -248,6 +273,7 @@ fn bindgen_test_layout_bpfcon_container() {
         )
     );
 }
+pub type Container = bpfcon_container;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_process {
@@ -341,45 +367,7 @@ impl bpfcon_process {
         __bindgen_bitfield_unit
     }
 }
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct mnt_ns_fs {
-    pub mnt_ns: ::std::os::raw::c_uint,
-    pub device_id: ::std::os::raw::c_ulong,
-}
-#[test]
-fn bindgen_test_layout_mnt_ns_fs() {
-    assert_eq!(
-        ::std::mem::size_of::<mnt_ns_fs>(),
-        16usize,
-        concat!("Size of: ", stringify!(mnt_ns_fs))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<mnt_ns_fs>(),
-        8usize,
-        concat!("Alignment of ", stringify!(mnt_ns_fs))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<mnt_ns_fs>())).mnt_ns as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mnt_ns_fs),
-            "::",
-            stringify!(mnt_ns)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<mnt_ns_fs>())).device_id as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(mnt_ns_fs),
-            "::",
-            stringify!(device_id)
-        )
-    );
-}
+pub type Process = bpfcon_process;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct fs_policy_key {
@@ -419,6 +407,7 @@ fn bindgen_test_layout_fs_policy_key() {
         )
     );
 }
+pub type FsPolicyKey = fs_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct file_policy_key {
@@ -469,6 +458,7 @@ fn bindgen_test_layout_file_policy_key() {
         )
     );
 }
+pub type FilePolicyKey = file_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key {
@@ -519,6 +509,7 @@ fn bindgen_test_layout_dev_policy_key() {
         )
     );
 }
+pub type DevPolicyKey = dev_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key {
@@ -547,6 +538,7 @@ fn bindgen_test_layout_cap_policy_key() {
         )
     );
 }
+pub type CapPolicyKey = cap_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct net_policy_key {
@@ -575,6 +567,7 @@ fn bindgen_test_layout_net_policy_key() {
         )
     );
 }
+pub type NetPolicyKey = net_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_policy_key {
@@ -616,6 +609,7 @@ fn bindgen_test_layout_ipc_policy_key() {
         )
     );
 }
+pub type IPCPolicyKey = ipc_policy_key;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct inode_key {
@@ -655,6 +649,7 @@ fn bindgen_test_layout_inode_key() {
         )
     );
 }
+pub type InodeKey = inode_key;
 extern "C" {
     pub fn containerize(container_id: ::std::os::raw::c_ulong) -> ::std::os::raw::c_int;
 }
