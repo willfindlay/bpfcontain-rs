@@ -458,7 +458,6 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&dev_allow, &key);
     if (allowed && ((*allowed & access) == access)) {
-        bpf_printk("allowed");
         decision |= BPFCON_ALLOW;
     }
 
@@ -1276,8 +1275,7 @@ int BPF_PROG(locked_down, enum lockdown_reason what)
     if (what == LOCKDOWN_BPF_READ)
         return 0;
 
-    // return -EACCES;
-    return 0;
+    return -EACCES;
 }
 
 /* Disallow perf */
