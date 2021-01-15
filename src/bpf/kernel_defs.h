@@ -184,6 +184,77 @@
 /* called from RCU mode, don't block */
 #define MAY_NOT_BLOCK 0x00000080
 
+/* file is open for reading */
+#define FMODE_READ 0x1
+/* file is open for writing */
+#define FMODE_WRITE 0x2
+/* file is seekable */
+#define FMODE_LSEEK 0x4
+/* file can be accessed using pread */
+#define FMODE_PREAD 0x8
+/* file can be accessed using pwrite */
+#define FMODE_PWRITE 0x10
+/* File is opened for execution with sys_execve / sys_uselib */
+#define FMODE_EXEC 0x20
+/* File is opened with O_NDELAY (only set for block devices) */
+#define FMODE_NDELAY 0x40
+/* File is opened with O_EXCL (only set for block devices) */
+#define FMODE_EXCL 0x80
+/* File is opened using open(.., 3, ..) and is writeable only for ioctls
+   (specialy hack for floppy.c) */
+#define FMODE_WRITE_IOCTL 0x100
+/* 32bit hashes as llseek() offset (for directories) */
+#define FMODE_32BITHASH 0x200
+/* 64bit hashes as llseek() offset (for directories) */
+#define FMODE_64BITHASH 0x400
+
+/*
+ * Don't update ctime and mtime.
+ *
+ * Currently a special hack for the XFS open_by_handle ioctl, but we'll
+ * hopefully graduate it to a proper O_CMTIME flag supported by open(2) soon.
+ */
+#define FMODE_NOCMTIME 0x800
+
+/* Expect random access pattern */
+#define FMODE_RANDOM 0x1000
+
+/* File is huge (eg. /dev/kmem): treat loff_t as unsigned */
+#define FMODE_UNSIGNED_OFFSET 0x2000
+
+/* File is opened with O_PATH; almost nothing can be done with it */
+#define FMODE_PATH 0x4000
+
+/* File needs atomic accesses to f_pos */
+#define FMODE_ATOMIC_POS 0x8000
+/* Write access to underlying fs */
+#define FMODE_WRITER 0x10000
+/* Has read method(s) */
+#define FMODE_CAN_READ 0x20000
+/* Has write method(s) */
+#define FMODE_CAN_WRITE 0x40000
+
+#define FMODE_OPENED  0x80000
+#define FMODE_CREATED 0x100000
+
+/* File is stream-like */
+#define FMODE_STREAM 0x200000
+
+/* File was opened by fanotify and shouldn't generate fanotify events */
+#define FMODE_NONOTIFY 0x4000000
+
+/* File is capable of returning -EAGAIN if I/O will block */
+#define FMODE_NOWAIT 0x8000000
+
+/* File represents mount that needs unmounting */
+#define FMODE_NEED_UNMOUNT 0x10000000
+
+/* File does not contribute to nr_files count */
+#define FMODE_NOACCOUNT 0x20000000
+
+/* File supports async buffered reads */
+#define FMODE_BUF_RASYNC 0x40000000
+
 /* sb flags
  * https://elixir.bootlin.com/linux/v5.10/source/include/linux/fs.h#L1345 */
 #define SB_RDONLY      1    /* Mount read-only */
@@ -208,6 +279,57 @@
 #define SB_BORN     (1 << 29)
 #define SB_ACTIVE   (1 << 30)
 #define SB_NOUSER   (1 << 31)
+
+/* ========================================================================= *
+ * uapi/asm-generic/fcntl.h                                                  *
+ * ========================================================================= */
+
+#define O_ACCMODE 00000003
+#define O_RDONLY  00000000
+#define O_WRONLY  00000001
+#define O_RDWR    00000002
+#ifndef O_CREAT
+#define O_CREAT 00000100 /* not fcntl */
+#endif
+#ifndef O_EXCL
+#define O_EXCL 00000200 /* not fcntl */
+#endif
+#ifndef O_NOCTTY
+#define O_NOCTTY 00000400 /* not fcntl */
+#endif
+#ifndef O_TRUNC
+#define O_TRUNC 00001000 /* not fcntl */
+#endif
+#ifndef O_APPEND
+#define O_APPEND 00002000
+#endif
+#ifndef O_NONBLOCK
+#define O_NONBLOCK 00004000
+#endif
+#ifndef O_DSYNC
+#define O_DSYNC 00010000 /* used to be O_SYNC, see below */
+#endif
+#ifndef FASYNC
+#define FASYNC 00020000 /* fcntl, for BSD compatibility */
+#endif
+#ifndef O_DIRECT
+#define O_DIRECT 00040000 /* direct disk access hint */
+#endif
+#ifndef O_LARGEFILE
+#define O_LARGEFILE 00100000
+#endif
+#ifndef O_DIRECTORY
+#define O_DIRECTORY 00200000 /* must be a directory */
+#endif
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 00400000 /* don't follow links */
+#endif
+#ifndef O_NOATIME
+#define O_NOATIME 01000000
+#endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 02000000 /* set close_on_exec */
+#endif
 
 /* ========================================================================= *
  * linux/stat.h                                                              *

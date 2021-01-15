@@ -1,0 +1,19 @@
+# A unique name for the policy file, REQUIRED
+name: bash
+# The command to run, REQUIRED
+cmd: /bin/bash
+
+default: deny
+
+# A set of rights to grant, OPTIONAL
+rights:
+  - terminal
+  - fs: {path: /}
+
+# A set of restrictions (rights to explicitly revoke), OPTIONAL
+restrictions:
+  - fs: {path: /, access: {flags: wa}}
+
+taints:
+ # Taint on any net access
+  - fs: {path: /tmp, access: {flags: wa}}
