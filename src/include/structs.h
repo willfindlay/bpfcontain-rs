@@ -168,11 +168,11 @@ typedef struct file_policy_key {
     unsigned int device_id;
 } FilePolicyKey;
 
-#define MINOR_WILDCARD -1L
+#define MINOR_WILDCARD (~0U)
 typedef struct dev_policy_key {
     unsigned long container_id;
     unsigned int major;
-    long minor;  // -1 is wildcard
+    unsigned int minor;
 } DevPolicyKey;
 
 typedef struct cap_policy_key {
