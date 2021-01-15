@@ -81,7 +81,6 @@ where
         }
     }
 }
-pub const MINOR_WILDCARD: i32 = -1;
 pub mod PolicyDecision {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NO_DECISION: Type = 0;
@@ -777,13 +776,13 @@ pub type FilePolicyKey = file_policy_key;
 pub struct dev_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
     pub major: ::std::os::raw::c_uint,
-    pub minor: ::std::os::raw::c_long,
+    pub minor: ::std::os::raw::c_uint,
 }
 #[test]
 fn bindgen_test_layout_dev_policy_key() {
     assert_eq!(
         ::std::mem::size_of::<dev_policy_key>(),
-        24usize,
+        16usize,
         concat!("Size of: ", stringify!(dev_policy_key))
     );
     assert_eq!(
@@ -813,7 +812,7 @@ fn bindgen_test_layout_dev_policy_key() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<dev_policy_key>())).minor as *const _ as usize },
-        16usize,
+        12usize,
         concat!(
             "Offset of field: ",
             stringify!(dev_policy_key),

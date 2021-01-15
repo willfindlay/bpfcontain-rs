@@ -24,6 +24,7 @@ fn main() {
         .derive_eq(true)
         .derive_partialeq(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
+        .blacklist_item("MINOR_WILDCARD") // This is wrong, define it manually
         .rustified_enum("EventType")
         .rustified_enum("EventAction")
         .generate()

@@ -36,7 +36,7 @@ pub mod structs {
     use plain::Plain;
     use std::fmt::{Display, Formatter};
 
-    pub const MINOR_WILDCARD: i64 = bindings::MINOR_WILDCARD as i64;
+    pub const MINOR_WILDCARD: u32 = u32::MAX;
 
     bitflags! {
         /// Represents a policy decision from the BPF side.
