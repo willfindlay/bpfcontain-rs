@@ -206,6 +206,35 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
     return access;
 }
 
+/* Convert a file struct to a BPFContain access, based on its mode flags.
+ *
+ * @file: A pointer to the file struct being accessed.
+ *
+ * return: Converted access mask.
+ */
+static __always_inline u32 file_to_access(struct file *file)
+
+{
+    u32 access = 0;
+
+    if (file->f_mode & FMODE_READ) {
+        access |= BPFCON_MAY_READ;
+    }
+
+    if (file->f_mode & FMODE_WRITE) {
+        if (file->f_flags & O_APPEND)
+            access |= BPFCON_MAY_APPEND;
+        else
+            access |= BPFCON_MAY_WRITE;
+    }
+
+    if (file->f_mode & FMODE_EXEC) {
+        access |= BPFCON_MAY_EXEC;
+    }
+
+    return access;
+}
+
 /* Check whether two processes are allowed to perform IPC with each other.
  *
  * @process: Pointer to the calling process.
@@ -363,6 +392,13 @@ do_fs_permission(u64 container_id, struct inode *inode, u32 access)
 
     key.container_id = container_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+
+    // FIXME: example of the weirdness
+    // if (key.device_id == 48) {
+    //    u32 val = 2;
+    //    bpf_map_update_elem(&fs_taint, &key, &val, 0);
+    //    bpf_printk("%u %lu", BPF_CORE_READ(inode, i_ino), container_id);
+    //}
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&fs_allow, &key);
@@ -593,8 +629,23 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     return ret;
 }
 
-SEC("lsm/inode_permission")
-int BPF_PROG(inode_permission, struct inode *inode, int mask)
+// SEC("lsm/inode_permission")
+// int BPF_PROG(inode_permission, struct inode *inode, int mask)
+//{
+//    // Look up the process using the current PID
+//    u32 pid = bpf_get_current_pid_tgid();
+//    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+//
+//    // Unconfined
+//    if (!process)
+//        return 0;
+//
+//    // Make an access control decision
+//    return bpfcontain_inode_perm(process, inode, mask_to_access(inode, mask));
+//}
+
+SEC("lsm/file_permission")
+int BPF_PROG(file_permission, struct file *file, int mask)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -605,7 +656,40 @@ int BPF_PROG(inode_permission, struct inode *inode, int mask)
         return 0;
 
     // Make an access control decision
+    struct inode *inode = file->f_inode;
     return bpfcontain_inode_perm(process, inode, mask_to_access(inode, mask));
+}
+
+SEC("lsm/file_open")
+int BPF_PROG(file_open, struct file *file)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // Make an access control decision
+    struct inode *inode = file->f_inode;
+    return bpfcontain_inode_perm(process, inode, file_to_access(file));
+}
+
+SEC("lsm/file_receive")
+int BPF_PROG(file_receive, struct file *file)
+{
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // Make an access control decision
+    struct inode *inode = file->f_inode;
+    return bpfcontain_inode_perm(process, inode, file_to_access(file));
 }
 
 /* Enforce policy on execve operations */

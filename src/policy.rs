@@ -282,6 +282,9 @@ enum Rule {
 
     /// Grants read access to /dev/[u]random
     Random,
+
+    /// Grants read, write, and append access to /dev/null, /dev/full, /dev/zero
+    DevMisc,
 }
 
 /// A high-level representation of a BPFContain policy that has been loaded
@@ -420,6 +423,7 @@ impl Policy {
             // Handle high level policy
             Rule::Terminal => self.load_terminal_rule(skel, &action)?,
             Rule::Random => self.load_random_rule(skel, &action)?,
+            Rule::DevMisc => self.load_devmisc_rule(skel, &action)?,
         };
 
         Ok(())
@@ -621,34 +625,24 @@ impl Policy {
     }
 
     fn load_terminal_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
-        // Look up the correct map
-        let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.dev_allow(),
-            PolicyDecision::Deny => maps.dev_deny(),
-            PolicyDecision::Taint => maps.dev_taint(),
-        };
-
-        // Any /dev/pts device
-        let mut key = structs::DevPolicyKey::default();
-        key.container_id = self.container_id();
-        key.major = 136; // /dev/pts/* major number
-        key.minor = structs::MINOR_WILDCARD; // any minor number
-        let key = unsafe { plain::as_bytes(&key) };
-
-        // Set value to rwa file access
-        let value: u32 = structs::FileAccess::from_flags("rwa").bits();
-        let value = unsafe { plain::as_bytes(&value) };
-
-        map.update(key, value, MapFlags::ANY).context(format!(
-            "Failed to update map key={:?} value={:?}",
-            key, value
-        ))?;
-
-        Ok(())
+        self.load_device_policy(skel, action, &[(136, structs::MINOR_WILDCARD)], "rwa")
     }
 
     fn load_random_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
+        self.load_device_policy(skel, action, &[(1, 8), (1, 9)], "r")
+    }
+
+    fn load_devmisc_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
+        self.load_device_policy(skel, action, &[(1, 3), (1, 5), (1, 7)], "rwa")
+    }
+
+    fn load_device_policy(
+        &self,
+        skel: &mut Skel,
+        action: &PolicyDecision,
+        device_nums: &[(u32, u32)],
+        access_str: &str,
+    ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
         let map = match action {
@@ -658,11 +652,10 @@ impl Policy {
         };
 
         // Set value to read file access
-        let value: u32 = structs::FileAccess::from_flags("r").bits();
+        let value: u32 = structs::FileAccess::from_flags(access_str).bits();
         let value = unsafe { plain::as_bytes(&value) };
 
-        // /dev/random and /dev/urandom
-        for &(major, minor) in &[(1, 8), (1, 9)] {
+        for &(major, minor) in device_nums {
             // Set key using container_id
             let mut key = structs::DevPolicyKey::default();
             key.container_id = self.container_id();
