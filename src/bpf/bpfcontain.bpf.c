@@ -193,12 +193,14 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
         access |= BPFCON_MAY_WRITE;
     }
 
-    // Executing will be BPFCON_MAY_CHDIR if the inode is a directory
-    if (mask & MAY_EXEC) {
-        if (S_ISDIR(BPF_CORE_READ(inode, i_mode)))
-            access |= BPFCON_MAY_CHDIR;
-        else
-            access |= BPFCON_MAY_EXEC;
+    if (access & MAY_CHDIR) {
+        access |= BPFCON_MAY_CHDIR;
+    }
+
+    // Ignore execute permissions on directories, since we already caught
+    // MAY_CHDIR
+    if (!S_ISDIR(BPF_CORE_READ(inode, i_mode)) && (mask & MAY_EXEC)) {
+        access |= BPFCON_MAY_EXEC;
     }
 
     return access;
@@ -453,6 +455,8 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
      */
     key.minor = MINOR_WILDCARD;
 
+    bpf_printk("About to look up %lu, %u", key.container_id, key.major);
+
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&dev_allow, &key);
     if (allowed && ((*allowed & access) == access)) {
@@ -549,6 +553,9 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     int ret = 0;
     PolicyDecision decision = BPFCON_NO_DECISION;
 
+    if (!access)
+        return 0;
+
     // Do we care about the filesystem?
     if (!mediated_fs(inode))
         return 0;
@@ -581,12 +588,15 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
 
     if (decision & BPFCON_DENY)
         log_file_policy_decision(EA_DENY, process->container_id, inode, access);
+    else if (ret == -EACCES)
+        log_file_policy_decision(EA_IMPLICIT_DENY, process->container_id, inode,
+                                 access);
 
     return ret;
 }
 
-SEC("lsm/file_permission")
-int BPF_PROG(file_permission, struct file *file, int mask)
+SEC("lsm/inode_permission")
+int BPF_PROG(inode_permission, struct inode *inode, int mask)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -597,8 +607,7 @@ int BPF_PROG(file_permission, struct file *file, int mask)
         return 0;
 
     // Make an access control decision
-    return bpfcontain_inode_perm(process, file->f_inode,
-                                 mask_to_access(file->f_inode, mask));
+    return bpfcontain_inode_perm(process, inode, mask_to_access(inode, mask));
 }
 
 /* Enforce policy on execve operations */
@@ -1427,7 +1436,9 @@ int fentry_commit_creds(struct cred *new)
     if (process->in_execve)
         return 0;
 
-    bpf_send_signal(SIGKILL);
+    // FIXME: find some better logic to gate this, right now it is killing all
+    // SUID binaries
+    // bpf_send_signal(SIGKILL);
 
     return 0;
 }
