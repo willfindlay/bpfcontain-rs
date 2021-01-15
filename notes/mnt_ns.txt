@@ -1,0 +1,6 @@
+file -> f_path -> vfsmnt -> mount -> mnt_namespace
+
+How to get from inode to file?
+
+inode -> i_sb -> s_root -
+
