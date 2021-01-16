@@ -449,11 +449,9 @@ impl Policy {
             .context(format!("Failed to get information for {}", path))?;
 
         let mut key = structs::FsPolicyKey::zeroed();
-        println!("{:?}", key.as_bytes());
         key.container_id = self.container_id();
         key.device_id = st_dev as u32;
         let key = key.as_bytes();
-        println!("{:?}", key);
 
         // Update old value with new value
         let mut value: u32 = access.to_bitflags().bits();
