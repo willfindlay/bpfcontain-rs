@@ -10,6 +10,7 @@ use crate::libbpfcontain::structs;
 
 use anyhow::{Context, Result};
 use libbpf_rs::MapFlags;
+use pod::Pod;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -447,11 +448,12 @@ impl Policy {
         let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))
             .context(format!("Failed to get information for {}", path))?;
 
-        // Set key using st_dev and container_id
-        let mut key = structs::FsPolicyKey::default();
+        let mut key = structs::FsPolicyKey::zeroed();
+        println!("{:?}", key.as_bytes());
         key.container_id = self.container_id();
         key.device_id = st_dev as u32;
-        let key = unsafe { plain::as_bytes(&key) };
+        let key = key.as_bytes();
+        println!("{:?}", key);
 
         // Update old value with new value
         let mut value: u32 = access.to_bitflags().bits();
@@ -463,7 +465,7 @@ impl Policy {
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
-        let value = unsafe { plain::as_bytes(&value) };
+        let value = value.as_bytes();
 
         map.update(key, value, MapFlags::ANY).context(format!(
             "Failed to update map key={:?} value={:?}",
@@ -492,11 +494,11 @@ impl Policy {
             Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
         {
             // Set key using st_dev, st_ino, and container_id
-            let mut key = structs::FilePolicyKey::default();
+            let mut key = structs::FilePolicyKey::zeroed();
             key.container_id = self.container_id();
             key.device_id = st_dev as u32;
             key.inode_id = st_ino;
-            let key = unsafe { plain::as_bytes(&key) };
+            let key = key.as_bytes();
 
             // Update old value with new value
             let mut value: u32 = access.to_bitflags().bits();
@@ -508,7 +510,7 @@ impl Policy {
                     *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
                 value |= old_value;
             }
-            let value = unsafe { plain::as_bytes(&value) };
+            let value = value.as_bytes();
 
             map.update(key, value, MapFlags::ANY).context(format!(
                 "Failed to update map key={:?} value={:?}",
@@ -534,9 +536,9 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::CapPolicyKey::default();
+        let mut key = structs::CapPolicyKey::zeroed();
         key.container_id = self.container_id();
-        let key = unsafe { plain::as_bytes(&key) };
+        let key = key.as_bytes();
 
         // Update old value with new value
         let mut value: u32 = capability.to_bitflags().bits();
@@ -548,7 +550,7 @@ impl Policy {
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
-        let value = unsafe { plain::as_bytes(&value) };
+        let value = value.as_bytes();
 
         map.update(key, value, MapFlags::ANY).context(format!(
             "Failed to update map key={:?} value={:?}",
@@ -573,9 +575,9 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::NetPolicyKey::default();
+        let mut key = structs::NetPolicyKey::zeroed();
         key.container_id = self.container_id();
-        let key = unsafe { plain::as_bytes(&key) };
+        let key = key.as_bytes();
 
         // Update old value with new value
         let mut value: u32 = access.to_bitflags().bits();
@@ -587,7 +589,7 @@ impl Policy {
                 *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
-        let value = unsafe { plain::as_bytes(&value) };
+        let value = value.as_bytes();
 
         map.update(key, value, MapFlags::ANY).context(format!(
             "Failed to update map key={:?} value={:?}",
@@ -607,14 +609,14 @@ impl Policy {
         };
 
         // Set key using container_id
-        let mut key = structs::IPCPolicyKey::default();
+        let mut key = structs::IPCPolicyKey::zeroed();
         key.container_id = self.container_id();
         key.other_container_id = Self::container_id_for_name(other);
-        let key = unsafe { plain::as_bytes(&key) };
+        let key = key.as_bytes();
 
         // Value doesn't matter
         let value: u8 = 1;
-        let value = unsafe { plain::as_bytes(&value) };
+        let value = value.as_bytes();
 
         map.update(key, value, MapFlags::ANY).context(format!(
             "Failed to update map key={:?} value={:?}",
@@ -653,15 +655,15 @@ impl Policy {
 
         // Set value to read file access
         let value: u32 = structs::FileAccess::from_flags(access_str).bits();
-        let value = unsafe { plain::as_bytes(&value) };
+        let value = value.as_bytes();
 
         for &(major, minor) in device_nums {
             // Set key using container_id
-            let mut key = structs::DevPolicyKey::default();
+            let mut key = structs::DevPolicyKey::zeroed();
             key.container_id = self.container_id();
             key.major = major;
             key.minor = minor;
-            let key = unsafe { plain::as_bytes(&key) };
+            let key = key.as_bytes();
 
             map.update(key, value, MapFlags::ANY).context(format!(
                 "Failed to update map key={:?} value={:?}",
@@ -690,8 +692,8 @@ impl Policy {
             DefaultDecision::Deny => value.default_deny = 1,
         };
 
-        let key = unsafe { plain::as_bytes(&key) };
-        let value = unsafe { plain::as_bytes(&value) };
+        let key = key.as_bytes();
+        let value = value.as_bytes();
 
         skel.maps()
             .containers()

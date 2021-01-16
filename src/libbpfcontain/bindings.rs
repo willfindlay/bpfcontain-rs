@@ -680,7 +680,7 @@ impl bpfcon_process {
     }
 }
 pub type Process = bpfcon_process;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct fs_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -690,12 +690,12 @@ pub struct fs_policy_key {
 fn bindgen_test_layout_fs_policy_key() {
     assert_eq!(
         ::std::mem::size_of::<fs_policy_key>(),
-        16usize,
+        12usize,
         concat!("Size of: ", stringify!(fs_policy_key))
     );
     assert_eq!(
         ::std::mem::align_of::<fs_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(fs_policy_key))
     );
     assert_eq!(
@@ -720,7 +720,7 @@ fn bindgen_test_layout_fs_policy_key() {
     );
 }
 pub type FsPolicyKey = fs_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct file_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -731,12 +731,12 @@ pub struct file_policy_key {
 fn bindgen_test_layout_file_policy_key() {
     assert_eq!(
         ::std::mem::size_of::<file_policy_key>(),
-        24usize,
+        20usize,
         concat!("Size of: ", stringify!(file_policy_key))
     );
     assert_eq!(
         ::std::mem::align_of::<file_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(file_policy_key))
     );
     assert_eq!(
@@ -771,7 +771,7 @@ fn bindgen_test_layout_file_policy_key() {
     );
 }
 pub type FilePolicyKey = file_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -787,7 +787,7 @@ fn bindgen_test_layout_dev_policy_key() {
     );
     assert_eq!(
         ::std::mem::align_of::<dev_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(dev_policy_key))
     );
     assert_eq!(
@@ -822,7 +822,7 @@ fn bindgen_test_layout_dev_policy_key() {
     );
 }
 pub type DevPolicyKey = dev_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -836,7 +836,7 @@ fn bindgen_test_layout_cap_policy_key() {
     );
     assert_eq!(
         ::std::mem::align_of::<cap_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(cap_policy_key))
     );
     assert_eq!(
@@ -851,7 +851,7 @@ fn bindgen_test_layout_cap_policy_key() {
     );
 }
 pub type CapPolicyKey = cap_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct net_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -865,7 +865,7 @@ fn bindgen_test_layout_net_policy_key() {
     );
     assert_eq!(
         ::std::mem::align_of::<net_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(net_policy_key))
     );
     assert_eq!(
@@ -880,7 +880,7 @@ fn bindgen_test_layout_net_policy_key() {
     );
 }
 pub type NetPolicyKey = net_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_policy_key {
     pub container_id: ::std::os::raw::c_ulong,
@@ -895,7 +895,7 @@ fn bindgen_test_layout_ipc_policy_key() {
     );
     assert_eq!(
         ::std::mem::align_of::<ipc_policy_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(ipc_policy_key))
     );
     assert_eq!(
@@ -922,7 +922,7 @@ fn bindgen_test_layout_ipc_policy_key() {
     );
 }
 pub type IPCPolicyKey = ipc_policy_key;
-#[repr(C)]
+#[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct inode_key {
     pub inode_id: ::std::os::raw::c_ulong,
@@ -932,12 +932,12 @@ pub struct inode_key {
 fn bindgen_test_layout_inode_key() {
     assert_eq!(
         ::std::mem::size_of::<inode_key>(),
-        16usize,
+        12usize,
         concat!("Size of: ", stringify!(inode_key))
     );
     assert_eq!(
         ::std::mem::align_of::<inode_key>(),
-        8usize,
+        1usize,
         concat!("Alignment of ", stringify!(inode_key))
     );
     assert_eq!(

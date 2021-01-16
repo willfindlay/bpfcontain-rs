@@ -160,37 +160,37 @@ typedef struct bpfcon_process {
 typedef struct fs_policy_key {
     unsigned long container_id;
     unsigned int device_id;
-} FsPolicyKey;
+} __attribute__((__packed__)) FsPolicyKey;
 
 typedef struct file_policy_key {
     unsigned long container_id;
     unsigned long inode_id;
     unsigned int device_id;
-} FilePolicyKey;
+} __attribute__((__packed__)) FilePolicyKey;
 
 #define MINOR_WILDCARD (~0U)
 typedef struct dev_policy_key {
     unsigned long container_id;
     unsigned int major;
     unsigned int minor;
-} DevPolicyKey;
+} __attribute__((__packed__)) DevPolicyKey;
 
 typedef struct cap_policy_key {
     unsigned long container_id;
-} CapPolicyKey;
+} __attribute__((__packed__)) CapPolicyKey;
 
 typedef struct net_policy_key {
     unsigned long container_id;
-} NetPolicyKey;
+} __attribute__((__packed__)) NetPolicyKey;
 
 typedef struct ipc_policy_key {
     unsigned long container_id;
     unsigned long other_container_id;
-} IPCPolicyKey;
+} __attribute__((__packed__)) IPCPolicyKey;
 
 typedef struct inode_key {
     unsigned long inode_id;
     unsigned int device_id;
-} InodeKey;
+} __attribute__((__packed__)) InodeKey;
 
 #endif /* STRUCTS_H */
