@@ -33,7 +33,7 @@ pub fn containerize(container_id: libc::c_ulong) -> Result<()> {
 pub mod structs {
     use super::bindings;
     use bitflags::bitflags;
-    use plain::Plain;
+    use pod::Pod;
     use std::fmt::{Display, Formatter};
 
     pub const MINOR_WILDCARD: u32 = u32::MAX;
@@ -204,7 +204,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::Event;
-    unsafe impl Plain for Event {}
+    unsafe impl Pod for Event {}
 
     impl Display for Event {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -254,7 +254,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::Container;
-    unsafe impl Plain for Container {}
+    unsafe impl Pod for Container {}
 
     /// Represents a process on the BPF side.
     ///
@@ -262,7 +262,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::Process;
-    unsafe impl Plain for Process {}
+    unsafe impl Pod for Process {}
 
     /// Represents a per-filesystem policy key on the BPF side.
     ///
@@ -270,7 +270,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::FsPolicyKey;
-    unsafe impl Plain for FsPolicyKey {}
+    unsafe impl Pod for FsPolicyKey {}
 
     /// Represents a per-file policy key on the BPF side.
     ///
@@ -278,7 +278,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::FilePolicyKey;
-    unsafe impl Plain for FilePolicyKey {}
+    unsafe impl Pod for FilePolicyKey {}
 
     /// Represents a per-device policy key on the BPF side.
     ///
@@ -286,7 +286,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::DevPolicyKey;
-    unsafe impl Plain for DevPolicyKey {}
+    unsafe impl Pod for DevPolicyKey {}
 
     /// Represents a capability policy key on the BPF side.
     ///
@@ -294,7 +294,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::CapPolicyKey;
-    unsafe impl Plain for CapPolicyKey {}
+    unsafe impl Pod for CapPolicyKey {}
 
     /// Represents a network policy key on the BPF side.
     ///
@@ -302,7 +302,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::NetPolicyKey;
-    unsafe impl Plain for NetPolicyKey {}
+    unsafe impl Pod for NetPolicyKey {}
 
     /// Represents a IPC policy key on the BPF side.
     ///
@@ -310,7 +310,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::IPCPolicyKey;
-    unsafe impl Plain for IPCPolicyKey {}
+    unsafe impl Pod for IPCPolicyKey {}
 
     /// Represents a per-inode key on the BPF side.
     ///
@@ -318,7 +318,7 @@ pub mod structs {
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
     pub use bindings::InodeKey;
-    unsafe impl Plain for InodeKey {}
+    unsafe impl Pod for InodeKey {}
 }
 
 #[cfg(test)]

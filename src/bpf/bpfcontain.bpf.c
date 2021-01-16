@@ -393,13 +393,6 @@ do_fs_permission(u64 container_id, struct inode *inode, u32 access)
     key.container_id = container_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
 
-    // FIXME: example of the weirdness
-    // if (key.device_id == 48) {
-    //    u32 val = 2;
-    //    bpf_map_update_elem(&fs_taint, &key, &val, 0);
-    //    bpf_printk("%u %lu", BPF_CORE_READ(inode, i_ino), container_id);
-    //}
-
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&fs_allow, &key);
     if (allowed && ((*allowed & access) == access)) {

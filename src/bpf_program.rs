@@ -12,6 +12,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use libbpf_rs::RingBufferManager;
+use pod::Pod;
 
 use crate::bpf;
 pub use crate::bpf::BpfcontainSkelBuilder;
@@ -95,8 +96,7 @@ pub fn load_bpf_program(
 
 /// Handle perf buffer events
 fn handle_event(data: &[u8]) -> i32 {
-    let mut event = structs::Event::default();
-    plain::copy_from_bytes(&mut event, data).expect("Data buffer was too short");
+    let event = structs::Event::from_bytes(data).expect("Failed to copy event");
 
     match event.action {
         structs::EventAction::EA_UNKNOWN => log::debug!("{}", event),
