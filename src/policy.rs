@@ -121,6 +121,8 @@ enum FileAccess {
     /// Read-Write access.
     /// In YAML this is written as `read-write`.
     ReadWrite,
+    /// All access flags together.
+    Any,
     /// Generic access flags.
     /// In YAML this is written as `{flags: "rwx"}`, where `rwx` can be any
     /// combination of flags.
@@ -137,6 +139,7 @@ impl ToBitflags for FileAccess {
             Self::ReadOnly => Self::BitFlag::RO_MASK,
             Self::ReadAppend => Self::BitFlag::RA_MASK,
             Self::ReadWrite => Self::BitFlag::RW_MASK,
+            Self::Any => Self::BitFlag::all(),
             Self::Flags(flags) => Self::BitFlag::from_flags(flags),
         }
     }
