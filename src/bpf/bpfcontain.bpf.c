@@ -25,9 +25,6 @@ BPF_RINGBUF(events, 4);
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
 
-/* Procfs inodes associated with containerized processes */
-BPF_INODE_STORAGE(procfs_inodes, u32, 0);
-
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, u32, 0);
 
@@ -456,6 +453,55 @@ static __always_inline u32 get_path_mnt_ns_id(const struct path *path)
     return BPF_CORE_READ(mnt, mnt_ns, ns.inum);
 }
 
+/* Get a pointer to the proc_inode struct associated with inode.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   A pointer to the proc_inode, if one exists
+ *   Otherwise, returns NULL
+ */
+static __always_inline struct proc_inode *get_proc_inode(struct inode *inode)
+{
+    return container_of(inode, struct proc_inode, vfs_inode);
+}
+
+/* Get the PID associated with an inode in procfs.
+ *
+ * @inode: Pointer to the inode.
+ *
+ * return:
+ *   A pid, if one exists
+ *   Otherwise, returns 0
+ */
+static __always_inline u32 get_proc_pid(struct inode *inode)
+{
+    struct proc_inode *proc_inode = get_proc_inode(inode);
+    if (!proc_inode)
+        return 0;
+
+    return BPF_CORE_READ(proc_inode, pid, numbers[0].nr);
+}
+
+/* Filter an inode by the filesystem magic number of its superblock.
+ *
+ * @inode: Pointer to the inode.
+ *
+ * return:
+ *   A pid, if one exists
+ *   Otherwise, returns 0
+ */
+static __always_inline bool
+filter_inode_by_magic(struct inode *inode, u64 magic)
+{
+    u64 inode_magic = BPF_CORE_READ(inode, i_sb, s_magic);
+
+    if (inode_magic == magic)
+        return true;
+
+    return false;
+}
+
 /* Add a file to the list of the process' owned files.
  *
  * @process: Pointer to the bpfcon process state.
@@ -648,20 +694,22 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
     if (!inode)
         return BPFCON_NO_DECISION;
 
-    struct inode *new_inode = inode;
+    // Not in procfs
+    if (!filter_inode_by_magic(inode, PROC_SUPER_MAGIC))
+        return BPFCON_NO_DECISION;
 
-    // Is this inode in the procfs_inodes map
-    u32 *pid = bpf_inode_storage_get(&procfs_inodes, inode, 0,
-                                     BPF_LOCAL_STORAGE_GET_F_CREATE);
+    u32 pid = get_proc_pid(inode);
     if (!pid)
         return BPFCON_NO_DECISION;
 
     // Does it belong to our container?
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
     if (process && process->container_id == container_id) {
         // Apply PROC_INODE_PERM_MASK for implicit privileges
         if ((access & PROC_INODE_PERM_MASK) == access)
             decision |= BPFCON_ALLOW;
+    } else {
+        decision |= BPFCON_DENY;
     }
 
     return decision;
@@ -684,10 +732,11 @@ do_task_inode_permission(u64 container_id, struct inode *inode, u32 access)
         return BPFCON_NO_DECISION;
 
     // Is this inode in the procfs_inodes map
-    u32 *pid = bpf_inode_storage_get(&task_inodes, (void *)inode, 0,
-                                     BPF_LOCAL_STORAGE_GET_F_CREATE);
+    u32 *pid = bpf_inode_storage_get(&task_inodes, inode, 0, 0);
     if (!pid)
         return BPFCON_NO_DECISION;
+
+    bpf_printk("task inode permission %u", *pid);
 
     // Does it belong to our container?
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
@@ -714,6 +763,7 @@ do_task_inode_permission(u64 container_id, struct inode *inode, u32 access)
 static int bpfcontain_inode_perm(struct bpfcon_process *process,
                                  struct inode *inode, u32 access)
 {
+    bool super_allow = false;
     int ret = 0;
     PolicyDecision decision = BPFCON_NO_DECISION;
 
@@ -727,16 +777,28 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     if (!mediated_fs(inode))
         return 0;
 
-    // filesystem and dev permissions
-    decision |= do_fs_permission(process->container_id, inode, access);
-    decision |= do_dev_permission(process->container_id, inode, access);
+    if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
+        // Get underlying inode
+    }
 
-    // procfs and file decisions are special, so remember them
+    // per-file allow should override per filesystem deny
     decision |= do_procfs_permission(process->container_id, inode, access);
     decision |= do_task_inode_permission(process->container_id, inode, access);
     decision |= do_file_permission(process->container_id, inode, access);
+    decision |= do_dev_permission(process->container_id, inode, access);
+
+    // per-file allow should override per filesystem deny
+    if ((decision & BPFCON_ALLOW) && !(decision & BPFCON_DENY))
+        super_allow = true;
+
+    // filesystem-level permissions
+    decision |= do_procfs_permission(process->container_id, inode, access);
 
     ret = do_policy_decision(process, decision, 0);
+
+    // per-file allow should override per filesystem deny
+    if (super_allow)
+        ret = 0;
 
     if (decision & BPFCON_TAINT)
         log_file_policy_decision(EA_TAINT, process->container_id, inode,
@@ -1658,34 +1720,6 @@ int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
         return 0;
 
     process->in_execve = 0;
-
-    return 0;
-}
-
-/* Handle procfs inodes */
-SEC("lsm/task_to_inode")
-int BPF_PROG(task_to_inode, struct task_struct *task, struct inode *inode)
-{
-    struct inode_key key = {};
-
-    // Look up the process using the current PID
-    u32 pid = task->pid;
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
-
-    // Unconfined
-    if (!process)
-        return 0;
-
-    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
-    key.inode_id = BPF_CORE_READ(inode, i_ino);
-
-    if (!key.device_id || !key.inode_id)
-        return 0;
-
-    u32 *pid_p = bpf_inode_storage_get(&procfs_inodes, inode, 0,
-                                       BPF_LOCAL_STORAGE_GET_F_CREATE);
-    if (pid_p)
-        *pid_p = pid;
 
     return 0;
 }
