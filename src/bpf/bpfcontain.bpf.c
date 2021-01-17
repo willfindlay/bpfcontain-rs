@@ -7,6 +7,23 @@
 
 #include "bpfcontain.h"
 
+/* Needed for overlayfs support, TODO: sync with Linux version */
+struct ovl_inode {
+    union {
+        struct ovl_dir_cache *cache; /* directory */
+        struct inode *lowerdata;     /* regular file */
+    };
+    const char *redirect;
+    u64 version;
+    unsigned long flags;
+    struct inode vfs_inode;
+    struct dentry *__upperdentry;
+    struct inode *lower;
+
+    /* synchronize copy up and more */
+    struct mutex lock;
+} __attribute__((preserve_access_index));
+
 /* ========================================================================= *
  * BPF CO-RE Globals                                                         *
  * ========================================================================= */
@@ -483,6 +500,20 @@ static __always_inline u32 get_proc_pid(struct inode *inode)
     return BPF_CORE_READ(proc_inode, pid, numbers[0].nr);
 }
 
+/* Get the overlayfs inode associated with an inode in an overlayfs.
+ *
+ * @inode: Pointer to the inode.
+ *
+ * return:
+ *   A pointer to the overlay_inode, if one exists
+ *   Otherwise, returns NULL
+ */
+static __always_inline struct ovl_inode *
+get_overlayfs_inode(struct inode *inode)
+{
+    return container_of(inode, struct ovl_inode, vfs_inode);
+}
+
 /* Filter an inode by the filesystem magic number of its superblock.
  *
  * @inode: Pointer to the inode.
@@ -714,6 +745,33 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
 
     return decision;
 }
+
+/* Make a policy decision about a file in overlayfs.
+ *
+ * @container_id: 64-bit id of the current container
+ * @inode: A pointer to the inode being accessed
+ * @access: BPFContain access mask
+ *
+ * return: A BPFContain decision
+ */
+static __always_inline int
+do_overlayfs_permission(u64 container_id, struct inode *inode, u32 access)
+{
+    int decision = BPFCON_NO_DECISION;
+
+    if (!inode)
+        return BPFCON_NO_DECISION;
+
+    // Not in an overlayfs
+    if (!filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC))
+        return BPFCON_NO_DECISION;
+
+    // Is this _our_ overlayfs?
+    // TODO
+
+    return decision;
+}
+
 /* Make an implicit policy decision about a file or directory belonging to
  * (created by) a container.
  *
@@ -793,6 +851,7 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
 
     // filesystem-level permissions
     decision |= do_procfs_permission(process->container_id, inode, access);
+    decision |= do_overlayfs_permission(process->container_id, inode, access);
 
     ret = do_policy_decision(process, decision, 0);
 
