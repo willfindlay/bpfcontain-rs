@@ -17,14 +17,14 @@ mod bindings {
     include!("libbpfcontain/bindings.rs");
 }
 
-/// Place the current process into a container with ID `container_id`.
-pub fn containerize(container_id: libc::c_ulong) -> Result<()> {
-    let result = unsafe { bindings::containerize(container_id) };
+/// Place the current process into a container with ID `policy_id`.
+pub fn containerize(policy_id: libc::c_ulong) -> Result<()> {
+    let result = unsafe { bindings::containerize(policy_id) };
 
     match result {
         0 => Ok(()),
         n if n == -libc::EAGAIN => bail!("Failed to call into uprobe"),
-        n if n == -libc::ENOENT => bail!("No such container with ID {}", container_id),
+        n if n == -libc::ENOENT => bail!("No such container with ID {}", policy_id),
         n if n == -libc::EINVAL => bail!("Process is already containerized or no room in map"),
         n => bail!("Unknown error {}", n),
     }
@@ -210,8 +210,8 @@ pub mod structs {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
             let general_info = format!(
-                "action={} comm={} pid={} tid={} container_id={} type={:?}",
-                self.action, comm, self.pid, self.tgid, self.container_id, self.info.type_
+                "action={} comm={} pid={} tid={} policy_id={} type={:?}",
+                self.action, comm, self.pid, self.tgid, self.policy_id, self.info.type_
             );
             let specific_info = unsafe {
                 match self.info.type_ {
@@ -231,15 +231,15 @@ pub mod structs {
                         NetOperation::from_bits(self.info.info.net_info.operation)
                     ),
                     EventType::ET_IPC => format!(
-                        "sender_pid={} sender_container_id={} \
-                        receiver_pid={} receiver_container_id={}",
+                        "sender_pid={} sender_policy_id={} \
+                        receiver_pid={} receiver_policy_id={}",
                         self.info.info.ipc_info.sender_pid,
                         self.info.info.ipc_info.sender_id,
                         self.info.info.ipc_info.receiver_pid,
                         self.info.info.ipc_info.receiver_id
                     ),
                     EventType::ET_NO_SUCH_CONTAINER => {
-                        format!("msg=\"No such container with ID {}\"", self.container_id)
+                        format!("msg=\"No such container with ID {}\"", self.policy_id)
                     }
                 }
             };

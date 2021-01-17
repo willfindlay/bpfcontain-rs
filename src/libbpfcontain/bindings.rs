@@ -461,7 +461,7 @@ pub type EventInfo = bpfcon_event_info;
 #[derive(Copy, Clone)]
 pub struct event {
     pub action: EventAction,
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
     pub pid: ::std::os::raw::c_uint,
     pub tgid: ::std::os::raw::c_uint,
     pub comm: [::std::os::raw::c_uchar; 16usize],
@@ -490,13 +490,13 @@ fn bindgen_test_layout_event() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<event>())).policy_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
             stringify!(event),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
@@ -589,7 +589,7 @@ pub type Container = bpfcon_container;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_process {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
     pub pid: ::std::os::raw::c_uint,
     pub tgid: ::std::os::raw::c_uint,
     pub _bitfield_1: __BindgenBitfieldUnit<[u8; 1usize], u8>,
@@ -608,13 +608,13 @@ fn bindgen_test_layout_bpfcon_process() {
         concat!("Alignment of ", stringify!(bpfcon_process))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(bpfcon_process),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
@@ -683,7 +683,7 @@ pub type Process = bpfcon_process;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct fs_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
 }
 #[test]
@@ -699,13 +699,13 @@ fn bindgen_test_layout_fs_policy_key() {
         concat!("Alignment of ", stringify!(fs_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<fs_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<fs_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(fs_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
@@ -723,7 +723,7 @@ pub type FsPolicyKey = fs_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct file_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
     pub inode_id: ::std::os::raw::c_ulong,
     pub device_id: ::std::os::raw::c_uint,
 }
@@ -740,13 +740,13 @@ fn bindgen_test_layout_file_policy_key() {
         concat!("Alignment of ", stringify!(file_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<file_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(file_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
@@ -774,7 +774,7 @@ pub type FilePolicyKey = file_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
     pub major: ::std::os::raw::c_uint,
     pub minor: ::std::os::raw::c_uint,
 }
@@ -791,13 +791,13 @@ fn bindgen_test_layout_dev_policy_key() {
         concat!("Alignment of ", stringify!(dev_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<dev_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<dev_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(dev_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
@@ -825,7 +825,7 @@ pub type DevPolicyKey = dev_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
 }
 #[test]
 fn bindgen_test_layout_cap_policy_key() {
@@ -840,13 +840,13 @@ fn bindgen_test_layout_cap_policy_key() {
         concat!("Alignment of ", stringify!(cap_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<cap_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<cap_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(cap_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
 }
@@ -854,7 +854,7 @@ pub type CapPolicyKey = cap_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct net_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
 }
 #[test]
 fn bindgen_test_layout_net_policy_key() {
@@ -869,13 +869,13 @@ fn bindgen_test_layout_net_policy_key() {
         concat!("Alignment of ", stringify!(net_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<net_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<net_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(net_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
 }
@@ -883,8 +883,8 @@ pub type NetPolicyKey = net_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_policy_key {
-    pub container_id: ::std::os::raw::c_ulong,
-    pub other_container_id: ::std::os::raw::c_ulong,
+    pub policy_id: ::std::os::raw::c_ulong,
+    pub other_policy_id: ::std::os::raw::c_ulong,
 }
 #[test]
 fn bindgen_test_layout_ipc_policy_key() {
@@ -899,25 +899,23 @@ fn bindgen_test_layout_ipc_policy_key() {
         concat!("Alignment of ", stringify!(ipc_policy_key))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
             stringify!(ipc_policy_key),
             "::",
-            stringify!(container_id)
+            stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<ipc_policy_key>())).other_container_id as *const _ as usize
-        },
+        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).other_policy_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
             stringify!(ipc_policy_key),
             "::",
-            stringify!(other_container_id)
+            stringify!(other_policy_id)
         )
     );
 }
@@ -963,5 +961,5 @@ fn bindgen_test_layout_inode_key() {
 }
 pub type InodeKey = inode_key;
 extern "C" {
-    pub fn containerize(container_id: ::std::os::raw::c_ulong) -> ::std::os::raw::c_int;
+    pub fn containerize(policy_id: ::std::os::raw::c_ulong) -> ::std::os::raw::c_int;
 }

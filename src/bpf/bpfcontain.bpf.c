@@ -33,10 +33,10 @@ const volatile u32 host_mnt_ns_id;
 const volatile u32 host_pid_ns_id;
 
 /* =========================================================================
- * * BPF Maps *
- * =========================================================================
- */
+ * BPF Maps
+ * ========================================================================= */
 
+/* Ring buffer for passing logging events to userspace */
 BPF_RINGBUF(events, 4);
 
 /* Active (containerized) processes */
@@ -48,8 +48,8 @@ BPF_INODE_STORAGE(task_inodes, u32, 0);
 /* Store active filesystems for a mount namespace */
 BPF_LRU_HASH(mnt_ns_active_fs, struct mnt_ns_fs, u8, BPFCON_MAX_POLICY, 0);
 
-/* Active containers */
-BPF_HASH(containers, u64, struct bpfcon_container, BPFCON_MAX_CONTAINERS, 0);
+/* Active policy */
+BPF_HASH(policy, u64, struct bpfcon_container, BPFCON_MAX_CONTAINERS, 0);
 
 /* Filesystem policy */
 BPF_HASH(fs_allow, struct fs_policy_key, u32, BPFCON_MAX_POLICY, 0);
@@ -87,12 +87,12 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
 
 static __always_inline void
 __log_event_common(struct event *event, EventType type, EventAction action,
-                   u64 container_id)
+                   u64 policy_id)
 {
-    // Set action, type, and container_id explicitly
+    // Set action, type, and policy_id explicitly
     event->action = action;
     event->info.type = type;
-    event->container_id = container_id;
+    event->policy_id = policy_id;
 
     // Set pid, tgid, comm implicitly
     event->pid = bpf_get_current_pid_tgid();
@@ -103,20 +103,20 @@ __log_event_common(struct event *event, EventType type, EventAction action,
 /* Log a filesystem policy event to userspace.
  *
  * @category: Event category to use.
- * @container_id: Current container ID.
+ * @policy_id: Current container ID.
  *
  * return: Pointer to the container.
  */
 static __always_inline void
-log_file_policy_decision(EventAction action, u64 container_id,
-                         struct inode *inode, FilePermission access)
+log_file_policy_decision(EventAction action, u64 policy_id, struct inode *inode,
+                         FilePermission access)
 {
     // Reserve space for the event on the ring buffer
     Event *event = bpf_ringbuf_reserve(&events, sizeof(Event), 0);
     if (!event)
         return;
 
-    __log_event_common(event, ET_FILE, action, container_id);
+    __log_event_common(event, ET_FILE, action, policy_id);
 
     event->info.info.file_info.inode_id = BPF_CORE_READ(inode, i_ino);
     event->info.info.file_info.device_id =
@@ -128,45 +128,45 @@ log_file_policy_decision(EventAction action, u64 container_id,
     bpf_ringbuf_submit(event, 0);
 }
 
-/* Get the container with ID @container_id.
+/* Get the container with ID @policy_id.
  *
  * TODO: call this instead wherever we get the current container
  *
- * @container_id: Container ID to lookup.
+ * @policy_id: Container ID to lookup.
  *
  * return: Pointer to the container.
  */
-static __always_inline struct bpfcon_container *get_container(u64 container_id)
+static __always_inline struct bpfcon_container *get_container(u64 policy_id)
 {
     struct bpfcon_container *container =
-        bpf_map_lookup_elem(&containers, &container_id);
+        bpf_map_lookup_elem(&policy, &policy_id);
     // if (!container)
-    //    log_event(ET_NO_SUCH_CONTAINER, EA_ERROR, container_id);
+    //    log_event(ET_NO_SUCH_CONTAINER, EA_ERROR, policy_id);
 
     return container;
 }
 
-/* Add process to the processes map and associate it with @container_id.
+/* Add process to the processes map and associate it with @policy_id.
  *
  * @pid:          PID of the process.
  * @tgid:         TGID of the process.
- * @container_id: Contaier ID with which to associate the process.
+ * @policy_id: Contaier ID with which to associate the process.
  *
  * return: Pointer to the added process.
  */
 static __always_inline struct bpfcon_process *
-add_process(void *ctx, u32 pid, u32 tgid, u64 container_id, u8 parent_taint)
+add_process(void *ctx, u32 pid, u32 tgid, u64 policy_id, u8 parent_taint)
 {
     // Initialize a new process
     struct bpfcon_process new_process = {};
 
     new_process.pid = pid;
     new_process.tgid = tgid;
-    new_process.container_id = container_id;
+    new_process.policy_id = policy_id;
     new_process.in_execve = 0;
 
     struct bpfcon_container *container =
-        bpf_map_lookup_elem(&containers, &new_process.container_id);
+        bpf_map_lookup_elem(&policy, &new_process.policy_id);
     if (!container) {
         return NULL;
     }
@@ -284,13 +284,13 @@ check_ipc_access(struct bpfcon_process *process, u32 other_pid)
 
     struct ipc_policy_key key = {};
 
-    key.container_id = process->container_id;
-    key.other_container_id = other_process->container_id;
+    key.policy_id = process->policy_id;
+    key.other_policy_id = other_process->policy_id;
 
     struct ipc_policy_key other_key = {};
 
-    key.container_id = other_process->container_id;
-    key.other_container_id = process->container_id;
+    key.policy_id = other_process->policy_id;
+    key.other_policy_id = process->policy_id;
 
     // Allowed access must be mututal
     u32 *allowed = bpf_map_lookup_elem(&ipc_allow, &key);
@@ -387,7 +387,7 @@ do_policy_decision(struct bpfcon_process *process, PolicyDecision decision,
     }
 
     struct bpfcon_container *container =
-        bpf_map_lookup_elem(&containers, &process->container_id);
+        bpf_map_lookup_elem(&policy, &process->policy_id);
     // Something went wrong, assume default deny
     if (!container) {
         return -EACCES;
@@ -555,20 +555,20 @@ add_inode_to_task(const struct bpfcon_process *process, struct inode *inode)
 
 /* Make a policy decision at the filesystem level.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_fs_permission(u64 container_id, struct inode *inode, u32 access)
+do_fs_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
     struct fs_policy_key key = {};
 
-    key.container_id = container_id;
+    key.policy_id = policy_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
 
     // If we are allowing the _entire_ access, allow
@@ -595,20 +595,20 @@ do_fs_permission(u64 container_id, struct inode *inode, u32 access)
 /* Make a policy decision at the file level. Unlike
  * do_fs_permission, this guy checks _individual_ file policy.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_file_permission(u64 container_id, struct inode *inode, u32 access)
+do_file_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
     struct file_policy_key key = {};
 
-    key.container_id = container_id;
+    key.policy_id = policy_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
     key.inode_id = BPF_CORE_READ(inode, i_ino);
 
@@ -635,21 +635,21 @@ do_file_permission(u64 container_id, struct inode *inode, u32 access)
 
 /* Make a policy decision about access to a device.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_dev_permission(u64 container_id, struct inode *inode, u32 access)
+do_dev_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
     struct dev_policy_key key = {};
 
     // Look up policy by device major number and container ID
-    key.container_id = container_id;
+    key.policy_id = policy_id;
     key.major = MAJOR(BPF_CORE_READ(inode, i_rdev));
 
     // Not a device driver
@@ -711,14 +711,14 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
  * This function handles the implicit procfs policy. A process can always have
  * full access to procfs entries belonging to the same container.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
+do_procfs_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -735,7 +735,7 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
 
     // Does it belong to our container?
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
-    if (process && process->container_id == container_id) {
+    if (process && process->policy_id == policy_id) {
         // Apply PROC_INODE_PERM_MASK for implicit privileges
         if ((access & PROC_INODE_PERM_MASK) == access)
             decision |= BPFCON_ALLOW;
@@ -748,14 +748,14 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
 
 /* Make a policy decision about a file in overlayfs.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_overlayfs_permission(u64 container_id, struct inode *inode, u32 access)
+do_overlayfs_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -775,14 +775,14 @@ do_overlayfs_permission(u64 container_id, struct inode *inode, u32 access)
 /* Make an implicit policy decision about a file or directory belonging to
  * (created by) a container.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode: A pointer to the inode being accessed
  * @access: BPFContain access mask
  *
  * return: A BPFContain decision
  */
 static __always_inline int
-do_task_inode_permission(u64 container_id, struct inode *inode, u32 access)
+do_task_inode_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -798,7 +798,7 @@ do_task_inode_permission(u64 container_id, struct inode *inode, u32 access)
 
     // Does it belong to our container?
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
-    if (process && process->container_id == container_id) {
+    if (process && process->policy_id == policy_id) {
         // Apply TASK_INODE_PERM_MASK for implicit privileges
         if ((access & TASK_INODE_PERM_MASK) == access)
             decision |= BPFCON_ALLOW;
@@ -812,7 +812,7 @@ do_task_inode_permission(u64 container_id, struct inode *inode, u32 access)
  * This function should be called and taken as a return value to whatever LSM
  * hooks involve file/inode access.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @inode:        A pointer to the inode being accessed
  * @access:       BPFContain access mask
  *
@@ -840,18 +840,18 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     }
 
     // per-file allow should override per filesystem deny
-    decision |= do_procfs_permission(process->container_id, inode, access);
-    decision |= do_task_inode_permission(process->container_id, inode, access);
-    decision |= do_file_permission(process->container_id, inode, access);
-    decision |= do_dev_permission(process->container_id, inode, access);
+    decision |= do_procfs_permission(process->policy_id, inode, access);
+    decision |= do_task_inode_permission(process->policy_id, inode, access);
+    decision |= do_file_permission(process->policy_id, inode, access);
+    decision |= do_dev_permission(process->policy_id, inode, access);
 
     // per-file allow should override per filesystem deny
     if ((decision & BPFCON_ALLOW) && !(decision & BPFCON_DENY))
         super_allow = true;
 
     // filesystem-level permissions
-    decision |= do_procfs_permission(process->container_id, inode, access);
-    decision |= do_overlayfs_permission(process->container_id, inode, access);
+    decision |= do_procfs_permission(process->policy_id, inode, access);
+    decision |= do_overlayfs_permission(process->policy_id, inode, access);
 
     ret = do_policy_decision(process, decision, 0);
 
@@ -860,12 +860,11 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
         ret = 0;
 
     if (decision & BPFCON_TAINT)
-        log_file_policy_decision(EA_TAINT, process->container_id, inode,
-                                 access);
+        log_file_policy_decision(EA_TAINT, process->policy_id, inode, access);
     if (decision & BPFCON_DENY)
-        log_file_policy_decision(EA_DENY, process->container_id, inode, access);
+        log_file_policy_decision(EA_DENY, process->policy_id, inode, access);
     else if (ret == -EACCES)
-        log_file_policy_decision(EA_IMPLICIT_DENY, process->container_id, inode,
+        log_file_policy_decision(EA_IMPLICIT_DENY, process->policy_id, inode,
                                  access);
 
     return ret;
@@ -1146,7 +1145,7 @@ int BPF_PROG(path_chmod, const struct path *path)
 /* Convert mmap prot and flags into an access vector and then do a permission
  * check.
  *
- * @container_id: Container ID of the process.
+ * @policy_id: Container ID of the process.
  * @file: Pointer to the mmaped file (if not private mapping).
  * @prot: Requested mmap prot.
  * @flags: Requested mmap flags.
@@ -1236,7 +1235,7 @@ bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
 
     struct net_policy_key key = {};
 
-    key.container_id = process->container_id;
+    key.policy_id = process->policy_id;
 
     // If we are allowing the _entire_ access, allow
     u32 *allowed = bpf_map_lookup_elem(&net_allow, &key);
@@ -1279,7 +1278,7 @@ static PolicyDecision bpfcontain_net_ipc_perm(struct bpfcon_process *process,
  * This function should be called and taken as a return value to whatever LSM
  * hooks involve network access.
  *
- * @container_id: 64-bit id of the current container
+ * @policy_id: 64-bit id of the current container
  * @family:       Requested family.
  * @access:       Requested access.
  *
@@ -1520,7 +1519,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
     struct cap_policy_key key = {};
 
-    key.container_id = process->container_id;
+    key.policy_id = process->policy_id;
 
     u32 *allowed = bpf_map_lookup_elem(&cap_allow, &key);
     if (allowed && (*allowed & access) == access) {
@@ -1783,7 +1782,7 @@ int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
     return 0;
 }
 
-/* Propagate a process' container_id to its children */
+/* Propagate a process' policy_id to its children */
 SEC("tracepoint/sched/sched_process_fork")
 int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
 {
@@ -1801,7 +1800,7 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
     }
 
     // Create the child
-    process = add_process(args, cpid, ctgid, parent_process->container_id,
+    process = add_process(args, cpid, ctgid, parent_process->policy_id,
                           parent_process->tainted);
     if (!process) {
         // TODO log error
@@ -1914,12 +1913,12 @@ int BPF_PROG(sb_free_security, struct super_block *sb)
 /* BPF program endpoint for do_containerize in libbpfcontain.
  *
  * @ret_p: Pointer to the return value of wrapper function.
- * @container_id: Container with which to associate.
+ * @policy_id: Container with which to associate.
  *
  * return: Converted access mask.
  */
 SEC("uprobe/do_containerize")
-int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
+int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
 {
     int ret = 0;
 
@@ -1927,9 +1926,9 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
     u32 pid = bpf_get_current_pid_tgid();
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
 
-    // Look up the `container` using `container_id`
+    // Look up the `container` using `policy_id`
     struct bpfcon_container *container =
-        bpf_map_lookup_elem(&containers, &container_id);
+        bpf_map_lookup_elem(&policy, &policy_id);
 
     // If the container doesn't exist, report an error and bail
     if (!container) {
@@ -1938,8 +1937,8 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 container_id)
     }
 
     // Try to add a process to `processes` with `pid`/`tgid`, associated with
-    // `container_id`
-    if (!add_process(ctx, pid, tgid, container_id, 0)) {
+    // `policy_id`
+    if (!add_process(ctx, pid, tgid, policy_id, 0)) {
         ret = -EINVAL;
         goto out;
     }

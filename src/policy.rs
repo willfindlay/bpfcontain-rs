@@ -320,8 +320,8 @@ pub struct Policy {
 }
 
 impl Policy {
-    pub fn container_id(&self) -> u64 {
-        Self::container_id_for_name(&self.name)
+    pub fn policy_id(&self) -> u64 {
+        Self::policy_id_for_name(&self.name)
     }
 
     /// Construct a new policy by parsing the YAML policy file located at `path`.
@@ -338,7 +338,7 @@ impl Policy {
         serde_yaml::from_str(string).context("Failed to parse policy string")
     }
 
-    fn container_id_for_name(name: &str) -> u64 {
+    fn policy_id_for_name(name: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
@@ -349,9 +349,9 @@ impl Policy {
     }
 
     pub fn load(&self, skel: &mut Skel) -> Result<()> {
-        // Load the `container_id` into the `containers` eBPF map
-        self.load_container(skel)
-            .context(format!("Failed to load container ID "))?;
+        // Load the `policy_id` into the `policy` eBPF map
+        self.load_policy_id(skel)
+            .context(format!("Failed to load policy ID "))?;
 
         // Load rights
         for rule in self.rights.iter() {
@@ -452,7 +452,7 @@ impl Policy {
             .context(format!("Failed to get information for {}", path))?;
 
         let mut key = structs::FsPolicyKey::zeroed();
-        key.container_id = self.container_id();
+        key.policy_id = self.policy_id();
         key.device_id = st_dev as u32;
         let key = key.as_bytes();
 
@@ -494,9 +494,9 @@ impl Policy {
         for (st_dev, st_ino) in
             Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
         {
-            // Set key using st_dev, st_ino, and container_id
+            // Set key using st_dev, st_ino, and policy_id
             let mut key = structs::FilePolicyKey::zeroed();
-            key.container_id = self.container_id();
+            key.policy_id = self.policy_id();
             key.device_id = st_dev as u32;
             key.inode_id = st_ino;
             let key = key.as_bytes();
@@ -536,9 +536,9 @@ impl Policy {
             PolicyDecision::Taint => maps.cap_taint(),
         };
 
-        // Set key using container_id
+        // Set key using policy_id
         let mut key = structs::CapPolicyKey::zeroed();
-        key.container_id = self.container_id();
+        key.policy_id = self.policy_id();
         let key = key.as_bytes();
 
         // Update old value with new value
@@ -575,9 +575,9 @@ impl Policy {
             PolicyDecision::Taint => maps.net_taint(),
         };
 
-        // Set key using container_id
+        // Set key using policy_id
         let mut key = structs::NetPolicyKey::zeroed();
-        key.container_id = self.container_id();
+        key.policy_id = self.policy_id();
         let key = key.as_bytes();
 
         // Update old value with new value
@@ -609,10 +609,10 @@ impl Policy {
             PolicyDecision::Taint => maps.ipc_taint(),
         };
 
-        // Set key using container_id
+        // Set key using policy_id
         let mut key = structs::IPCPolicyKey::zeroed();
-        key.container_id = self.container_id();
-        key.other_container_id = Self::container_id_for_name(other);
+        key.policy_id = self.policy_id();
+        key.other_policy_id = Self::policy_id_for_name(other);
         let key = key.as_bytes();
 
         // Value doesn't matter
@@ -659,9 +659,9 @@ impl Policy {
         let value = value.as_bytes();
 
         for &(major, minor) in device_nums {
-            // Set key using container_id
+            // Set key using policy_id
             let mut key = structs::DevPolicyKey::zeroed();
-            key.container_id = self.container_id();
+            key.policy_id = self.policy_id();
             key.major = major;
             key.minor = minor;
             let key = key.as_bytes();
@@ -675,10 +675,10 @@ impl Policy {
         Ok(())
     }
 
-    /// Computes and loads the correct `container_id` into the `containers` eBPF
+    /// Computes and loads the correct `policy_id` into the `policy` eBPF
     /// map.
-    fn load_container(&self, skel: &mut Skel) -> Result<()> {
-        let key = self.container_id();
+    fn load_policy_id(&self, skel: &mut Skel) -> Result<()> {
+        let key = self.policy_id();
         let mut value = structs::Container::default();
 
         // No taint rules implies that we should be tainted by default
@@ -697,7 +697,7 @@ impl Policy {
         let value = value.as_bytes();
 
         skel.maps()
-            .containers()
+            .policy()
             .update(key, value, MapFlags::ANY)
             .context(format!(
                 "Failed to update map key={:?} value={:?}",
@@ -882,7 +882,7 @@ mod tests {
         policy_2.name = "discord".into();
         policy_2.cmd = "/bin/discord".into();
 
-        assert_eq!(policy_1.container_id(), policy_2.container_id());
+        assert_eq!(policy_1.policy_id(), policy_2.policy_id());
 
         Ok(())
     }

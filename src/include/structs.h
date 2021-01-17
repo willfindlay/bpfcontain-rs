@@ -144,7 +144,7 @@ typedef struct bpfcon_event_info {
 
 typedef struct event {
     EventAction action;
-    unsigned long container_id;
+    unsigned long policy_id;
     unsigned int pid;
     unsigned int tgid;
     unsigned char comm[16];
@@ -161,7 +161,7 @@ typedef struct bpfcon_container {
 } Container;
 
 typedef struct bpfcon_process {
-    unsigned long container_id;
+    unsigned long policy_id;
     unsigned int pid;
     unsigned int tgid;
     unsigned char in_execve : 1;
@@ -173,34 +173,34 @@ typedef struct bpfcon_process {
  * ========================================================================= */
 
 typedef struct fs_policy_key {
-    unsigned long container_id;
+    unsigned long policy_id;
     unsigned int device_id;
 } __attribute__((__packed__)) FsPolicyKey;
 
 typedef struct file_policy_key {
-    unsigned long container_id;
+    unsigned long policy_id;
     unsigned long inode_id;
     unsigned int device_id;
 } __attribute__((__packed__)) FilePolicyKey;
 
 #define MINOR_WILDCARD (~0U)
 typedef struct dev_policy_key {
-    unsigned long container_id;
+    unsigned long policy_id;
     unsigned int major;
     unsigned int minor;
 } __attribute__((__packed__)) DevPolicyKey;
 
 typedef struct cap_policy_key {
-    unsigned long container_id;
+    unsigned long policy_id;
 } __attribute__((__packed__)) CapPolicyKey;
 
 typedef struct net_policy_key {
-    unsigned long container_id;
+    unsigned long policy_id;
 } __attribute__((__packed__)) NetPolicyKey;
 
 typedef struct ipc_policy_key {
-    unsigned long container_id;
-    unsigned long other_container_id;
+    unsigned long policy_id;
+    unsigned long other_policy_id;
 } __attribute__((__packed__)) IPCPolicyKey;
 
 typedef struct inode_key {

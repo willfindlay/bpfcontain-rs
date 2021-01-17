@@ -32,15 +32,15 @@
  *
  */
 
-static void do_containerize(int *ret, unsigned long container_id)
+static void do_containerize(int *ret, unsigned long policy_id)
 {
 }
 
-int containerize(unsigned long container_id)
+int containerize(unsigned long policy_id)
 {
     int ret = -EAGAIN;
 
-    do_containerize(&ret, container_id);
+    do_containerize(&ret, policy_id);
 
     if (ret < 0) {
         errno = -ret;

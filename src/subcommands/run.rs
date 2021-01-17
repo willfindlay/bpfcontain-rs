@@ -27,7 +27,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let policy = Policy::from_path(policy_path).context("Failed to parse policy")?;
 
     // Containerize
-    containerize(policy.container_id()).context("Failed to containerize")?;
+    containerize(policy.policy_id()).context("Failed to containerize")?;
 
     // Parse out command
     let command = policy

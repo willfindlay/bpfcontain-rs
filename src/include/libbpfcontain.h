@@ -7,4 +7,4 @@
 
 #include "../include/structs.h"
 
-int containerize(unsigned long container_id);
+int containerize(unsigned long policy_id);
