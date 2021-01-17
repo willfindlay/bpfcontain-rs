@@ -835,12 +835,12 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     if (!process)
         return 0;
 
-    // struct file *file = BPF_CORE_READ(bprm, file);
-    // if (file) {
-    //    ret = bpfcontain_inode_perm(process, file->f_inode, BPFCON_MAY_EXEC);
-    //    if (ret)
-    //        return ret;
-    //}
+    struct file *file = bprm->file;
+    if (file) {
+        ret = bpfcontain_inode_perm(process, file->f_inode, BPFCON_MAY_EXEC);
+        if (ret)
+            return ret;
+    }
 
     return 0;
 }
