@@ -8,16 +8,29 @@
 #include "bpfcontain.h"
 
 /* ========================================================================= *
- * BPF Maps                                                                  *
+ * BPF CO-RE Globals                                                         *
  * ========================================================================= */
+
+const volatile u32 bpfcontain_pid;
+const volatile u32 host_mnt_ns_id;
+const volatile u32 host_pid_ns_id;
+
+/* =========================================================================
+ * * BPF Maps *
+ * =========================================================================
+ */
 
 BPF_RINGBUF(events, 4);
 
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
 
-/* Active inodes associated with containerized processes */
-BPF_LRU_HASH(procfs_inodes, u32, struct inode_key, BPFCON_MAX_PROCESSES, 0);
+/* Procfs inodes associated with containerized processes */
+BPF_LRU_HASH(procfs_inodes, struct inode_key, u32, BPFCON_MAX_PROCESSES * 10,
+             0);
+
+/* Files and directories which have been created by a containerized process */
+BPF_LRU_HASH(task_inodes, struct inode_key, u32, BPFCON_MAX_PROCESSES * 10, 0);
 
 /* Store active filesystems for a mount namespace */
 BPF_LRU_HASH(mnt_ns_active_fs, struct mnt_ns_fs, u8, BPFCON_MAX_POLICY, 0);
@@ -181,6 +194,9 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
 {
     u32 access = 0;
 
+    if (!inode)
+        return 0;
+
     // Reading may be converted directly
     if (mask & MAY_READ) {
         access |= BPFCON_MAY_READ;
@@ -193,6 +209,7 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
         access |= BPFCON_MAY_WRITE;
     }
 
+    // FIXME: not working
     if (access & MAY_CHDIR) {
         access |= BPFCON_MAY_CHDIR;
     }
@@ -371,6 +388,112 @@ do_policy_decision(struct bpfcon_process *process, PolicyDecision decision,
     return 0;
 }
 
+/* Get a pointer to a struct mount from a struct vfsmount.
+ *
+ * @mnt: Pointer to the struct vfsmount.
+ *
+ * return: Pointer to the containing mount struct.
+ */
+static __always_inline struct mount *get_real_mount(const struct vfsmount *mnt)
+{
+    return container_of(mnt, struct mount, mnt);
+}
+
+/* Get the mount namespace id for the current task.
+ *
+ * return: Mount namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_task_mnt_ns_id()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    return BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+}
+
+/* Get the pid namespace id for the current task.
+ *
+ * return: Pid namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_task_pid_ns_id()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
+}
+
+/* Get the mount namespace id for @file.
+ *
+ * @file: Pointer to a file struct.
+ *
+ * return: Mount namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_file_mnt_ns_id(const struct file *file)
+{
+    struct vfsmount *vfsmnt = BPF_CORE_READ(file, f_path.mnt);
+    if (!vfsmnt)
+        return 0;
+
+    struct mount *mnt = get_real_mount(vfsmnt);
+    if (!mnt)
+        return 0;
+
+    return BPF_CORE_READ(mnt, mnt_ns, ns.inum);
+}
+
+/* Get the mount namespace id for @path.
+ *
+ * @path: Pointer to a path struct.
+ *
+ * return: Mount namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_path_mnt_ns_id(const struct path *path)
+{
+    struct vfsmount *vfsmnt = BPF_CORE_READ(path, mnt);
+    if (!vfsmnt)
+        return 0;
+
+    struct mount *mnt = get_real_mount(vfsmnt);
+    if (!mnt)
+        return 0;
+
+    return BPF_CORE_READ(mnt, mnt_ns, ns.inum);
+}
+
+/* Add a file to the list of the process' owned files.
+ *
+ * @process: Pointer to the bpfcon process state.
+ * @inode: Pointer to the inode.
+ *
+ * return: Does not return.
+ */
+static __always_inline void
+add_inode_to_task(const struct bpfcon_process *process,
+                  const struct inode *inode)
+{
+    struct inode_key key = {};
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
+
+    // TODO: add a filter to ignore inodes in filesystems we already have access
+    // to (no need to clutter the map with useless entries)
+
+    bpf_map_update_elem(&task_inodes, &key, &process->pid, 0);
+}
+
+/* Remove a file from the list of the process' owned files.
+ *
+ * @process: Pointer to the bpfcon process state.
+ * @inode: Pointer to the inode.
+ *
+ * return: Does not return.
+ */
+static __always_inline void free_inode_to_task(const struct inode *inode)
+{
+    struct inode_key key = {};
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
+
+    bpf_map_delete_elem(&task_inodes, &key);
+}
+
 /* ========================================================================= *
  * Filesystem, File, Device Policy                                           *
  * ========================================================================= */
@@ -384,7 +507,7 @@ do_policy_decision(struct bpfcon_process *process, PolicyDecision decision,
  * return: A BPFContain decision
  */
 static __always_inline int
-do_fs_permission(u64 container_id, struct inode *inode, u32 access)
+do_fs_permission(u64 container_id, const struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -424,7 +547,7 @@ do_fs_permission(u64 container_id, struct inode *inode, u32 access)
  * return: A BPFContain decision
  */
 static __always_inline int
-do_file_permission(u64 container_id, struct inode *inode, u32 access)
+do_file_permission(u64 container_id, const struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -464,7 +587,7 @@ do_file_permission(u64 container_id, struct inode *inode, u32 access)
  * return: A BPFContain decision
  */
 static __always_inline int
-do_dev_permission(u64 container_id, struct inode *inode, u32 access)
+do_dev_permission(u64 container_id, const struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -528,7 +651,7 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
     return decision;
 }
 
-/* Make a policy decision about a task_to_inode file.
+/* Make a policy decision about a procfs file.
  *
  * This function handles the implicit procfs policy. A process can always have
  * full access to procfs entries belonging to the same container.
@@ -540,7 +663,7 @@ do_dev_permission(u64 container_id, struct inode *inode, u32 access)
  * return: A BPFContain decision
  */
 static __always_inline int
-do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
+do_procfs_permission(u64 container_id, const struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -557,7 +680,44 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
     // Does it belong to our container?
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
     if (process && process->container_id == container_id) {
-        decision |= BPFCON_ALLOW;
+        // Apply PROC_INODE_PERM_MASK for implicit privileges
+        if ((access & PROC_INODE_PERM_MASK) == access)
+            decision |= BPFCON_ALLOW;
+    }
+
+    return decision;
+}
+/* Make an implicit policy decision about a file or directory belonging to
+ * (created by) a container.
+ *
+ * @container_id: 64-bit id of the current container
+ * @inode: A pointer to the inode being accessed
+ * @access: BPFContain access mask
+ *
+ * return: A BPFContain decision
+ */
+static __always_inline int
+do_task_inode_permission(u64 container_id, const struct inode *inode,
+                         u32 access)
+{
+    int decision = BPFCON_NO_DECISION;
+
+    struct inode_key key = {};
+
+    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.inode_id = BPF_CORE_READ(inode, i_ino);
+
+    // Is this inode in the procfs_inodes map
+    u32 *pid = bpf_map_lookup_elem(&task_inodes, &key);
+    if (!pid)
+        return BPFCON_NO_DECISION;
+
+    // Does it belong to our container?
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
+    if (process && process->container_id == container_id) {
+        // Apply TASK_INODE_PERM_MASK for implicit privileges
+        if ((access & TASK_INODE_PERM_MASK) == access)
+            decision |= BPFCON_ALLOW;
     }
 
     return decision;
@@ -575,10 +735,13 @@ do_procfs_permission(u64 container_id, struct inode *inode, u32 access)
  * return: -EACCES if access is denied or 0 if access is granted.
  */
 static int bpfcontain_inode_perm(struct bpfcon_process *process,
-                                 struct inode *inode, u32 access)
+                                 const struct inode *inode, u32 access)
 {
     int ret = 0;
     PolicyDecision decision = BPFCON_NO_DECISION;
+
+    if (!inode)
+        return 0;
 
     if (!access)
         return 0;
@@ -592,27 +755,15 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     decision |= do_dev_permission(process->container_id, inode, access);
 
     // procfs and file decisions are special, so remember them
-    PolicyDecision procfs_decision =
-        do_procfs_permission(process->container_id, inode, access);
-    decision |= procfs_decision;
-    PolicyDecision file_decision =
-        do_file_permission(process->container_id, inode, access);
-    decision |= file_decision;
+    decision |= do_procfs_permission(process->container_id, inode, access);
+    decision |= do_task_inode_permission(process->container_id, inode, access);
+    decision |= do_file_permission(process->container_id, inode, access);
+
+    ret = do_policy_decision(process, decision, 0);
 
     if (decision & BPFCON_TAINT)
         log_file_policy_decision(EA_TAINT, process->container_id, inode,
                                  access);
-
-    ret = do_policy_decision(process, decision, 0);
-
-    // Allow procfs permissions to override denials
-    if (procfs_decision == BPFCON_ALLOW)
-        return 0;
-
-    // Allow specific file permissions to override denials
-    if (file_decision == BPFCON_ALLOW)
-        return 0;
-
     if (decision & BPFCON_DENY)
         log_file_policy_decision(EA_DENY, process->container_id, inode, access);
     else if (ret == -EACCES)
@@ -622,20 +773,73 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     return ret;
 }
 
-// SEC("lsm/inode_permission")
-// int BPF_PROG(inode_permission, struct inode *inode, int mask)
-//{
-//    // Look up the process using the current PID
-//    u32 pid = bpf_get_current_pid_tgid();
-//    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
-//
-//    // Unconfined
-//    if (!process)
-//        return 0;
-//
-//    // Make an access control decision
-//    return bpfcontain_inode_perm(process, inode, mask_to_access(inode, mask));
-//}
+/* Take all policy decisions together to reach a verdict on path access.
+ *
+ * @container_id: 64-bit id of the current container
+ * @path:         A pointer to the path struct being accessed
+ * @access:       BPFContain access mask
+ *
+ * return: -EACCES if access is denied or 0 if access is granted.
+ */
+static int bpfcontain_path_perm(struct bpfcon_process *process,
+                                const struct path *path, u32 access)
+{
+    u32 mnt_ns = get_path_mnt_ns_id(path);
+
+    struct inode *inode = BPF_CORE_READ(path, dentry, d_inode);
+    return bpfcontain_inode_perm(process, inode, access);
+}
+
+/* Take all policy decisions together to reach a verdict on file access.
+ *
+ * @container_id: 64-bit id of the current container
+ * @file:         A pointer to the file struct being accessed
+ * @access:       BPFContain access mask
+ *
+ * return: -EACCES if access is denied or 0 if access is granted.
+ */
+static int bpfcontain_file_perm(struct bpfcon_process *process,
+                                const struct file *file, u32 access)
+{
+    u32 mnt_ns = get_file_mnt_ns_id(file);
+
+    struct inode *inode = BPF_CORE_READ(file, f_inode);
+    return bpfcontain_inode_perm(process, inode, access);
+}
+
+SEC("lsm/inode_init_security")
+int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
+             const struct qstr *qstr, const char **name, void **value,
+             size_t *len)
+{
+    u32 ns_id = get_task_mnt_ns_id();
+    if (ns_id != host_mnt_ns_id) {
+        bpf_printk("In a different mnt_ns %u", ns_id);
+    }
+
+    // Look up the process using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+
+    // Unconfined
+    if (!process)
+        return 0;
+
+    // Add the newly created inode to the process' list of inodes.
+    // This will then be used as a sensible default when computing permissions.
+    add_inode_to_task(process, inode);
+
+    return 0;
+}
+
+SEC("lsm/inode_free_security")
+int BPF_PROG(inode_free_security, struct inode *inode)
+{
+    // Remove this inode from the per-task list of created inodes.
+    free_inode_to_task(inode);
+
+    return 0;
+}
 
 SEC("lsm/file_permission")
 int BPF_PROG(file_permission, struct file *file, int mask)
@@ -649,8 +853,8 @@ int BPF_PROG(file_permission, struct file *file, int mask)
         return 0;
 
     // Make an access control decision
-    struct inode *inode = file->f_inode;
-    return bpfcontain_inode_perm(process, inode, mask_to_access(inode, mask));
+    return bpfcontain_file_perm(process, file,
+                                mask_to_access(file->f_inode, mask));
 }
 
 SEC("lsm/file_open")
@@ -665,8 +869,7 @@ int BPF_PROG(file_open, struct file *file)
         return 0;
 
     // Make an access control decision
-    struct inode *inode = file->f_inode;
-    return bpfcontain_inode_perm(process, inode, file_to_access(file));
+    return bpfcontain_file_perm(process, file, file_to_access(file));
 }
 
 SEC("lsm/file_receive")
@@ -681,8 +884,7 @@ int BPF_PROG(file_receive, struct file *file)
         return 0;
 
     // Make an access control decision
-    struct inode *inode = file->f_inode;
-    return bpfcontain_inode_perm(process, inode, file_to_access(file));
+    return bpfcontain_file_perm(process, file, file_to_access(file));
 }
 
 /* Enforce policy on execve operations */
@@ -699,23 +901,9 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     if (!process)
         return 0;
 
-    struct inode *file = BPF_CORE_READ(bprm, file, f_inode);
+    struct file *file = BPF_CORE_READ(bprm, file);
     if (file) {
-        ret = bpfcontain_inode_perm(process, file, BPFCON_MAY_EXEC);
-        if (ret)
-            return ret;
-    }
-
-    struct inode *executable = BPF_CORE_READ(bprm, executable, f_inode);
-    if (executable) {
-        ret = bpfcontain_inode_perm(process, executable, BPFCON_MAY_EXEC);
-        if (ret)
-            return ret;
-    }
-
-    struct inode *interpreter = BPF_CORE_READ(bprm, interpreter, f_inode);
-    if (interpreter) {
-        ret = bpfcontain_inode_perm(process, interpreter, BPFCON_MAY_EXEC);
+        ret = bpfcontain_file_perm(process, file, BPFCON_MAY_EXEC);
         if (ret)
             return ret;
     }
@@ -735,9 +923,8 @@ int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
     if (!process)
         return 0;
 
-    struct inode *inode = dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_DELETE);
+    u32 mnt_ns = get_path_mnt_ns_id(dir);
+    return bpfcontain_inode_perm(process, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to unlink a directory. */
@@ -752,9 +939,8 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
     if (!process)
         return 0;
 
-    struct inode *inode = dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_DELETE);
+    u32 mnt_ns = get_path_mnt_ns_id(dir);
+    return bpfcontain_inode_perm(process, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to create a file. */
@@ -770,14 +956,14 @@ int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
     if (!process)
         return 0;
 
-    struct inode *inode = dir->dentry->d_inode;
+    int ret = bpfcontain_path_perm(process, dir, BPFCON_MAY_CREATE);
+    if (ret)
+        return ret;
 
-    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_CREATE);
+    // TODO: handle non-zero dev values (allow if we have access to the device
+    // in question?)
 
-    // TODO: also check access based on the type of file
-
-    // TODO: add to the process' list of owned files if permission succeeded
-    // _then_ return
+    return 0;
 }
 
 /* Mediate access to make a directory. */
@@ -792,12 +978,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
     if (!process)
         return 0;
 
-    struct inode *dir_inode = dir->dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
-
-    // TODO: add to the process' list of owned files if permission succeeded
-    // _then_ return
+    return bpfcontain_path_perm(process, dir, BPFCON_MAY_CREATE);
 }
 
 /* Mediate access to make a symlink. */
@@ -813,12 +994,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
     if (!process)
         return 0;
 
-    struct inode *dir_inode = dir->dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
-
-    // TODO: add to the process' list of owned files if permission succeeded
-    // _then_ return
+    return bpfcontain_path_perm(process, dir, BPFCON_MAY_CREATE);
 }
 
 /* Mediate access to make a hard link. */
@@ -836,18 +1012,13 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
     if (!process)
         return 0;
 
+    ret = bpfcontain_path_perm(process, new_dir, BPFCON_MAY_CREATE);
+    if (ret)
+        return ret;
+
     struct inode *old_inode = old_dentry->d_inode;
-    struct inode *dir_inode = new_dir->dentry->d_inode;
 
-    ret = bpfcontain_inode_perm(process, dir_inode, BPFCON_MAY_CREATE);
-    if (ret)
-        return ret;
-
-    ret = bpfcontain_inode_perm(process, old_inode, BPFCON_MAY_LINK);
-    if (ret)
-        return ret;
-
-    return 0;
+    return bpfcontain_inode_perm(process, old_inode, BPFCON_MAY_LINK);
 }
 
 /* Mediate access to rename a file. */
@@ -893,10 +1064,8 @@ int BPF_PROG(path_truncate, const struct path *path)
     if (!process)
         return 0;
 
-    struct inode *inode = path->dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, inode,
-                                 BPFCON_MAY_WRITE | BPFCON_MAY_SETATTR);
+    return bpfcontain_path_perm(process, path,
+                                BPFCON_MAY_WRITE | BPFCON_MAY_SETATTR);
 }
 
 /* Mediate access to chmod a file. */
@@ -911,9 +1080,7 @@ int BPF_PROG(path_chmod, const struct path *path)
     if (!process)
         return 0;
 
-    struct inode *inode = path->dentry->d_inode;
-
-    return bpfcontain_inode_perm(process, inode, BPFCON_MAY_CHMOD);
+    return bpfcontain_path_perm(process, path, BPFCON_MAY_CHMOD);
 }
 
 /* Convert mmap prot and flags into an access vector and then do a permission
@@ -947,7 +1114,7 @@ mmap_permission(struct bpfcon_process *process, struct file *file,
     if (!access)
         return 0;
 
-    return bpfcontain_inode_perm(process, file->f_inode, access);
+    return bpfcontain_file_perm(process, file, access);
 }
 
 SEC("lsm/mmap_file")
@@ -1310,12 +1477,8 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_TAINT;
     }
 
-    bpf_printk("decision: %d", decision);
-
     return do_policy_decision(process, decision, 1);
 }
-
-// TODO COME BACK HERE
 
 /* ========================================================================= *
  * Implicit Policy                                                           *
@@ -1576,6 +1739,9 @@ int BPF_PROG(task_to_inode, struct task_struct *task, struct inode *inode)
 
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
     key.inode_id = BPF_CORE_READ(inode, i_ino);
+
+    if (!key.device_id || !key.inode_id)
+        return 0;
 
     bpf_map_update_elem(&procfs_inodes, &key, &pid, 0);
 

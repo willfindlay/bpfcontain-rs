@@ -18,6 +18,7 @@ use crate::bpf;
 pub use crate::bpf::BpfcontainSkelBuilder;
 use crate::config::Settings;
 use crate::libbpfcontain::structs;
+use crate::ns;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
@@ -65,10 +66,21 @@ pub fn load_bpf_program(
 
     // Open eBPF objects
     log::debug!("Opening eBPF objects...");
-    let open_skel = match builder.open() {
+    let mut open_skel = match builder.open() {
         Ok(open_skel) => open_skel,
         Err(e) => bail!("Failed to open skeleton: {}", e),
     };
+
+    // Set our own PID
+    open_skel.rodata().bpfcontain_pid = std::process::id();
+
+    // Set our own mount ns
+    open_skel.rodata().host_mnt_ns_id =
+        ns::get_current_ns_id(ns::Namespace::Mnt).context("Failed to find own mnt namespace id")?;
+
+    // Set our own pid ns
+    open_skel.rodata().host_pid_ns_id =
+        ns::get_current_ns_id(ns::Namespace::Pid).context("Failed to find own pid namespace id")?;
 
     // Loading eBPF objects into kernel
     log::debug!("Loading eBPF objects into kernel...");

@@ -75,6 +75,15 @@ typedef enum {
 
 // clang-format on
 
+#define TASK_INODE_PERM_MASK                                     \
+    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND |    \
+     BPFCON_MAY_CREATE | BPFCON_MAY_DELETE | BPFCON_MAY_RENAME | \
+     BPFCON_MAY_SETATTR | BPFCON_MAY_CHOWN | BPFCON_MAY_CHMOD |  \
+     BPFCON_MAY_LINK | BPFCON_MAY_CHDIR)
+
+#define PROC_INODE_PERM_MASK \
+    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND | BPFCON_MAY_CHDIR)
+
 /* ========================================================================= *
  * Per-Event Logging                                                         *
  * ========================================================================= */

@@ -9,6 +9,7 @@ pub mod bpf;
 pub mod bpf_program;
 pub mod config;
 pub mod libbpfcontain;
+mod ns;
 pub mod policy;
 pub mod subcommands;
 pub mod utils;

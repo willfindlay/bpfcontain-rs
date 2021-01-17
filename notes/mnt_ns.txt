@@ -1,6 +1,12 @@
-file -> f_path -> vfsmnt -> mount -> mnt_namespace
+Getting from `struct file` to mount namespace:
 
-How to get from inode to file?
+        file -> f_path -> vfsmnt -> mount -> mnt_namespace
+                        We can use `container_of` for this
 
-inode -> i_sb -> s_root -
+        file -> f_path -> vfsmnt
+        container_of(vfsmnt, struct mount, mnt) -> mount
+        mount -> mnt_namespace
 
+
+Getting from struct dentry to mount namespace:
+        dentry -> d_inode -> i_sb ->
