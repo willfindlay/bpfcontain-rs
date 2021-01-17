@@ -170,15 +170,14 @@ bpf_map_lookup_or_try_init(void *map, const void *key, const void *val)
         __uint(map_flags, FLAGS);           \
     } NAME SEC(".maps")
 
-/* Declare a cgroup storage map @NAME with value type @VALUE.
+/* Declare an inode storage map @NAME with value type @VALUE.
  * The map creation flags may be specified with @FLAGS. */
 #define BPF_INODE_STORAGE(NAME, VALUE, FLAGS)           \
     struct {                                            \
         __uint(type, BPF_MAP_TYPE_INODE_STORAGE);       \
-        __uint(max_entries, 0);                         \
-        __type(key, struct inode);                      \
-        __type(value, VALUE);                           \
         __uint(map_flags, (FLAGS | BPF_F_NO_PREALLOC)); \
+        __type(key, int);                               \
+        __type(value, VALUE);                           \
     } NAME SEC(".maps")
 
 #endif /* ifndef MAPS_H */
