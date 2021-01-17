@@ -49,9 +49,6 @@ BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, u32, 0);
 
-/* Store active filesystems for a mount namespace */
-BPF_LRU_HASH(mnt_ns_active_fs, struct mnt_ns_fs, u8, BPFCON_MAX_POLICY, 0);
-
 /* Active policy */
 BPF_HASH(policy, u64, struct bpfcon_container, BPFCON_MAX_CONTAINERS, 0);
 
@@ -1817,66 +1814,61 @@ int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
  * Filesystem Mounts                                                         *
  * ========================================================================= */
 
-struct mnt_ns_fs {
-    u64 device_id;
-    int mnt_ns;
-};
-
 /* TODO: Updating the mnt_ns_active_fs map makes sense here, but we need to
  * figure out how we are going to delete afterwards. Otherwise, incorrect data
  * will carry between containers as namespace ids / device ids are re-used by
  * the kernel. */
-SEC("lsm/sb_set_mnt_opts")
-int BPF_PROG(sb_set_mnt_opts, struct super_block *sb, void *mnt_opts,
-             unsigned long kern_flags, unsigned long *set_kern_flags)
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    // struct file_system_type *type = sb->s_type;
-
-    struct mnt_ns_fs key = {};
-
-    key.device_id = new_encode_dev(sb->s_dev);
-    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-
-    if (!key.mnt_ns) {
-        return 0;
-    }
-
-    bpf_printk("alloc mount ns");
-    bpf_printk("dev_id = %lu", key.device_id);
-    bpf_printk("mnt_ns = %u", key.mnt_ns);
-    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
-
-    u8 val = 1;
-    bpf_map_update_elem(&mnt_ns_active_fs, &key, &val, 0);
-
-    return 0;
-}
-
-SEC("lsm/sb_free_security")
-int BPF_PROG(sb_free_security, struct super_block *sb)
-{
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-
-    struct mnt_ns_fs key = {};
-
-    key.device_id = new_encode_dev(sb->s_dev);
-    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-
-    bpf_printk("free mount ns");
-    bpf_printk("dev_id = %lu", key.device_id);
-    bpf_printk("mnt_ns = %u", key.mnt_ns);
-    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
-
-    if (!key.mnt_ns) {
-        return 0;
-    }
-
-    u8 val = 1;
-    bpf_map_delete_elem(&mnt_ns_active_fs, &key);
-
-    return 0;
-}
+// SEC("lsm/sb_set_mnt_opts")
+// int BPF_PROG(sb_set_mnt_opts, struct super_block *sb, void *mnt_opts,
+//             unsigned long kern_flags, unsigned long *set_kern_flags)
+//{
+//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+//    // struct file_system_type *type = sb->s_type;
+//
+//    struct mnt_ns_fs key = {};
+//
+//    key.device_id = new_encode_dev(sb->s_dev);
+//    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+//
+//    if (!key.mnt_ns) {
+//        return 0;
+//    }
+//
+//    bpf_printk("alloc mount ns");
+//    bpf_printk("dev_id = %lu", key.device_id);
+//    bpf_printk("mnt_ns = %u", key.mnt_ns);
+//    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
+//
+//    u8 val = 1;
+//    bpf_map_update_elem(&mnt_ns_active_fs, &key, &val, 0);
+//
+//    return 0;
+//}
+//
+// SEC("lsm/sb_free_security")
+// int BPF_PROG(sb_free_security, struct super_block *sb)
+//{
+//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+//
+//    struct mnt_ns_fs key = {};
+//
+//    key.device_id = new_encode_dev(sb->s_dev);
+//    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+//
+//    bpf_printk("free mount ns");
+//    bpf_printk("dev_id = %lu", key.device_id);
+//    bpf_printk("mnt_ns = %u", key.mnt_ns);
+//    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
+//
+//    if (!key.mnt_ns) {
+//        return 0;
+//    }
+//
+//    u8 val = 1;
+//    bpf_map_delete_elem(&mnt_ns_active_fs, &key);
+//
+//    return 0;
+//}
 
 // SEC("lsm/sb_mount")
 // int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
