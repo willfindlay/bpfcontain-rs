@@ -7,6 +7,10 @@
 
 #include "bpfcontain.h"
 
+/* ========================================================================= *
+ * Structs Not Included in vmlinux.h                                         *
+ * ========================================================================= */
+
 /* Needed for overlayfs support, TODO: sync with Linux version */
 struct ovl_inode {
     union {
@@ -850,7 +854,7 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
         super_allow = true;
 
     // filesystem-level permissions
-    decision |= do_procfs_permission(process->policy_id, inode, access);
+    decision |= do_fs_permission(process->policy_id, inode, access);
     decision |= do_overlayfs_permission(process->policy_id, inode, access);
 
     ret = do_policy_decision(process, decision, 0);
