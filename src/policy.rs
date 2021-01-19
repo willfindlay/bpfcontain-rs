@@ -463,7 +463,7 @@ impl Policy {
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
             let old_value: u32 =
-                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = value.as_bytes();
@@ -508,7 +508,7 @@ impl Policy {
                 .context(format!("Exception during map lookup with key {:?}", key))?
             {
                 let old_value: u32 =
-                    *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                    u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
                 value |= old_value;
             }
             let value = value.as_bytes();
@@ -548,7 +548,7 @@ impl Policy {
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
             let old_value: u32 =
-                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = value.as_bytes();
@@ -587,7 +587,7 @@ impl Policy {
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
             let old_value: u32 =
-                *plain::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = value.as_bytes();
