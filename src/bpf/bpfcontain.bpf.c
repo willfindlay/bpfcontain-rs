@@ -501,6 +501,18 @@ static __always_inline u32 get_proc_pid(struct inode *inode)
     return BPF_CORE_READ(proc_inode, pid, numbers[0].nr);
 }
 
+/* Get the PID of the current task according to its _pid namespace_.
+ *
+ * return: The 32 bit pid.
+ */
+static __always_inline u64 get_current_ns_pid()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+
+    return BPF_CORE_READ(task, thread_pid, numbers[level].nr);
+}
+
 /* Get the overlayfs inode associated with an inode in an overlayfs.
  *
  * @inode: Pointer to the inode.
@@ -548,6 +560,24 @@ add_inode_to_task(const struct bpfcon_process *process, struct inode *inode)
                                        BPF_LOCAL_STORAGE_GET_F_CREATE);
     if (pid_p)
         *pid_p = process->pid;
+}
+
+/* Start a container.
+ */
+static __always_inline int maybe_start_container()
+{
+    u32 nspid = get_current_ns_pid();
+    if (nspid == 1) {
+        u32 pid = bpf_get_current_pid_tgid();
+        char comm[16];
+        bpf_get_current_comm(comm, sizeof(comm));
+        bpf_printk("Look ma! I'm in a container! pid=%u nspid=%u comm=%s", pid,
+                   nspid, comm);
+    }
+
+    // TODO: come back here and implement this
+
+    return 0;
 }
 
 /* ========================================================================= *
@@ -795,8 +825,6 @@ do_task_inode_permission(u64 policy_id, struct inode *inode, u32 access)
     if (!pid)
         return BPFCON_NO_DECISION;
 
-    bpf_printk("task inode permission %u", *pid);
-
     // Does it belong to our container?
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
     if (process && process->policy_id == policy_id) {
@@ -836,8 +864,11 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     if (!mediated_fs(inode))
         return 0;
 
+    // TODO we want to use this to get the underlying inode in overlay
+    // filesystems
     if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
-        // Get underlying inode
+        // struct ovl_inode *ovl_inode = get_overlayfs_inode(inode);
+        // bpf_printk("ovl inode address %lx", ovl_inode);
     }
 
     // per-file allow should override per filesystem deny
@@ -876,10 +907,16 @@ int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
              const struct qstr *qstr, const char **name, void **value,
              size_t *len)
 {
-    u32 ns_id = get_task_mnt_ns_id();
-    if (ns_id != host_mnt_ns_id) {
-        bpf_printk("In a different mnt_ns %u", ns_id);
-    }
+    // u32 ns_id = get_task_mnt_ns_id();
+    // if (ns_id != host_mnt_ns_id) {
+    //    bpf_printk("In a different mnt_ns %u", ns_id);
+    //}
+    // bpf_printk("%s", BPF_CORE_READ(inode, i_sb, s_type, name));
+    // bpf_printk("magic is %llx", BPF_CORE_READ(inode, i_sb, s_magic));
+    // if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
+    //    struct ovl_inode *ovl_inode = get_overlayfs_inode(inode);
+    //    bpf_printk("ovl inode address %lx", ovl_inode);
+    //}
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -947,6 +984,9 @@ SEC("lsm/bprm_check_security")
 int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 {
     int ret = 0;
+
+    // FIXME: temporary
+    maybe_start_container();
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -1503,6 +1543,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
              int cap, unsigned int opts)
 {
     PolicyDecision decision = BPFCON_NO_DECISION;
+
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
@@ -1515,6 +1556,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
     // (even though only one bit will be on at a time)
     u32 access = cap_to_access(cap);
     if (!access) {  // One of our implicit-deny capbilities
+        bpf_printk("Denying on capability %d %u", cap, opts);
         return -EACCES;
     }
 
@@ -1537,7 +1579,11 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_TAINT;
     }
 
-    return do_policy_decision(process, decision, 1);
+    int ret = do_policy_decision(process, decision, 1);
+    if (ret) {
+        bpf_printk("Denying on capability %d %u", cap, opts);
+    }
+    return ret;
 }
 
 /* ========================================================================= *

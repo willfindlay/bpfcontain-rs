@@ -11,7 +11,7 @@ use glob::glob;
 use std::thread::sleep;
 use std::time::Duration;
 
-use libbpf_rs::RingBufferManager;
+use libbpf_rs::RingBufferBuilder;
 use pod::Pod;
 
 use crate::bpf;
@@ -33,10 +33,13 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     let mut skel = load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
         .context("Failed to load BPF program")?;
 
-    let mut mgr = RingBufferManager::default();
+    let mut ringbuf_builder = RingBufferBuilder::default();
 
-    mgr.add_ringbuf(skel.maps().events(), handle_event as fn(&[u8]) -> i32)
-        .context("Failed to add ringbuf")?;
+    let mgr = ringbuf_builder
+        .add(skel.maps().events(), handle_event)
+        .context("Failed to add ringbuf")?
+        .build()
+        .context("Failed to create ringbuf manager")?;
 
     // Load policy in `config.policy.dir`
     load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
