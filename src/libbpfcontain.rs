@@ -253,8 +253,8 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::Container;
-    unsafe impl Pod for Container {}
+    pub use bindings::Policy;
+    unsafe impl Pod for Policy {}
 
     /// Represents a process on the BPF side.
     ///

@@ -679,7 +679,7 @@ impl Policy {
     /// map.
     fn load_policy_id(&self, skel: &mut Skel) -> Result<()> {
         let key = self.policy_id();
-        let mut value = structs::Container::default();
+        let mut value = structs::Policy::default();
 
         // No taint rules implies that we should be tainted by default
         if self.taints.is_empty() {
@@ -697,7 +697,7 @@ impl Policy {
         let value = value.as_bytes();
 
         skel.maps()
-            .policy()
+            .policies()
             .update(key, value, MapFlags::ANY)
             .context(format!(
                 "Failed to update map key={:?} value={:?}",

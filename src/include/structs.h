@@ -155,10 +155,10 @@ typedef struct event {
  * Process and Container State                                               *
  * ========================================================================= */
 
-typedef struct bpfcon_container {
+typedef struct policy {
     unsigned char default_deny;
     unsigned char default_taint;
-} Container;
+} Policy;
 
 typedef struct bpfcon_process {
     unsigned long policy_id;
