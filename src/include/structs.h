@@ -12,6 +12,18 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
+#ifndef __VMLINUX_H__
+#include <stdint.h>
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef int8_t s8;
+typedef int16_t s16;
+typedef int32_t s32;
+typedef int64_t s64;
+#endif
+
 /* ========================================================================= *
  * Enum Types for Writing Policy                                             *
  * ========================================================================= */
@@ -112,8 +124,8 @@ typedef enum {
 } EventType;
 
 typedef struct file_info {
-    unsigned long inode_id;
-    unsigned int device_id;
+    u64 inode_id;
+    u32 device_id;
     FilePermission access;
 } FileInfo;
 
@@ -126,10 +138,10 @@ typedef struct net_info {
 } NetInfo;
 
 typedef struct ipc_info {
-    unsigned int sender_pid;
-    unsigned int receiver_pid;
-    unsigned long sender_id;
-    unsigned long receiver_id;
+    u32 sender_pid;
+    u32 receiver_pid;
+    u64 sender_id;
+    u64 receiver_id;
 } IPCInfo;
 
 typedef struct bpfcon_event_info {
@@ -144,10 +156,10 @@ typedef struct bpfcon_event_info {
 
 typedef struct event {
     EventAction action;
-    unsigned long policy_id;
-    unsigned int pid;
-    unsigned int tgid;
-    unsigned char comm[16];
+    u64 policy_id;
+    u32 pid;
+    u32 tgid;
+    u8 comm[16];
     EventInfo info;
 } Event;
 
@@ -156,16 +168,16 @@ typedef struct event {
  * ========================================================================= */
 
 typedef struct policy {
-    unsigned char default_deny;
-    unsigned char default_taint;
+    u8 default_deny;
+    u8 default_taint;
 } Policy;
 
 typedef struct bpfcon_process {
-    unsigned long policy_id;
-    unsigned int pid;
-    unsigned int tgid;
-    unsigned char in_execve : 1;
-    unsigned char tainted : 1;
+    u64 policy_id;
+    u32 pid;
+    u32 tgid;
+    u8 in_execve : 1;
+    u8 tainted : 1;
 } Process;
 
 /* ========================================================================= *
@@ -173,39 +185,39 @@ typedef struct bpfcon_process {
  * ========================================================================= */
 
 typedef struct fs_policy_key {
-    unsigned long policy_id;
-    unsigned int device_id;
+    u64 policy_id;
+    u32 device_id;
 } __attribute__((__packed__)) FsPolicyKey;
 
 typedef struct file_policy_key {
-    unsigned long policy_id;
-    unsigned long inode_id;
-    unsigned int device_id;
+    u64 policy_id;
+    u64 inode_id;
+    u32 device_id;
 } __attribute__((__packed__)) FilePolicyKey;
 
 #define MINOR_WILDCARD (~0U)
 typedef struct dev_policy_key {
-    unsigned long policy_id;
-    unsigned int major;
-    unsigned int minor;
+    u64 policy_id;
+    u32 major;
+    u32 minor;
 } __attribute__((__packed__)) DevPolicyKey;
 
 typedef struct cap_policy_key {
-    unsigned long policy_id;
+    u64 policy_id;
 } __attribute__((__packed__)) CapPolicyKey;
 
 typedef struct net_policy_key {
-    unsigned long policy_id;
+    u64 policy_id;
 } __attribute__((__packed__)) NetPolicyKey;
 
 typedef struct ipc_policy_key {
-    unsigned long policy_id;
-    unsigned long other_policy_id;
+    u64 policy_id;
+    u64 other_policy_id;
 } __attribute__((__packed__)) IPCPolicyKey;
 
 typedef struct inode_key {
-    unsigned long inode_id;
-    unsigned int device_id;
+    u64 inode_id;
+    u32 device_id;
 } __attribute__((__packed__)) InodeKey;
 
 #endif /* STRUCTS_H */
