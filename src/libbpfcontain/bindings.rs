@@ -548,44 +548,44 @@ impl Default for event {
 pub type Event = event;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct bpfcon_container {
+pub struct policy {
     pub default_deny: ::std::os::raw::c_uchar,
     pub default_taint: ::std::os::raw::c_uchar,
 }
 #[test]
-fn bindgen_test_layout_bpfcon_container() {
+fn bindgen_test_layout_policy() {
     assert_eq!(
-        ::std::mem::size_of::<bpfcon_container>(),
+        ::std::mem::size_of::<policy>(),
         2usize,
-        concat!("Size of: ", stringify!(bpfcon_container))
+        concat!("Size of: ", stringify!(policy))
     );
     assert_eq!(
-        ::std::mem::align_of::<bpfcon_container>(),
+        ::std::mem::align_of::<policy>(),
         1usize,
-        concat!("Alignment of ", stringify!(bpfcon_container))
+        concat!("Alignment of ", stringify!(policy))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).default_deny as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<policy>())).default_deny as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(policy),
             "::",
             stringify!(default_deny)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).default_taint as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<policy>())).default_taint as *const _ as usize },
         1usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(policy),
             "::",
             stringify!(default_taint)
         )
     );
 }
-pub type Container = bpfcon_container;
+pub type Policy = policy;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_process {
