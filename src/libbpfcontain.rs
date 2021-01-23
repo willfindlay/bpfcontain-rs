@@ -45,11 +45,11 @@ pub mod structs {
         ///
         /// Keep this in sync with [structs.h](src/include/structs.h)
         #[derive(Default)]
-        pub struct PolicyDecision :bindings::PolicyDecision::Type {
-            const NO_DECISION = bindings::PolicyDecision::BPFCON_NO_DECISION;
-            const ALLOW       = bindings::PolicyDecision::BPFCON_ALLOW;
-            const DENY        = bindings::PolicyDecision::BPFCON_DENY;
-            const TAINT       = bindings::PolicyDecision::BPFCON_TAINT;
+        pub struct PolicyDecision :bindings::policy_decision_t::Type {
+            const NO_DECISION = bindings::policy_decision_t::BPFCON_NO_DECISION;
+            const ALLOW       = bindings::policy_decision_t::BPFCON_ALLOW;
+            const DENY        = bindings::policy_decision_t::BPFCON_DENY;
+            const TAINT       = bindings::policy_decision_t::BPFCON_TAINT;
         }
     }
 
@@ -60,20 +60,20 @@ pub mod structs {
         ///
         /// Keep this in sync with [structs.h](src/include/structs.h)
         #[derive(Default)]
-        pub struct FileAccess :bindings::FilePermission::Type {
-            const MAY_EXEC      = bindings::FilePermission::BPFCON_MAY_EXEC;
-            const MAY_WRITE     = bindings::FilePermission::BPFCON_MAY_WRITE;
-            const MAY_READ      = bindings::FilePermission::BPFCON_MAY_READ;
-            const MAY_APPEND    = bindings::FilePermission::BPFCON_MAY_APPEND;
-            const MAY_CREATE    = bindings::FilePermission::BPFCON_MAY_CREATE;
-            const MAY_DELETE    = bindings::FilePermission::BPFCON_MAY_DELETE;
-            const MAY_RENAME    = bindings::FilePermission::BPFCON_MAY_RENAME;
-            const MAY_SETATTR   = bindings::FilePermission::BPFCON_MAY_SETATTR;
-            const MAY_CHMOD     = bindings::FilePermission::BPFCON_MAY_CHMOD;
-            const MAY_CHOWN     = bindings::FilePermission::BPFCON_MAY_CHOWN;
-            const MAY_LINK      = bindings::FilePermission::BPFCON_MAY_LINK;
-            const MAY_EXEC_MMAP = bindings::FilePermission::BPFCON_MAY_EXEC_MMAP;
-            const MAY_CHDIR     = bindings::FilePermission::BPFCON_MAY_CHDIR;
+        pub struct FileAccess :bindings::file_permission_t::Type {
+            const MAY_EXEC      = bindings::file_permission_t::BPFCON_MAY_EXEC;
+            const MAY_WRITE     = bindings::file_permission_t::BPFCON_MAY_WRITE;
+            const MAY_READ      = bindings::file_permission_t::BPFCON_MAY_READ;
+            const MAY_APPEND    = bindings::file_permission_t::BPFCON_MAY_APPEND;
+            const MAY_CREATE    = bindings::file_permission_t::BPFCON_MAY_CREATE;
+            const MAY_DELETE    = bindings::file_permission_t::BPFCON_MAY_DELETE;
+            const MAY_RENAME    = bindings::file_permission_t::BPFCON_MAY_RENAME;
+            const MAY_SETATTR   = bindings::file_permission_t::BPFCON_MAY_SETATTR;
+            const MAY_CHMOD     = bindings::file_permission_t::BPFCON_MAY_CHMOD;
+            const MAY_CHOWN     = bindings::file_permission_t::BPFCON_MAY_CHOWN;
+            const MAY_LINK      = bindings::file_permission_t::BPFCON_MAY_LINK;
+            const MAY_EXEC_MMAP = bindings::file_permission_t::BPFCON_MAY_EXEC_MMAP;
+            const MAY_CHDIR     = bindings::file_permission_t::BPFCON_MAY_CHDIR;
             const RO_MASK = Self::MAY_READ.bits | Self::MAY_CHDIR.bits;
             const RA_MASK = Self::RO_MASK.bits | Self::MAY_APPEND.bits | Self::MAY_CREATE.bits;
             const RW_MASK = Self::RA_MASK.bits | Self::MAY_WRITE.bits;
@@ -140,12 +140,12 @@ pub mod structs {
         ///
         /// Keep this in sync with [structs.h](src/include/structs.h)
         #[derive(Default)]
-        pub struct Capability :bindings::Capability::Type {
-            const NET_BIND_SERVICE = bindings::Capability::BPFCON_CAP_NET_BIND_SERVICE;
-            const NET_RAW          = bindings::Capability::BPFCON_CAP_NET_RAW;
-            const NET_BROADCAST    = bindings::Capability::BPFCON_CAP_NET_BROADCAST;
-            const DAC_OVERRIDE     = bindings::Capability::BPFCON_CAP_DAC_OVERRIDE;
-            const DAC_READ_SEARCH  = bindings::Capability::BPFCON_CAP_DAC_READ_SEARCH;
+        pub struct Capability :bindings::capability_t::Type {
+            const NET_BIND_SERVICE = bindings::capability_t::BPFCON_CAP_NET_BIND_SERVICE;
+            const NET_RAW          = bindings::capability_t::BPFCON_CAP_NET_RAW;
+            const NET_BROADCAST    = bindings::capability_t::BPFCON_CAP_NET_BROADCAST;
+            const DAC_OVERRIDE     = bindings::capability_t::BPFCON_CAP_DAC_OVERRIDE;
+            const DAC_READ_SEARCH  = bindings::capability_t::BPFCON_CAP_DAC_READ_SEARCH;
         }
     }
 
@@ -156,15 +156,15 @@ pub mod structs {
         ///
         /// Keep this in sync with [structs.h](src/include/structs.h)
         #[derive(Default)]
-        pub struct NetOperation :bindings::NetOperation::Type {
-            const NET_CONNECT  = bindings::NetOperation::BPFCON_NET_CONNECT;
-            const NET_BIND     = bindings::NetOperation::BPFCON_NET_BIND;
-            const NET_ACCEPT   = bindings::NetOperation::BPFCON_NET_ACCEPT;
-            const NET_LISTEN   = bindings::NetOperation::BPFCON_NET_LISTEN;
-            const NET_SEND     = bindings::NetOperation::BPFCON_NET_SEND;
-            const NET_RECV     = bindings::NetOperation::BPFCON_NET_RECV;
-            const NET_CREATE   = bindings::NetOperation::BPFCON_NET_CREATE;
-            const NET_SHUTDOWN = bindings::NetOperation::BPFCON_NET_SHUTDOWN;
+        pub struct NetOperation :bindings::net_operation_t::Type {
+            const NET_CONNECT  = bindings::net_operation_t::BPFCON_NET_CONNECT;
+            const NET_BIND     = bindings::net_operation_t::BPFCON_NET_BIND;
+            const NET_ACCEPT   = bindings::net_operation_t::BPFCON_NET_ACCEPT;
+            const NET_LISTEN   = bindings::net_operation_t::BPFCON_NET_LISTEN;
+            const NET_SEND     = bindings::net_operation_t::BPFCON_NET_SEND;
+            const NET_RECV     = bindings::net_operation_t::BPFCON_NET_RECV;
+            const NET_CREATE   = bindings::net_operation_t::BPFCON_NET_CREATE;
+            const NET_SHUTDOWN = bindings::net_operation_t::BPFCON_NET_SHUTDOWN;
             const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits | Self::NET_LISTEN.bits | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
             const MASK_CLIENT = Self::NET_CONNECT.bits;
             const MASK_SEND = Self::NET_SEND.bits;
@@ -177,7 +177,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::EventAction;
+    pub type EventAction = bindings::event_action_t;
 
     impl Display for EventAction {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -196,14 +196,14 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::EventType;
+    pub type EventType = bindings::event_type_t;
 
     /// Represents an event for logging on the BPF side.
     ///
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::Event;
+    pub type Event = bindings::event_t;
     unsafe impl Pod for Event {}
 
     impl Display for Event {
@@ -253,7 +253,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::Policy;
+    pub type Policy = bindings::policy_t;
     unsafe impl Pod for Policy {}
 
     /// Represents a process on the BPF side.
@@ -261,7 +261,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::Process;
+    pub type Process = bindings::process_t;
     unsafe impl Pod for Process {}
 
     /// Represents a per-filesystem policy key on the BPF side.
@@ -269,7 +269,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::FsPolicyKey;
+    pub type FsPolicyKey = bindings::fs_policy_key_t;
     unsafe impl Pod for FsPolicyKey {}
 
     /// Represents a per-file policy key on the BPF side.
@@ -277,7 +277,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::FilePolicyKey;
+    pub type FilePolicyKey = bindings::file_policy_key_t;
     unsafe impl Pod for FilePolicyKey {}
 
     /// Represents a per-device policy key on the BPF side.
@@ -285,7 +285,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::DevPolicyKey;
+    pub type DevPolicyKey = bindings::dev_policy_key_t;
     unsafe impl Pod for DevPolicyKey {}
 
     /// Represents a capability policy key on the BPF side.
@@ -293,7 +293,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::CapPolicyKey;
+    pub type CapPolicyKey = bindings::cap_policy_key_t;
     unsafe impl Pod for CapPolicyKey {}
 
     /// Represents a network policy key on the BPF side.
@@ -301,7 +301,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::NetPolicyKey;
+    pub type NetPolicyKey = bindings::net_policy_key_t;
     unsafe impl Pod for NetPolicyKey {}
 
     /// Represents a IPC policy key on the BPF side.
@@ -309,7 +309,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::IPCPolicyKey;
+    pub type IPCPolicyKey = bindings::ipc_policy_key_t;
     unsafe impl Pod for IPCPolicyKey {}
 
     /// Represents a per-inode key on the BPF side.
@@ -317,7 +317,7 @@ pub mod structs {
     /// # Warning
     ///
     /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub use bindings::InodeKey;
+    pub type InodeKey = bindings::inode_key_t;
     unsafe impl Pod for InodeKey {}
 }
 

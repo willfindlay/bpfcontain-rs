@@ -55,6 +55,7 @@ BPF_RINGBUF(events, 4);
 
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
+BPF_LRU_HASH(containers, u32, struct bpfcon_container, BPFCON_MAX_PROCESSES, 0);
 
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, u32, 0);
@@ -97,8 +98,8 @@ BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
  * ========================================================================= */
 
 static __always_inline void
-__log_event_common(struct event *event, EventType type, EventAction action,
-                   u64 policy_id)
+__log_event_common(struct event *event, event_type_t type,
+                   event_action_t action, u64 policy_id)
 {
     // Set action, type, and policy_id explicitly
     event->action = action;
@@ -117,11 +118,11 @@ __log_event_common(struct event *event, EventType type, EventAction action,
  * @policy_id: Current policy ID.
  */
 static __always_inline void
-log_file_policy_decision(EventAction action, u64 policy_id, struct inode *inode,
-                         FilePermission access)
+log_file_policy_decision(event_action_t action, u64 policy_id,
+                         struct inode *inode, file_permission_t access)
 {
     // Reserve space for the event on the ring buffer
-    Event *event = bpf_ringbuf_reserve(&events, sizeof(Event), 0);
+    event_t *event = bpf_ringbuf_reserve(&events, sizeof(event_t), 0);
     if (!event)
         return;
 
@@ -280,10 +281,10 @@ static __always_inline u32 file_to_access(struct file *file)
  *
  * return: Policy decision.
  */
-static __always_inline PolicyDecision
+static __always_inline policy_decision_t
 check_ipc_access(struct bpfcon_process *process, u32 other_pid)
 {
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     struct bpfcon_process *other_process =
         bpf_map_lookup_elem(&processes, &other_pid);
@@ -374,7 +375,7 @@ do_update_policy(void *map, const void *key, const u32 *value)
  * return: Converted access mask.
  */
 static __always_inline int
-do_policy_decision(struct bpfcon_process *process, PolicyDecision decision,
+do_policy_decision(struct bpfcon_process *process, policy_decision_t decision,
                    u8 ignore_taint)
 {
     u8 tainted = process->tainted || ignore_taint;
@@ -889,7 +890,7 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
 {
     bool super_allow = false;
     int ret = 0;
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     if (!inode)
         return 0;
@@ -944,17 +945,6 @@ int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
              const struct qstr *qstr, const char **name, void **value,
              size_t *len)
 {
-    // u32 ns_id = get_task_mnt_ns_id();
-    // if (ns_id != host_mnt_ns_id) {
-    //    bpf_printk("In a different mnt_ns %u", ns_id);
-    //}
-    // bpf_printk("%s", BPF_CORE_READ(inode, i_sb, s_type, name));
-    // bpf_printk("magic is %llx", BPF_CORE_READ(inode, i_sb, s_magic));
-    // if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
-    //    struct ovl_inode *ovl_inode = get_overlayfs_inode(inode);
-    //    bpf_printk("ovl inode address %lx", ovl_inode);
-    //}
-
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
@@ -1312,10 +1302,10 @@ static u8 family_to_category(int family)
     }
 }
 
-static PolicyDecision
+static policy_decision_t
 bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
 {
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     struct net_policy_key key = {};
 
@@ -1342,10 +1332,11 @@ bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
     return decision;
 }
 
-static PolicyDecision bpfcontain_net_ipc_perm(struct bpfcon_process *process,
-                                              u32 access, struct socket *sock)
+static policy_decision_t
+bpfcontain_net_ipc_perm(struct bpfcon_process *process, u32 access,
+                        struct socket *sock)
 {
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     u32 pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
     if (pid) {
@@ -1371,7 +1362,7 @@ static PolicyDecision bpfcontain_net_ipc_perm(struct bpfcon_process *process,
 static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category,
                                u32 access, struct socket *sock)
 {
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     if (category == BPFCON_NET_WWW)
         decision = bpfcontain_net_www_perm(process, access);
@@ -1585,7 +1576,7 @@ SEC("lsm/capable")
 int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
              int cap, unsigned int opts)
 {
-    PolicyDecision decision = BPFCON_NO_DECISION;
+    policy_decision_t decision = BPFCON_NO_DECISION;
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();

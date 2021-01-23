@@ -289,14 +289,14 @@ pub type s8 = i8;
 pub type s16 = i16;
 pub type s32 = i32;
 pub type s64 = i64;
-pub mod PolicyDecision {
+pub mod policy_decision_t {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NO_DECISION: Type = 0;
     pub const BPFCON_ALLOW: Type = 1;
     pub const BPFCON_DENY: Type = 2;
     pub const BPFCON_TAINT: Type = 4;
 }
-pub mod FilePermission {
+pub mod file_permission_t {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_MAY_EXEC: Type = 1;
     pub const BPFCON_MAY_WRITE: Type = 2;
@@ -312,7 +312,7 @@ pub mod FilePermission {
     pub const BPFCON_MAY_EXEC_MMAP: Type = 2048;
     pub const BPFCON_MAY_CHDIR: Type = 4096;
 }
-pub mod Capability {
+pub mod capability_t {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_CAP_NET_BIND_SERVICE: Type = 1;
     pub const BPFCON_CAP_NET_RAW: Type = 2;
@@ -320,12 +320,12 @@ pub mod Capability {
     pub const BPFCON_CAP_DAC_OVERRIDE: Type = 8;
     pub const BPFCON_CAP_DAC_READ_SEARCH: Type = 16;
 }
-pub mod NetCategory {
+pub mod net_category_t {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NET_WWW: Type = 1;
     pub const BPFCON_NET_IPC: Type = 2;
 }
-pub mod NetOperation {
+pub mod net_operation_t {
     pub type Type = ::std::os::raw::c_uint;
     pub const BPFCON_NET_CONNECT: Type = 1;
     pub const BPFCON_NET_BIND: Type = 2;
@@ -338,7 +338,7 @@ pub mod NetOperation {
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum EventAction {
+pub enum event_action_t {
     EA_UNKNOWN = 0,
     EA_ERROR = 1,
     EA_DENY = 2,
@@ -347,7 +347,7 @@ pub enum EventAction {
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum EventType {
+pub enum event_type_t {
     ET_NONE = 0,
     ET_FILE = 1,
     ET_CAP = 2,
@@ -360,7 +360,7 @@ pub enum EventType {
 pub struct file_info {
     pub inode_id: u64_,
     pub device_id: u32_,
-    pub access: FilePermission::Type,
+    pub access: file_permission_t::Type,
 }
 #[test]
 fn bindgen_test_layout_file_info() {
@@ -410,11 +410,11 @@ impl Default for file_info {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type FileInfo = file_info;
+pub type file_info_t = file_info;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct cap_info {
-    pub cap: Capability::Type,
+    pub cap: capability_t::Type,
 }
 #[test]
 fn bindgen_test_layout_cap_info() {
@@ -444,11 +444,11 @@ impl Default for cap_info {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type CapInfo = cap_info;
+pub type cap_info_t = cap_info;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct net_info {
-    pub operation: NetOperation::Type,
+    pub operation: net_operation_t::Type,
 }
 #[test]
 fn bindgen_test_layout_net_info() {
@@ -478,7 +478,7 @@ impl Default for net_info {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type NetInfo = net_info;
+pub type net_info_t = net_info;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_info {
@@ -540,20 +540,20 @@ fn bindgen_test_layout_ipc_info() {
         )
     );
 }
-pub type IPCInfo = ipc_info;
+pub type ipc_info_t = ipc_info;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct bpfcon_event_info {
-    pub type_: EventType,
+    pub type_: event_type_t,
     pub info: bpfcon_event_info__bindgen_ty_1,
 }
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub union bpfcon_event_info__bindgen_ty_1 {
-    pub file_info: FileInfo,
-    pub cap_info: CapInfo,
-    pub net_info: NetInfo,
-    pub ipc_info: IPCInfo,
+    pub file_info: file_info_t,
+    pub cap_info: cap_info_t,
+    pub net_info: net_info_t,
+    pub ipc_info: ipc_info_t,
     _bindgen_union_align: [u64; 3usize],
 }
 #[test]
@@ -664,16 +664,16 @@ impl Default for bpfcon_event_info {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type EventInfo = bpfcon_event_info;
+pub type event_info_t = bpfcon_event_info;
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct event {
-    pub action: EventAction,
+    pub action: event_action_t,
     pub policy_id: u64_,
     pub pid: u32_,
     pub tgid: u32_,
     pub comm: [u8_; 16usize],
-    pub info: EventInfo,
+    pub info: event_info_t,
 }
 #[test]
 fn bindgen_test_layout_event() {
@@ -753,7 +753,7 @@ impl Default for event {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type Event = event;
+pub type event_t = event;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct policy {
@@ -793,7 +793,7 @@ fn bindgen_test_layout_policy() {
         )
     );
 }
-pub type Policy = policy;
+pub type policy_t = policy;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct bpfcon_process {
@@ -884,7 +884,80 @@ impl bpfcon_process {
         __bindgen_bitfield_unit
     }
 }
-pub type Process = bpfcon_process;
+pub type process_t = bpfcon_process;
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct bpfcon_container {
+    pub policy_id: u64_,
+    pub container_id: u64_,
+    pub mnt_ns_id: u32_,
+    pub pid_ns_id: u32_,
+    pub uts_name: [u8_; 16usize],
+}
+#[test]
+fn bindgen_test_layout_bpfcon_container() {
+    assert_eq!(
+        ::std::mem::size_of::<bpfcon_container>(),
+        40usize,
+        concat!("Size of: ", stringify!(bpfcon_container))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<bpfcon_container>(),
+        8usize,
+        concat!("Alignment of ", stringify!(bpfcon_container))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).policy_id as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(policy_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).container_id as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(container_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).mnt_ns_id as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(mnt_ns_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).pid_ns_id as *const _ as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(pid_ns_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).uts_name as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(bpfcon_container),
+            "::",
+            stringify!(uts_name)
+        )
+    );
+}
+pub type container_t = bpfcon_container;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct fs_policy_key {
@@ -924,7 +997,7 @@ fn bindgen_test_layout_fs_policy_key() {
         )
     );
 }
-pub type FsPolicyKey = fs_policy_key;
+pub type fs_policy_key_t = fs_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct file_policy_key {
@@ -975,7 +1048,7 @@ fn bindgen_test_layout_file_policy_key() {
         )
     );
 }
-pub type FilePolicyKey = file_policy_key;
+pub type file_policy_key_t = file_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key {
@@ -1026,7 +1099,7 @@ fn bindgen_test_layout_dev_policy_key() {
         )
     );
 }
-pub type DevPolicyKey = dev_policy_key;
+pub type dev_policy_key_t = dev_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key {
@@ -1055,7 +1128,7 @@ fn bindgen_test_layout_cap_policy_key() {
         )
     );
 }
-pub type CapPolicyKey = cap_policy_key;
+pub type cap_policy_key_t = cap_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct net_policy_key {
@@ -1084,7 +1157,7 @@ fn bindgen_test_layout_net_policy_key() {
         )
     );
 }
-pub type NetPolicyKey = net_policy_key;
+pub type net_policy_key_t = net_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct ipc_policy_key {
@@ -1124,7 +1197,7 @@ fn bindgen_test_layout_ipc_policy_key() {
         )
     );
 }
-pub type IPCPolicyKey = ipc_policy_key;
+pub type ipc_policy_key_t = ipc_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct inode_key {
@@ -1164,7 +1237,7 @@ fn bindgen_test_layout_inode_key() {
         )
     );
 }
-pub type InodeKey = inode_key;
+pub type inode_key_t = inode_key;
 extern "C" {
     pub fn containerize(policy_id: ::std::os::raw::c_ulong) -> ::std::os::raw::c_int;
 }
