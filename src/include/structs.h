@@ -24,6 +24,9 @@ typedef int32_t s32;
 typedef int64_t s64;
 #endif
 
+#define TASK_COMM_LEN 16
+#define PATH_MAX      4096
+
 /* ========================================================================= *
  * Enum Types for Writing Policy                                             *
  * ========================================================================= */
@@ -107,6 +110,7 @@ typedef enum {
  * Per-Event Logging                                                         *
  * ========================================================================= */
 
+// TODO delete
 typedef enum {
     EA_UNKNOWN = 0,
     EA_ERROR,
@@ -114,6 +118,14 @@ typedef enum {
     EA_IMPLICIT_DENY,
     EA_TAINT,
 } event_action_t;
+
+typedef enum {
+    AUDIT_UNKNOWN = 0,
+    AUDIT_ERROR,
+    AUDIT_DENY,
+    AUDIT_IMPLICIT_DENY,
+    AUDIT_TAINT,
+} audit_msg_t;
 
 typedef enum {
     ET_NONE = 0,
@@ -163,6 +175,20 @@ typedef struct event {
     u8 comm[16];
     event_info_t info;
 } event_t;
+
+typedef struct audit_common {
+    policy_decision_t decision;
+    u64 policy_id;
+    u32 pid;
+    u32 tgid;
+    u8 comm[16];
+} audit_common_t;
+
+typedef struct audit_file {
+    audit_common_t common;
+    file_permission_t access;
+    u8 pathname[PATH_MAX];
+} audit_file_t;
 
 /* ========================================================================= *
  * Process and Container State                                               *

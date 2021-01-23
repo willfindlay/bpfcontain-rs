@@ -5,15 +5,14 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-#![allow(dead_code)]
-
 use anyhow::{bail, Result};
 
 /// Include bindings from [`bindings.rs`](lib/bindings.rs)
 mod bindings {
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    #![allow(dead_code)]
     include!("libbpfcontain/bindings.rs");
 }
 
@@ -172,6 +171,7 @@ pub mod structs {
         }
     }
 
+    // TODO delete
     /// A rustified enum representing event action.
     ///
     /// # Warning
@@ -188,6 +188,61 @@ pub mod structs {
                 Self::EA_IMPLICIT_DENY => write!(f, "implicit deny"),
                 Self::EA_TAINT => write!(f, "policy taint"),
             }
+        }
+    }
+
+    /// A rustified enum representing an audit message type.
+    ///
+    /// # Warning
+    ///
+    /// Keep this in sync with [structs.h](src/include/structs.h)
+    pub type AuditMsg = bindings::audit_msg_t;
+
+    impl Display for AuditMsg {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::AUDIT_UNKNOWN => write!(f, "unknown event"),
+                Self::AUDIT_ERROR => write!(f, "error"),
+                Self::AUDIT_DENY => write!(f, "policy deny"),
+                Self::AUDIT_IMPLICIT_DENY => write!(f, "implicit deny"),
+                Self::AUDIT_TAINT => write!(f, "policy taint"),
+            }
+        }
+    }
+
+    /// Represents the common part of an audit event.
+    ///
+    /// # Warning
+    ///
+    /// Keep this in sync with [structs.h](src/include/structs.h)
+    type AuditCommon = bindings::audit_common_t;
+
+    impl Display for AuditCommon {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
+            write!(
+                f,
+                "decision={} comm={} pid={} tid={} policy_id={}",
+                self.decision, comm, self.tgid, self.pid, self.policy_id
+            )
+        }
+    }
+
+    /// Represents a file audit event.
+    ///
+    /// # Warning
+    ///
+    /// Keep this in sync with [structs.h](src/include/structs.h)
+    pub type AuditFile = bindings::audit_file_t;
+
+    impl Display for AuditFile {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            let pathname = std::str::from_utf8(&self.pathname).unwrap_or("Unknown");
+            write!(
+                f,
+                "{} path={} access={}",
+                self.common, pathname, self.access
+            )
         }
     }
 

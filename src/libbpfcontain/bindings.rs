@@ -173,6 +173,8 @@ pub const SIG_ATOMIC_MAX: u32 = 2147483647;
 pub const SIZE_MAX: i32 = -1;
 pub const WINT_MIN: u32 = 0;
 pub const WINT_MAX: u32 = 4294967295;
+pub const TASK_COMM_LEN: u32 = 16;
+pub const PATH_MAX: u32 = 4096;
 pub type __u_char = ::std::os::raw::c_uchar;
 pub type __u_short = ::std::os::raw::c_ushort;
 pub type __u_int = ::std::os::raw::c_uint;
@@ -344,6 +346,15 @@ pub enum event_action_t {
     EA_DENY = 2,
     EA_IMPLICIT_DENY = 3,
     EA_TAINT = 4,
+}
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+pub enum audit_msg_t {
+    AUDIT_UNKNOWN = 0,
+    AUDIT_ERROR = 1,
+    AUDIT_DENY = 2,
+    AUDIT_IMPLICIT_DENY = 3,
+    AUDIT_TAINT = 4,
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
@@ -754,6 +765,140 @@ impl Default for event {
     }
 }
 pub type event_t = event;
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct audit_common {
+    pub decision: policy_decision_t::Type,
+    pub policy_id: u64_,
+    pub pid: u32_,
+    pub tgid: u32_,
+    pub comm: [u8_; 16usize],
+}
+#[test]
+fn bindgen_test_layout_audit_common() {
+    assert_eq!(
+        ::std::mem::size_of::<audit_common>(),
+        40usize,
+        concat!("Size of: ", stringify!(audit_common))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<audit_common>(),
+        8usize,
+        concat!("Alignment of ", stringify!(audit_common))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_common>())).decision as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_common),
+            "::",
+            stringify!(decision)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_common>())).policy_id as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_common),
+            "::",
+            stringify!(policy_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_common>())).pid as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_common),
+            "::",
+            stringify!(pid)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_common>())).tgid as *const _ as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_common),
+            "::",
+            stringify!(tgid)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_common>())).comm as *const _ as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_common),
+            "::",
+            stringify!(comm)
+        )
+    );
+}
+impl Default for audit_common {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type audit_common_t = audit_common;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct audit_file {
+    pub common: audit_common_t,
+    pub access: file_permission_t::Type,
+    pub pathname: [u8_; 4096usize],
+}
+#[test]
+fn bindgen_test_layout_audit_file() {
+    assert_eq!(
+        ::std::mem::size_of::<audit_file>(),
+        4144usize,
+        concat!("Size of: ", stringify!(audit_file))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<audit_file>(),
+        8usize,
+        concat!("Alignment of ", stringify!(audit_file))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_file>())).common as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_file),
+            "::",
+            stringify!(common)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_file>())).access as *const _ as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_file),
+            "::",
+            stringify!(access)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_file>())).pathname as *const _ as usize },
+        44usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_file),
+            "::",
+            stringify!(pathname)
+        )
+    );
+}
+impl Default for audit_file {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+pub type audit_file_t = audit_file;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct policy {

@@ -22,17 +22,9 @@
 
 #define lock_xadd(ptr, val) ((void)__sync_fetch_and_add(ptr, val))
 
-#ifndef BPFCON_MAX_CONTAINERS
 #define BPFCON_MAX_CONTAINERS 10240
-#endif
-
-#ifndef BPFCON_MAX_PROCESSES
-#define BPFCON_MAX_PROCESSES 10240
-#endif
-
-#ifndef BPFCON_MAX_POLICY
-#define BPFCON_MAX_POLICY 10240
-#endif
+#define BPFCON_MAX_PROCESSES  10240
+#define BPFCON_MAX_POLICY     10240
 
 #endif /* ifndef PROGS_BPF_H */
 
