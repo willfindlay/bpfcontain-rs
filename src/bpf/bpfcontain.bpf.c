@@ -40,11 +40,25 @@ const volatile u32 host_pid_ns_id;
  * Allocator Maps                                                            *
  * ========================================================================= */
 
-// Maps here are used to allocate large structs in the heap to bypass the BPF
-// stack size limitation. All map names should be like __{struct_name}_init.
+#define ALLOCATOR(TYPE)                                              \
+    BPF_PERCPU_ARRAY(__##TYPE##__alloc, TYPE, 1,                     \
+                     BPF_F_RDONLY | BPF_F_RDONLY_PROG);              \
+    BPF_PERCPU_ARRAY(__##TYPE##__temp, TYPE, 1, BPF_F_RDONLY);       \
+                                                                     \
+    static __always_inline TYPE *new_##TYPE()                        \
+    {                                                                \
+        int zero = 0;                                                \
+                                                                     \
+        TYPE *temp = bpf_map_lookup_elem(&__##TYPE##__alloc, &zero); \
+        if (!temp)                                                   \
+            return NULL;                                             \
+                                                                     \
+        bpf_map_update_elem(&__##TYPE##__temp, &zero, temp, 0);      \
+        return bpf_map_lookup_elem(&__##TYPE##__temp, &zero);        \
+    }
 
-BPF_PERCPU_ARRAY(__ovl_inode_init, struct ovl_inode, 1, 0);
-BPF_PERCPU_ARRAY(__inode_init, struct inode, 1, 0);
+ALLOCATOR(container_t);
+ALLOCATOR(process_t);
 
 /* =========================================================================
  * BPF Maps
@@ -528,23 +542,24 @@ static __always_inline u64 get_current_ns_pid()
  *   A pointer to the overlay_inode, if one exists
  *   Otherwise, returns NULL
  */
-static __always_inline struct ovl_inode *
-get_overlayfs_inode(struct inode *inode)
-{
-    int zero = 0;
-
-    struct ovl_inode *_ovl_inode =
-        container_of(inode, struct ovl_inode, vfs_inode);
-
-    struct ovl_inode *ovl_inode = bpf_map_lookup_elem(&__ovl_inode_init, &zero);
-
-    if (!ovl_inode)
-        return NULL;
-
-    bpf_probe_read(ovl_inode, sizeof(struct ovl_inode), _ovl_inode);
-
-    return ovl_inode;
-}
+// static __always_inline struct ovl_inode *
+// get_overlayfs_inode(struct inode *inode)
+//{
+//    int zero = 0;
+//
+//    struct ovl_inode *_ovl_inode =
+//        container_of(inode, struct ovl_inode, vfs_inode);
+//
+//    struct ovl_inode *ovl_inode = bpf_map_lookup_elem(&__ovl_inode_init,
+//    &zero);
+//
+//    if (!ovl_inode)
+//        return NULL;
+//
+//    bpf_probe_read(ovl_inode, sizeof(struct ovl_inode), _ovl_inode);
+//
+//    return ovl_inode;
+//}
 
 // FIXME: This is causing verifier to complain about !read_ok
 // static __always_inline struct inode *
