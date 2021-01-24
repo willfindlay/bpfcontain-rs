@@ -65,57 +65,57 @@ ALLOCATOR(process_t);
  * ========================================================================= */
 
 /* Ring buffer for passing logging events to userspace */
-BPF_RINGBUF(audit_file, 4);
-BPF_RINGBUF(audit_cap, 4);
-BPF_RINGBUF(audit_net, 4);
-BPF_RINGBUF(audit_ipc, 4);
+BPF_RINGBUF(audit_file_buf, 4);
+BPF_RINGBUF(audit_cap_buf, 4);
+BPF_RINGBUF(audit_net_buf, 4);
+BPF_RINGBUF(audit_ipc_buf, 4);
 
 /* Active (containerized) processes */
-BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
-BPF_LRU_HASH(containers, u32, struct bpfcon_container, BPFCON_MAX_PROCESSES, 0);
+BPF_LRU_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0);
+BPF_LRU_HASH(containers, u32, container_t, BPFCON_MAX_PROCESSES, 0);
 
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, u32, 0);
 
 /* Active policy */
-BPF_HASH(policies, u64, struct policy, BPFCON_MAX_CONTAINERS, 0);
+BPF_HASH(policies, u64, policy_t, BPFCON_MAX_CONTAINERS, 0);
 
 /* Filesystem policy */
-BPF_HASH(fs_allow, struct fs_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(fs_deny, struct fs_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(fs_taint, struct fs_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(fs_allow, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(fs_deny, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(fs_taint, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 
 /* File policy */
-BPF_HASH(file_allow, struct file_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(file_deny, struct file_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(file_taint, struct file_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(file_allow, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(file_deny, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(file_taint, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 
 /* Device policy */
-BPF_HASH(dev_allow, struct dev_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(dev_deny, struct dev_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(dev_taint, struct dev_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(dev_allow, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(dev_deny, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(dev_taint, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 
 /* Capability policy */
-BPF_HASH(cap_allow, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(cap_deny, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(cap_taint, struct cap_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(cap_allow, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(cap_deny, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(cap_taint, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 
 /* Network policy */
-BPF_HASH(net_allow, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(net_deny, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(net_taint, struct net_policy_key, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(net_allow, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(net_deny, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(net_taint, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 
 /* IPC policy */
-BPF_HASH(ipc_allow, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
-BPF_HASH(ipc_deny, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
-BPF_HASH(ipc_taint, struct ipc_policy_key, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_allow, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_deny, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_taint, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
 
 /* ========================================================================= *
  * Helpers                                                                   *
  * ========================================================================= */
 
 static __always_inline void
-__do_audit_common(struct audit_common *common, policy_decision_t decision,
+__do_audit_common(audit_common_t *common, policy_decision_t decision,
                   u64 policy_id)
 {
     common->decision = decision;
@@ -127,8 +127,10 @@ __do_audit_common(struct audit_common *common, policy_decision_t decision,
 
 /* Log a filesystem policy event to userspace.
  *
- * @category: Event category to use.
+ * @decision: The policy decision.
  * @policy_id: Current policy ID.
+ * @inode: A pointer to the inode in question.
+ * @access: The requested access.
  */
 static __always_inline void
 audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
@@ -136,7 +138,7 @@ audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
 {
     // Reserve space for the event on the ring buffer
     audit_file_t *event =
-        bpf_ringbuf_reserve(&audit_file, sizeof(audit_file_t), 0);
+        bpf_ringbuf_reserve(&audit_file_buf, sizeof(audit_file_t), 0);
 
     if (!event)
         return;
@@ -151,6 +153,30 @@ audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
     bpf_ringbuf_submit(event, 0);
 }
 
+/* Log a capability policy event to userspace.
+ *
+ * @decision: The policy decision.
+ * @policy_id: Current policy ID.
+ * @cap: The requested capability.
+ */
+static __always_inline void
+audit_cap(policy_decision_t decision, u64 policy_id, capability_t cap)
+{
+    // Reserve space for the event on the ring buffer
+    audit_cap_t *event =
+        bpf_ringbuf_reserve(&audit_cap_buf, sizeof(audit_cap_t), 0);
+
+    if (!event)
+        return;
+
+    __do_audit_common(&event->common, decision, policy_id);
+
+    event->cap = cap;
+
+    // Submit the event
+    bpf_ringbuf_submit(event, 0);
+}
+
 /* Get the policy with ID @policy_id.
  *
  * TODO: call this instead wherever we get the current policy
@@ -159,9 +185,9 @@ audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
  *
  * return: Pointer to the policy.
  */
-static __always_inline struct policy *get_policy(u64 policy_id)
+static __always_inline policy_t *get_policy(u64 policy_id)
 {
-    struct policy *policy = bpf_map_lookup_elem(&policies, &policy_id);
+    policy_t *policy = bpf_map_lookup_elem(&policies, &policy_id);
     // if (!policy)
     //    log_event(ET_NO_SUCH_CONTAINER, EA_ERROR, policy_id);
 
@@ -176,19 +202,18 @@ static __always_inline struct policy *get_policy(u64 policy_id)
  *
  * return: Pointer to the added process.
  */
-static __always_inline struct bpfcon_process *
+static __always_inline process_t *
 add_process(void *ctx, u32 pid, u32 tgid, u64 policy_id, u8 parent_taint)
 {
     // Initialize a new process
-    struct bpfcon_process new_process = {};
+    process_t new_process = {};
 
     new_process.pid = pid;
     new_process.tgid = tgid;
     new_process.policy_id = policy_id;
     new_process.in_execve = 0;
 
-    struct policy *policy =
-        bpf_map_lookup_elem(&policies, &new_process.policy_id);
+    policy_t *policy = bpf_map_lookup_elem(&policies, &new_process.policy_id);
     if (!policy) {
         return NULL;
     }
@@ -294,22 +319,21 @@ static __always_inline u32 file_to_access(struct file *file)
  *
  * return: Policy decision.
  */
-static __always_inline policy_decision_t
-check_ipc_access(struct bpfcon_process *process, u32 other_pid)
+static __always_inline policy_decision_t check_ipc_access(process_t *process,
+                                                          u32 other_pid)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
-    struct bpfcon_process *other_process =
-        bpf_map_lookup_elem(&processes, &other_pid);
+    process_t *other_process = bpf_map_lookup_elem(&processes, &other_pid);
     if (!other_process)
         return BPFCON_DENY;
 
-    struct ipc_policy_key key = {};
+    ipc_policy_key_t key = {};
 
     key.policy_id = process->policy_id;
     key.other_policy_id = other_process->policy_id;
 
-    struct ipc_policy_key other_key = {};
+    ipc_policy_key_t other_key = {};
 
     key.policy_id = other_process->policy_id;
     key.other_policy_id = process->policy_id;
@@ -388,7 +412,7 @@ do_update_policy(void *map, const void *key, const u32 *value)
  * return: Converted access mask.
  */
 static __always_inline int
-do_policy_decision(struct bpfcon_process *process, policy_decision_t decision,
+do_policy_decision(process_t *process, policy_decision_t decision,
                    u8 ignore_taint)
 {
     u8 tainted = process->tainted || ignore_taint;
@@ -408,7 +432,7 @@ do_policy_decision(struct bpfcon_process *process, policy_decision_t decision,
         return 0;
     }
 
-    struct policy *policy = bpf_map_lookup_elem(&policies, &process->policy_id);
+    policy_t *policy = bpf_map_lookup_elem(&policies, &process->policy_id);
     // Something went wrong, assume default deny
     if (!policy) {
         return -EACCES;
@@ -619,7 +643,7 @@ filter_inode_by_magic(struct inode *inode, u64 magic)
  * return: Does not return.
  */
 static __always_inline void
-add_inode_to_task(const struct bpfcon_process *process, struct inode *inode)
+add_inode_to_task(const process_t *process, struct inode *inode)
 {
     u32 *pid_p = bpf_inode_storage_get(&task_inodes, (void *)inode, 0,
                                        BPF_LOCAL_STORAGE_GET_F_CREATE);
@@ -662,7 +686,7 @@ do_fs_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
-    struct fs_policy_key key = {};
+    fs_policy_key_t key = {};
 
     key.policy_id = policy_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
@@ -702,7 +726,7 @@ do_file_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
-    struct file_policy_key key = {};
+    file_policy_key_t key = {};
 
     key.policy_id = policy_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
@@ -742,7 +766,7 @@ do_dev_permission(u64 policy_id, struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
-    struct dev_policy_key key = {};
+    dev_policy_key_t key = {};
 
     // Look up policy by device major number and policy ID
     key.policy_id = policy_id;
@@ -830,7 +854,7 @@ do_procfs_permission(u64 policy_id, struct inode *inode, u32 access)
         return BPFCON_NO_DECISION;
 
     // Does it belong to our policy?
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
     if (process && process->policy_id == policy_id) {
         // Apply PROC_INODE_PERM_MASK for implicit privileges
         if ((access & PROC_INODE_PERM_MASK) == access)
@@ -891,7 +915,7 @@ do_task_inode_permission(u64 policy_id, struct inode *inode, u32 access)
         return BPFCON_NO_DECISION;
 
     // Does it belong to our policy?
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, pid);
+    process_t *process = bpf_map_lookup_elem(&processes, pid);
     if (process && process->policy_id == policy_id) {
         // Apply TASK_INODE_PERM_MASK for implicit privileges
         if ((access & TASK_INODE_PERM_MASK) == access)
@@ -912,8 +936,8 @@ do_task_inode_permission(u64 policy_id, struct inode *inode, u32 access)
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_inode_perm(struct bpfcon_process *process,
-                                 struct inode *inode, u32 access)
+static int
+bpfcontain_inode_perm(process_t *process, struct inode *inode, u32 access)
 {
     bool super_allow = false;
     int ret = 0;
@@ -950,14 +974,12 @@ static int bpfcontain_inode_perm(struct bpfcon_process *process,
     decision |= do_fs_permission(process->policy_id, inode, access);
     decision |= do_overlayfs_permission(process->policy_id, inode, access);
 
-    ret = do_policy_decision(process, decision, 0);
-
     // per-file allow should override per filesystem deny
     if (super_allow)
-        ret = 0;
+        decision &= (~BPFCON_DENY);
 
-    if (decision & BPFCON_TAINT || ret == -EACCES)
-        audit_inode(decision, process->policy_id, inode, access);
+    ret = do_policy_decision(process, decision, 0);
+    audit_inode(decision, process->policy_id, inode, access);
 
     return ret;
 }
@@ -969,7 +991,7 @@ int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -987,7 +1009,7 @@ int BPF_PROG(file_permission, struct file *file, int mask)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1009,7 +1031,7 @@ int BPF_PROG(file_open, struct file *file)
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1024,7 +1046,7 @@ int BPF_PROG(file_receive, struct file *file)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1045,7 +1067,7 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1067,7 +1089,7 @@ int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1083,7 +1105,7 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1100,7 +1122,7 @@ int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1123,7 +1145,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1140,7 +1162,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1159,7 +1181,7 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1182,7 +1204,7 @@ int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1210,7 +1232,7 @@ int BPF_PROG(path_truncate, const struct path *path)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1226,7 +1248,7 @@ int BPF_PROG(path_chmod, const struct path *path)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1247,8 +1269,8 @@ int BPF_PROG(path_chmod, const struct path *path)
  * return: Converted access mask.
  */
 static __always_inline int
-mmap_permission(struct bpfcon_process *process, struct file *file,
-                unsigned long prot, unsigned long flags)
+mmap_permission(process_t *process, struct file *file, unsigned long prot,
+                unsigned long flags)
 {
     u32 access = 0;
 
@@ -1276,7 +1298,7 @@ int BPF_PROG(mmap_file, struct file *file, unsigned long reqprot,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1291,7 +1313,7 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1322,12 +1344,11 @@ static u8 family_to_category(int family)
     }
 }
 
-static policy_decision_t
-bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
+static policy_decision_t bpfcontain_net_www_perm(process_t *process, u32 access)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
-    struct net_policy_key key = {};
+    net_policy_key_t key = {};
 
     key.policy_id = process->policy_id;
 
@@ -1353,8 +1374,7 @@ bpfcontain_net_www_perm(struct bpfcon_process *process, u32 access)
 }
 
 static policy_decision_t
-bpfcontain_net_ipc_perm(struct bpfcon_process *process, u32 access,
-                        struct socket *sock)
+bpfcontain_net_ipc_perm(process_t *process, u32 access, struct socket *sock)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
@@ -1379,8 +1399,8 @@ bpfcontain_net_ipc_perm(struct bpfcon_process *process, u32 access,
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_net_perm(struct bpfcon_process *process, u8 category,
-                               u32 access, struct socket *sock)
+static int bpfcontain_net_perm(process_t *process, u8 category, u32 access,
+                               struct socket *sock)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
@@ -1397,7 +1417,7 @@ int BPF_PROG(socket_create, int family, int type, int protocol, int kern)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1414,7 +1434,7 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1431,7 +1451,7 @@ int BPF_PROG(socket_connect, struct socket *sock, struct sockaddr *address,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1448,7 +1468,7 @@ int BPF_PROG(unix_stream_connect, struct socket *sock, struct socket *other,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1464,7 +1484,7 @@ int BPF_PROG(unix_may_send, struct socket *sock, struct socket *other)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1480,7 +1500,7 @@ int BPF_PROG(socket_listen, struct socket *sock, int backlog)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1496,7 +1516,7 @@ int BPF_PROG(socket_accept, struct socket *sock, struct socket *newsock)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1512,7 +1532,7 @@ int BPF_PROG(socket_sendmsg, struct socket *sock, struct msghdr *msg, int size)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1529,7 +1549,7 @@ int BPF_PROG(socket_recvmsg, struct socket *sock, struct msghdr *msg, int size,
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1545,7 +1565,7 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1596,11 +1616,13 @@ SEC("lsm/capable")
 int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
              int cap, unsigned int opts)
 {
+    int ret = 0;
+
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1614,7 +1636,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         return -EACCES;
     }
 
-    struct cap_policy_key key = {};
+    cap_policy_key_t key = {};
 
     key.policy_id = process->policy_id;
 
@@ -1633,10 +1655,10 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_TAINT;
     }
 
-    int ret = do_policy_decision(process, decision, 1);
-    if (ret) {
-        bpf_printk("Denying on capability %d %u", cap, opts);
-    }
+out:
+    ret = do_policy_decision(process, decision, 1);
+    audit_cap(decision, process->policy_id, access);
+
     return ret;
 }
 
@@ -1650,7 +1672,7 @@ int BPF_PROG(bpf, int cmd, union bpf_attr *attr, unsigned int size)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1665,7 +1687,7 @@ int BPF_PROG(locked_down, enum lockdown_reason what)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1684,7 +1706,7 @@ int BPF_PROG(perf_event_open, struct perf_event_attr *attr, int type)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1699,7 +1721,7 @@ int BPF_PROG(perf_event_alloc, struct perf_event *event)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1714,7 +1736,7 @@ int BPF_PROG(perf_event_read, struct perf_event *event)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1729,7 +1751,7 @@ int BPF_PROG(perf_event_write, struct perf_event *event)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1744,7 +1766,7 @@ int BPF_PROG(key_alloc, int unused)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1759,7 +1781,7 @@ int BPF_PROG(key_permission, int unused)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1774,7 +1796,7 @@ int BPF_PROG(settime, int unused)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1789,7 +1811,7 @@ int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1804,7 +1826,7 @@ int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
 //{
 //    // Look up the process using the current PID
 //    u32 pid = bpf_get_current_pid_tgid();
-//    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+//    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 //
 //    // Unconfined
 //    if (!process)
@@ -1824,7 +1846,7 @@ int fentry_commit_creds(struct cred *new)
 {
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1853,7 +1875,7 @@ int BPF_PROG(bprm_committing_creds, struct linux_binprm *bprm)
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1872,7 +1894,7 @@ int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
-    struct bpfcon_process *process = bpf_map_lookup_elem(&processes, &pid);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
 
     // Unconfined
     if (!process)
@@ -1887,8 +1909,8 @@ int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
 SEC("tracepoint/sched/sched_process_fork")
 int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
 {
-    struct bpfcon_process *process;
-    struct bpfcon_process *parent_process;
+    process_t *process;
+    process_t *parent_process;
 
     u32 ppid = args->parent_pid;
     u32 cpid = args->child_pid;
@@ -2023,7 +2045,7 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
     u32 tgid = bpf_get_current_pid_tgid() >> 32;
 
     // Look up the `policy` using `policy_id`
-    struct policy *policy = bpf_map_lookup_elem(&policies, &policy_id);
+    policy_t *policy = bpf_map_lookup_elem(&policies, &policy_id);
 
     // If the policy doesn't exist, report an error and bail
     if (!policy) {

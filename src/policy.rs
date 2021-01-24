@@ -5,14 +5,15 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use crate::bindings::policy;
-use crate::bpf::BpfcontainSkel as Skel;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use libbpf_rs::MapFlags;
 use pod::Pod;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+
+use crate::bindings::policy;
+use crate::bpf::BpfcontainSkel as Skel;
 
 pub trait ToBitflags {
     type BitFlag;

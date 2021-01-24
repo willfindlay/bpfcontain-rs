@@ -158,7 +158,7 @@ typedef enum {
 //    event_info_t info;
 //} event_t;
 
-typedef struct audit_common {
+typedef struct {
     policy_decision_t decision;
     u64 policy_id;
     u32 pid;
@@ -166,7 +166,7 @@ typedef struct audit_common {
     u8 comm[16];
 } audit_common_t;
 
-typedef struct audit_file {
+typedef struct {
     audit_common_t common;
     file_permission_t access;
     u64 st_ino;
@@ -174,16 +174,30 @@ typedef struct audit_file {
     // u8 pathname[PATH_MAX];
 } audit_file_t;
 
+typedef struct {
+    audit_common_t common;
+    capability_t cap;
+} audit_cap_t;
+
+typedef struct {
+    net_operation_t operation;
+} audit_net_t;
+
+typedef struct {
+    u64 other_policy_id;
+    u8 sender;  // 1 if we are the sender, 0 otherwise
+} audit_ipc_t;
+
 /* ========================================================================= *
  * Process and Container State                                               *
  * ========================================================================= */
 
-typedef struct policy {
+typedef struct {
     u8 default_deny;
     u8 default_taint;
 } policy_t;
 
-typedef struct bpfcon_process {
+typedef struct {
     u64 policy_id;
     u32 pid;
     u32 tgid;
@@ -192,7 +206,7 @@ typedef struct bpfcon_process {
 } process_t;
 
 // Represents the state of a container
-typedef struct bpfcon_container {
+typedef struct {
     u64 policy_id;     // bpfcontain policy associated with this container
     u64 container_id;  // bpfcontain's version of a container id, also used as a
                        // key into the map of containers
@@ -205,38 +219,38 @@ typedef struct bpfcon_container {
  * Keys for BPF Maps                                                         *
  * ========================================================================= */
 
-typedef struct fs_policy_key {
+typedef struct {
     u64 policy_id;
     u32 device_id;
 } __attribute__((__packed__)) fs_policy_key_t;
 
-typedef struct file_policy_key {
+typedef struct {
     u64 policy_id;
     u64 inode_id;
     u32 device_id;
 } __attribute__((__packed__)) file_policy_key_t;
 
 #define MINOR_WILDCARD (~0U)
-typedef struct dev_policy_key {
+typedef struct {
     u64 policy_id;
     u32 major;
     u32 minor;
 } __attribute__((__packed__)) dev_policy_key_t;
 
-typedef struct cap_policy_key {
+typedef struct {
     u64 policy_id;
 } __attribute__((__packed__)) cap_policy_key_t;
 
-typedef struct net_policy_key {
+typedef struct {
     u64 policy_id;
 } __attribute__((__packed__)) net_policy_key_t;
 
-typedef struct ipc_policy_key {
+typedef struct {
     u64 policy_id;
     u64 other_policy_id;
 } __attribute__((__packed__)) ipc_policy_key_t;
 
-typedef struct inode_key {
+typedef struct {
     u64 inode_id;
     u32 device_id;
 } __attribute__((__packed__)) inode_key_t;
