@@ -111,12 +111,12 @@ typedef enum {
  * ========================================================================= */
 
 typedef enum {
-    AUDIT_UNKNOWN = 0,
-    AUDIT_ERROR,
-    AUDIT_DENY,
-    AUDIT_IMPLICIT_DENY,
-    AUDIT_TAINT,
-} audit_msg_t;
+    BC_AUDIT_DENY = 0x1,   // Audit denials
+    BC_AUDIT_TAINT = 0x2,  // Audit taints
+    BC_AUDIT_ALLOW = 0x4,  // Audit allows
+} audit_level_t;
+
+#define DEFAULT_AUDIT_LEVEL BC_AUDIT_DENY | BC_AUDIT_TAINT
 
 typedef struct {
     policy_decision_t decision;
@@ -140,10 +140,12 @@ typedef struct {
 } audit_cap_t;
 
 typedef struct {
+    audit_common_t common;
     net_operation_t operation;
 } audit_net_t;
 
 typedef struct {
+    audit_common_t common;
     u64 other_policy_id;
     u8 sender;  // 1 if we are the sender, 0 otherwise
 } audit_ipc_t;

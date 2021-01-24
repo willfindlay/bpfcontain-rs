@@ -338,14 +338,11 @@ pub mod net_operation_t {
     pub const BPFCON_NET_CREATE: Type = 64;
     pub const BPFCON_NET_SHUTDOWN: Type = 128;
 }
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum audit_msg_t {
-    AUDIT_UNKNOWN = 0,
-    AUDIT_ERROR = 1,
-    AUDIT_DENY = 2,
-    AUDIT_IMPLICIT_DENY = 3,
-    AUDIT_TAINT = 4,
+pub mod audit_level_t {
+    pub type Type = ::std::os::raw::c_uint;
+    pub const BC_AUDIT_DENY: Type = 1;
+    pub const BC_AUDIT_TAINT: Type = 2;
+    pub const BC_AUDIT_ALLOW: Type = 4;
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -537,23 +534,34 @@ impl Default for audit_cap_t {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct audit_net_t {
+    pub common: audit_common_t,
     pub operation: net_operation_t::Type,
 }
 #[test]
 fn bindgen_test_layout_audit_net_t() {
     assert_eq!(
         ::std::mem::size_of::<audit_net_t>(),
-        4usize,
+        48usize,
         concat!("Size of: ", stringify!(audit_net_t))
     );
     assert_eq!(
         ::std::mem::align_of::<audit_net_t>(),
-        4usize,
+        8usize,
         concat!("Alignment of ", stringify!(audit_net_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_net_t>())).operation as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_net_t>())).common as *const _ as usize },
         0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_net_t),
+            "::",
+            stringify!(common)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_net_t>())).operation as *const _ as usize },
+        40usize,
         concat!(
             "Offset of field: ",
             stringify!(audit_net_t),
@@ -568,8 +576,9 @@ impl Default for audit_net_t {
     }
 }
 #[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct audit_ipc_t {
+    pub common: audit_common_t,
     pub other_policy_id: u64_,
     pub sender: u8_,
 }
@@ -577,7 +586,7 @@ pub struct audit_ipc_t {
 fn bindgen_test_layout_audit_ipc_t() {
     assert_eq!(
         ::std::mem::size_of::<audit_ipc_t>(),
-        16usize,
+        56usize,
         concat!("Size of: ", stringify!(audit_ipc_t))
     );
     assert_eq!(
@@ -586,8 +595,18 @@ fn bindgen_test_layout_audit_ipc_t() {
         concat!("Alignment of ", stringify!(audit_ipc_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).other_policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).common as *const _ as usize },
         0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_ipc_t),
+            "::",
+            stringify!(common)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).other_policy_id as *const _ as usize },
+        40usize,
         concat!(
             "Offset of field: ",
             stringify!(audit_ipc_t),
@@ -597,7 +616,7 @@ fn bindgen_test_layout_audit_ipc_t() {
     );
     assert_eq!(
         unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).sender as *const _ as usize },
-        8usize,
+        48usize,
         concat!(
             "Offset of field: ",
             stringify!(audit_ipc_t),
@@ -605,6 +624,11 @@ fn bindgen_test_layout_audit_ipc_t() {
             stringify!(sender)
         )
     );
+}
+impl Default for audit_ipc_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
