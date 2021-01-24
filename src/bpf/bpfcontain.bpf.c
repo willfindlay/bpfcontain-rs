@@ -66,10 +66,10 @@ ALLOCATOR(process_t);
 
 /* Ring buffer for passing logging events to userspace */
 BPF_RINGBUF(events, 4);
-BPF_RINGBUF(file_audit, 4);
-BPF_RINGBUF(cap_audit, 4);
-BPF_RINGBUF(net_audit, 4);
-BPF_RINGBUF(ipc_audit, 4);
+BPF_RINGBUF(audit_file, 4);
+BPF_RINGBUF(audit_cap, 4);
+BPF_RINGBUF(audit_net, 4);
+BPF_RINGBUF(audit_ipc, 4);
 
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, struct bpfcon_process, BPFCON_MAX_PROCESSES, 0);
@@ -132,22 +132,21 @@ __do_audit_common(struct audit_common *common, policy_decision_t decision,
  * @policy_id: Current policy ID.
  */
 static __always_inline void
-audit_path(policy_decision_t decision, u64 policy_id, struct path *path,
-           file_permission_t access)
+audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
+            file_permission_t access)
 {
     // Reserve space for the event on the ring buffer
-    audit_file_t *event = bpf_ringbuf_reserve(&events, sizeof(event_t), 0);
+    audit_file_t *event =
+        bpf_ringbuf_reserve(&audit_file, sizeof(audit_file_t), 0);
+
     if (!event)
         return;
 
     __do_audit_common(&event->common, decision, policy_id);
 
     event->access = access;
-    if (path) {
-        bpf_d_path(path, (char *)event->pathname, sizeof(event->pathname));
-    } else {
-        // TODO handle no path
-    }
+    event->st_ino = inode->i_ino;
+    event->st_dev = new_encode_dev(inode->i_sb->s_dev);
 
     // Submit the event
     bpf_ringbuf_submit(event, 0);
@@ -914,9 +913,8 @@ do_task_inode_permission(u64 policy_id, struct inode *inode, u32 access)
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int
-bpfcontain_inode_perm(struct bpfcon_process *process, struct inode *inode,
-                      const struct path *path, u32 access)
+static int bpfcontain_inode_perm(struct bpfcon_process *process,
+                                 struct inode *inode, u32 access)
 {
     bool super_allow = false;
     int ret = 0;
@@ -960,7 +958,7 @@ bpfcontain_inode_perm(struct bpfcon_process *process, struct inode *inode,
         ret = 0;
 
     if (decision & BPFCON_TAINT || ret == -EACCES)
-        audit_path(decision, process->policy_id, path, access);
+        audit_inode(decision, process->policy_id, inode, access);
 
     return ret;
 }
@@ -997,7 +995,7 @@ int BPF_PROG(file_permission, struct file *file, int mask)
         return 0;
 
     // Make an access control decision
-    return bpfcontain_inode_perm(process, file->f_inode, &file->f_path,
+    return bpfcontain_inode_perm(process, file->f_inode,
                                  mask_to_access(file->f_inode, mask));
 }
 
@@ -1019,8 +1017,7 @@ int BPF_PROG(file_open, struct file *file)
         return 0;
 
     // Make an access control decision
-    return bpfcontain_inode_perm(process, file->f_inode, &file->f_path,
-                                 file_to_access(file));
+    return bpfcontain_inode_perm(process, file->f_inode, file_to_access(file));
 }
 
 SEC("lsm/file_receive")
@@ -1035,8 +1032,7 @@ int BPF_PROG(file_receive, struct file *file)
         return 0;
 
     // Make an access control decision
-    return bpfcontain_inode_perm(process, file->f_inode, &file->f_path,
-                                 file_to_access(file));
+    return bpfcontain_inode_perm(process, file->f_inode, file_to_access(file));
 }
 
 /* Enforce policy on execve operations */
@@ -1058,8 +1054,7 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 
     struct file *file = bprm->file;
     if (file) {
-        ret = bpfcontain_inode_perm(process, file->f_inode, &file->f_path,
-                                    BPFCON_MAY_EXEC);
+        ret = bpfcontain_inode_perm(process, file->f_inode, BPFCON_MAY_EXEC);
         if (ret)
             return ret;
     }
@@ -1080,8 +1075,7 @@ int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
         return 0;
 
     u32 mnt_ns = get_path_mnt_ns_id(dir);
-    return bpfcontain_inode_perm(process, dentry->d_inode,
-                                 get_dentry_path(dentry), BPFCON_MAY_DELETE);
+    return bpfcontain_inode_perm(process, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to unlink a directory. */
@@ -1097,8 +1091,7 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
         return 0;
 
     u32 mnt_ns = get_path_mnt_ns_id(dir);
-    return bpfcontain_inode_perm(process, dentry->d_inode,
-                                 get_dentry_path(dentry), BPFCON_MAY_DELETE);
+    return bpfcontain_inode_perm(process, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
 /* Mediate access to create a file. */
@@ -1114,8 +1107,8 @@ int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
     if (!process)
         return 0;
 
-    int ret = bpfcontain_inode_perm(process, dir->dentry->d_inode, dir,
-                                    BPFCON_MAY_CREATE);
+    int ret =
+        bpfcontain_inode_perm(process, dir->dentry->d_inode, BPFCON_MAY_CREATE);
     if (ret)
         return ret;
 
@@ -1137,7 +1130,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
     if (!process)
         return 0;
 
-    return bpfcontain_inode_perm(process, dir->dentry->d_inode, dir,
+    return bpfcontain_inode_perm(process, dir->dentry->d_inode,
                                  BPFCON_MAY_CREATE);
 }
 
@@ -1154,7 +1147,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
     if (!process)
         return 0;
 
-    return bpfcontain_inode_perm(process, dir->dentry->d_inode, dir,
+    return bpfcontain_inode_perm(process, dir->dentry->d_inode,
                                  BPFCON_MAY_CREATE);
 }
 
@@ -1173,13 +1166,12 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
     if (!process)
         return 0;
 
-    ret = bpfcontain_inode_perm(process, new_dir->dentry->d_inode, new_dir,
+    ret = bpfcontain_inode_perm(process, new_dir->dentry->d_inode,
                                 BPFCON_MAY_CREATE);
     if (ret)
         return ret;
 
-    return bpfcontain_inode_perm(process, old_dentry->d_inode,
-                                 get_dentry_path(old_dentry), BPFCON_MAY_LINK);
+    return bpfcontain_inode_perm(process, old_dentry->d_inode, BPFCON_MAY_LINK);
 }
 
 /* Mediate access to rename a file. */
@@ -1202,12 +1194,11 @@ int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
     struct inode *new_dir_inode = new_dir->dentry->d_inode;
     struct inode *new_inode = new_dentry->d_inode;
 
-    ret = bpfcontain_inode_perm(process, old_inode, old_dir, BPFCON_MAY_RENAME);
+    ret = bpfcontain_inode_perm(process, old_inode, BPFCON_MAY_RENAME);
     if (ret)
         return ret;
 
-    ret = bpfcontain_inode_perm(process, new_dir_inode, new_dir,
-                                BPFCON_MAY_CREATE);
+    ret = bpfcontain_inode_perm(process, new_dir_inode, BPFCON_MAY_CREATE);
     if (ret)
         return ret;
 
@@ -1226,7 +1217,7 @@ int BPF_PROG(path_truncate, const struct path *path)
     if (!process)
         return 0;
 
-    return bpfcontain_inode_perm(process, path->dentry->d_inode, path,
+    return bpfcontain_inode_perm(process, path->dentry->d_inode,
                                  BPFCON_MAY_WRITE | BPFCON_MAY_SETATTR);
 }
 
@@ -1242,7 +1233,7 @@ int BPF_PROG(path_chmod, const struct path *path)
     if (!process)
         return 0;
 
-    return bpfcontain_inode_perm(process, path->dentry->d_inode, path,
+    return bpfcontain_inode_perm(process, path->dentry->d_inode,
                                  BPFCON_MAY_CHMOD);
 }
 
@@ -1277,7 +1268,7 @@ mmap_permission(struct bpfcon_process *process, struct file *file,
     if (!access)
         return 0;
 
-    return bpfcontain_inode_perm(process, file->f_inode, &file->f_path, access);
+    return bpfcontain_inode_perm(process, file->f_inode, access);
 }
 
 SEC("lsm/mmap_file")

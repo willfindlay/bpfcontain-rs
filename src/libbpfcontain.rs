@@ -164,30 +164,11 @@ pub mod structs {
             const NET_RECV     = bindings::net_operation_t::BPFCON_NET_RECV;
             const NET_CREATE   = bindings::net_operation_t::BPFCON_NET_CREATE;
             const NET_SHUTDOWN = bindings::net_operation_t::BPFCON_NET_SHUTDOWN;
-            const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits | Self::NET_LISTEN.bits | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
+            const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits | Self::NET_LISTEN.bits
+                | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
             const MASK_CLIENT = Self::NET_CONNECT.bits;
             const MASK_SEND = Self::NET_SEND.bits;
             const MASK_RECV = Self::NET_RECV.bits;
-        }
-    }
-
-    // TODO delete
-    /// A rustified enum representing event action.
-    ///
-    /// # Warning
-    ///
-    /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub type EventAction = bindings::event_action_t;
-
-    impl Display for EventAction {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Self::EA_UNKNOWN => write!(f, "none"),
-                Self::EA_ERROR => write!(f, "error"),
-                Self::EA_DENY => write!(f, "policy deny"),
-                Self::EA_IMPLICIT_DENY => write!(f, "implicit deny"),
-                Self::EA_TAINT => write!(f, "policy taint"),
-            }
         }
     }
 
@@ -220,13 +201,17 @@ pub mod structs {
     impl Display for AuditCommon {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
             let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
+            let res = PolicyDecision::from_bits(self.decision)
+                .expect("Failed to convert policy decision");
             write!(
                 f,
-                "decision={} comm={} pid={} tid={} policy_id={}",
-                self.decision, comm, self.tgid, self.pid, self.policy_id
+                "res={:#?} comm={} pid={} tid={} policy_id={}",
+                res, comm, self.tgid, self.pid, self.policy_id
             )
         }
     }
+
+    unsafe impl Pod for AuditCommon {}
 
     /// Represents a file audit event.
     ///
@@ -237,71 +222,16 @@ pub mod structs {
 
     impl Display for AuditFile {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            let pathname = std::str::from_utf8(&self.pathname).unwrap_or("Unknown");
+            let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
             write!(
                 f,
-                "{} path={} access={}",
-                self.common, pathname, self.access
+                "{} st_ino={} st_dev={} access={:#?}",
+                self.common, self.st_ino, self.st_dev, access
             )
         }
     }
 
-    /// A rustified enum representing event type.
-    ///
-    /// # Warning
-    ///
-    /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub type EventType = bindings::event_type_t;
-
-    /// Represents an event for logging on the BPF side.
-    ///
-    /// # Warning
-    ///
-    /// Keep this in sync with [structs.h](src/include/structs.h)
-    pub type Event = bindings::event_t;
-    unsafe impl Pod for Event {}
-
-    impl Display for Event {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
-            let general_info = format!(
-                "action={} comm={} pid={} tid={} policy_id={} type={:?}",
-                self.action, comm, self.pid, self.tgid, self.policy_id, self.info.type_
-            );
-            let specific_info = unsafe {
-                match self.info.type_ {
-                    EventType::ET_NONE => "".to_string(),
-                    EventType::ET_FILE => format!(
-                        "inode={}, device_id={} operation={:?}",
-                        self.info.info.file_info.inode_id,
-                        self.info.info.file_info.device_id,
-                        FileAccess::from_bits(self.info.info.file_info.access)
-                    ),
-                    EventType::ET_CAP => format!(
-                        "capability={:?}",
-                        Capability::from_bits(self.info.info.cap_info.cap)
-                    ),
-                    EventType::ET_NET => format!(
-                        "operation={:?}",
-                        NetOperation::from_bits(self.info.info.net_info.operation)
-                    ),
-                    EventType::ET_IPC => format!(
-                        "sender_pid={} sender_policy_id={} \
-                        receiver_pid={} receiver_policy_id={}",
-                        self.info.info.ipc_info.sender_pid,
-                        self.info.info.ipc_info.sender_id,
-                        self.info.info.ipc_info.receiver_pid,
-                        self.info.info.ipc_info.receiver_id
-                    ),
-                    EventType::ET_NO_SUCH_CONTAINER => {
-                        format!("msg=\"No such container with ID {}\"", self.policy_id)
-                    }
-                }
-            };
-
-            write!(f, "{} {}", general_info, specific_info)
-        }
-    }
+    unsafe impl Pod for AuditFile {}
 
     /// Represents a container on the BPF side.
     ///
