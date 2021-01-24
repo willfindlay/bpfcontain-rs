@@ -120,7 +120,7 @@ pub fn load_bpf_program(
 fn audit_file(data: &[u8]) -> i32 {
     let event = bindings::audit::AuditFile::from_bytes(data).expect("Failed to copy event");
 
-    log::info!("{}", event);
+    log::info!("file {}", event);
 
     0
 }
@@ -129,7 +129,7 @@ fn audit_file(data: &[u8]) -> i32 {
 fn audit_cap(data: &[u8]) -> i32 {
     let event = bindings::audit::AuditCap::from_bytes(data).expect("Failed to copy event");
 
-    log::info!("{}", event);
+    log::info!("capability {}", event);
 
     0
 }
@@ -138,7 +138,7 @@ fn audit_cap(data: &[u8]) -> i32 {
 fn audit_net(data: &[u8]) -> i32 {
     let event = bindings::audit::AuditNet::from_bytes(data).expect("Failed to copy event");
 
-    log::info!("{}", event);
+    log::info!("network {}", event);
 
     0
 }
@@ -147,7 +147,7 @@ fn audit_net(data: &[u8]) -> i32 {
 fn audit_ipc(data: &[u8]) -> i32 {
     let event = bindings::audit::AuditIpc::from_bytes(data).expect("Failed to copy event");
 
-    log::info!("{}", event);
+    log::info!("ipc {}", event);
 
     0
 }

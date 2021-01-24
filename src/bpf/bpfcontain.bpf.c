@@ -78,7 +78,7 @@ BPF_RINGBUF(audit_ipc_buf, 4);
 
 /* Active (containerized) processes */
 BPF_LRU_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0);
-BPF_LRU_HASH(containers, u32, container_t, BPFCON_MAX_PROCESSES, 0);
+BPF_LRU_HASH(containers, container_id_t, container_t, BPFCON_MAX_PROCESSES, 0);
 
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, u32, 0);
@@ -560,7 +560,7 @@ static __always_inline struct mount *get_real_mount(const struct vfsmount *mnt)
  *
  * return: Mount namespace id or 0 if we couldn't find it.
  */
-static __always_inline u32 get_task_mnt_ns_id()
+static __always_inline u32 get_current_mnt_ns_id()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     return BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
@@ -570,10 +570,19 @@ static __always_inline u32 get_task_mnt_ns_id()
  *
  * return: Pid namespace id or 0 if we couldn't find it.
  */
-static __always_inline u32 get_task_pid_ns_id()
+static __always_inline u32 get_current_pid_ns_id()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
+}
+
+/* Get the uts namespace name for the current task. */
+static __always_inline void get_current_uts_name(char *dest, size_t size)
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    char *uts_name = BPF_CORE_READ(task, nsproxy, uts_ns, name.nodename);
+    if (uts_name)
+        bpf_probe_read_str(dest, size, uts_name);
 }
 
 /* Get the mount namespace id for @file.
@@ -646,14 +655,41 @@ static __always_inline u32 get_proc_pid(struct inode *inode)
 
 /* Get the PID of the current task according to its _pid namespace_.
  *
- * return: The 32 bit pid.
+ * Return:
+ *    A 32 bit pid
+ *    Otherwise, 0
  */
 static __always_inline u64 get_current_ns_pid()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
     u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
-
     return BPF_CORE_READ(task, thread_pid, numbers[level].nr);
+}
+
+/* Get the TGID of the current task according to its _pid namespace_.
+ *
+ * Return:
+ *    A 32 bit tgid
+ *    Otherwise, 0
+ */
+static __always_inline u64 get_current_ns_pid()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    return BPF_CORE_READ(task, group_leader, thread_pid, numbers[level].nr);
+}
+
+/* Get the PID and TGID of the current task according to its _pid namespace_.
+ *
+ * Return:
+ *    A 64-bit integer with the tgid in the upper 32 bits and the pid in the
+ *    lower 32 bits if successful.
+ */
+static __always_inline u64 get_current_ns_pid_tgid()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    return (u64)get_current_ns_tgid() << 32 | get_current_ns_pid();
 }
 
 /* Get a pointer to the path struct that contains @dentry.
@@ -750,22 +786,123 @@ add_inode_to_task(const process_t *process, struct inode *inode)
         *pid_p = process->pid;
 }
 
-/* Start a container.
+/* Add a new process to a container.
+ *
+ * Params:
+ *    @container: A pointer to the container.
+ *    @host_pid_tgid: Host pid and tgid of the process.
+ *    @pid_tgid: Namespace pid and tgid of the process.
+ *
+ * Returns:
+ *    A pointer to the newly created process, if successful
+ *    Otherwise, NULL
  */
-static __always_inline int maybe_start_container()
+static __always_inline process_t *
+add_process_to_container(container_t *container, u64 host_pid_tgid,
+                         u64 pid_tgid)
 {
-    u32 nspid = get_current_ns_pid();
-    if (nspid == 1) {
-        u32 pid = bpf_get_current_pid_tgid();
-        char comm[16];
-        bpf_get_current_comm(comm, sizeof(comm));
-        bpf_printk("Look ma! I'm in a container! pid=%u nspid=%u comm=%s", pid,
-                   nspid, comm);
+    // Null check on container
+    if (!container)
+        return NULL;
+
+    // Allocate a new process
+    process_t *process = new_process_t();
+    if (!process)
+        return NULL;
+
+    process->container_id = container_id;
+    process->host_pid = host_pid_tgid;
+    process->host_tgid = (host_pid_tgid >> 32);
+    process->pid = pid_tgid;
+    process->tgid = (pid_tgid >> 32);
+
+    // Add the process to the processes map
+    bpf_map_update_elem(&processes, &process->host_pid, process, BPF_NOEXIST);
+
+    // Look up the result
+    process = bpf_map_lookup_elem(&processes, &process->host_pid);
+    if (!process)
+        return NULL;
+
+    // Increment container's refcount
+    lock_xadd(&container->refcount, 1);
+
+    return process;
+}
+
+/* Start a new container.
+ *
+ * Params:
+ *    @policy_id: The policy id to associated with the container
+ *
+ * Returns:
+ *    A pointer to the newly created container, if successful
+ *    Otherwise, NULL
+ */
+static __always_inline container_t *
+start_container(policy_id_t policy_id, bool tainted)
+{
+    // Allocate a new container
+    container_t *container = new_container_t();
+    if (!container)
+        return NULL;
+
+    u32 pid = bpf_get_current_pid_tgid();
+    // TODO: create a new process state and associate it with the container
+
+    // Initialize the container
+    // The container id is a 64 bit integer where the upper 32 bits are a random
+    // integer and the lower 32 bits are the _host_ pid of the initial process.
+    container->container_id = ((u64)bpf_get_prandom_u32() << 32 | pid);
+    // The mount ns id of the container
+    container->mnt_ns_id = get_current_mnt_ns_id();
+    // The pid ns id of the container
+    container->pid_ns_id = get_current_pid_ns_id();
+    // The id of the bpfcontain policy that should be associated with the
+    // container
+    container->policy_id = policy_id;
+    // The container's refcount. Starts at 1 to accomodate the initial process
+    container->refcount = 0;
+    // Is the container tainted?
+    container->tainted = tainted;
+    // The UTS namespace hostname of the container. In docker and kubernetes,
+    // this usually corresponds with their notion of a container id.
+    get_current_uts_name(container->uts_name, sizeof(container->uts_name));
+
+    // In a different PID ns:
+    if (get_current_ns_pid() == 1) {
+        // TODO
     }
 
-    // TODO: come back here and implement this
+    if (!add_process_to_container(container, bpf_get_current_pid_tgid(),
+                                  get_current_ns_pid_tgid())) {
+        return NULL;
+    }
 
-    return 0;
+    // Add the container to the containers map
+    bpf_map_update_elem(&containers, &container->container_id, container,
+                        BPF_NOEXIST);
+
+    // Look up the result and return it
+    return bpf_map_lookup_elem(&containers, &container->container_id);
+}
+
+/* Get container of a process with a host pid of @pid.
+ *
+ * Params:
+ *    @pid: The host pid
+ *
+ * Returns:
+ *    A pointer to the container, if one exists
+ *    Otherwise, NULL
+ */
+static __always_inline container_t *get_container_by_host_pid(u32 pid)
+{
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
+    if (!process)
+        return NULL;
+
+    return bpf_map_lookup_elem(&containers, &process->container_id);
 }
 
 /* ========================================================================= *
@@ -1162,7 +1299,9 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     int ret = 0;
 
     // FIXME: temporary
-    maybe_start_container();
+    if (get_current_ns_pid() == 1) {
+        start_container(42);
+    }
 
     // Look up the process using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -1468,6 +1607,8 @@ static policy_decision_t bpfcontain_net_www_perm(process_t *process, u32 access)
     if (tainted && (*tainted & access)) {
         decision |= BPFCON_TAINT;
     }
+
+    audit_net(decision, process->policy_id, process->tainted, access);
 
     return decision;
 }
