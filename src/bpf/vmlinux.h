@@ -1,1 +1,1 @@
-vmlinux_5.10.9-arch1-1.h
+vmlinux_510.h
