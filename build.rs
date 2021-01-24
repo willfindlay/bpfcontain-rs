@@ -26,7 +26,6 @@ fn main() {
         .derive_eq(true)
         .derive_partialeq(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
-        .blacklist_item("MINOR_WILDCARD") // This is wrong, define it manually
         .rustified_enum("event_type_t")
         .rustified_enum("event_action_t")
         .rustified_enum("audit_msg_t")

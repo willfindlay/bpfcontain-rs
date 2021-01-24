@@ -190,11 +190,11 @@ typedef struct {
     u32 device_id;
 } __attribute__((__packed__)) file_policy_key_t;
 
-#define MINOR_WILDCARD (~0U)
+static const s64 MINOR_WILDCARD = -1;
 typedef struct {
     u64 policy_id;
     u32 major;
-    u32 minor;
+    s64 minor;
 } __attribute__((__packed__)) dev_policy_key_t;
 
 typedef struct {

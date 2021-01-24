@@ -896,18 +896,19 @@ fn bindgen_test_layout_file_policy_key_t() {
         )
     );
 }
+pub const MINOR_WILDCARD: s64 = -1;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct dev_policy_key_t {
     pub policy_id: u64_,
     pub major: u32_,
-    pub minor: u32_,
+    pub minor: s64,
 }
 #[test]
 fn bindgen_test_layout_dev_policy_key_t() {
     assert_eq!(
         ::std::mem::size_of::<dev_policy_key_t>(),
-        16usize,
+        20usize,
         concat!("Size of: ", stringify!(dev_policy_key_t))
     );
     assert_eq!(

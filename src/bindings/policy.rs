@@ -12,9 +12,6 @@ use pod::Pod;
 
 use super::raw;
 
-// TODO: replace this once bindings are properly fixed
-pub const MINOR_WILDCARD: u32 = u32::MAX;
-
 /// Represents a policy on the BPF side.
 pub type Policy = raw::policy_t;
 unsafe impl Pod for Policy {}
@@ -30,6 +27,12 @@ unsafe impl Pod for FilePolicyKey {}
 /// Represents a per-device policy key on the BPF side.
 pub type DevPolicyKey = raw::dev_policy_key_t;
 unsafe impl Pod for DevPolicyKey {}
+
+impl DevPolicyKey {
+    pub fn wildcard() -> i64 {
+        raw::MINOR_WILDCARD
+    }
+}
 
 /// Represents a capability policy key on the BPF side.
 pub type CapPolicyKey = raw::cap_policy_key_t;

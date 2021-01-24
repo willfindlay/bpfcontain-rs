@@ -629,7 +629,12 @@ impl Policy {
     }
 
     fn load_terminal_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
-        self.load_device_policy(skel, action, &[(136, policy::MINOR_WILDCARD)], "rwa")
+        self.load_device_policy(
+            skel,
+            action,
+            &[(136, policy::DevPolicyKey::wildcard())],
+            "rwa",
+        )
     }
 
     fn load_random_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
@@ -644,7 +649,7 @@ impl Policy {
         &self,
         skel: &mut Skel,
         action: &PolicyDecision,
-        device_nums: &[(u32, u32)],
+        device_nums: &[(u32, i64)],
         access_str: &str,
     ) -> Result<()> {
         // Look up the correct map
