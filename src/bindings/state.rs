@@ -5,11 +5,6 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-pub mod audit;
-pub mod policy;
-pub mod state;
+//! Structs representing process and container state.
 
-mod libbpfcontain;
-mod raw;
-
-pub use libbpfcontain::containerize;
+// TODO: add these when needed

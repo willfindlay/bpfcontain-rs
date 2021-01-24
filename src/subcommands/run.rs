@@ -10,8 +10,8 @@ use clap::ArgMatches;
 use std::ffi::CString;
 use std::path::Path;
 
+use crate::bindings::containerize;
 use crate::config::Settings;
-use crate::libbpfcontain::containerize;
 use crate::policy::Policy;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {

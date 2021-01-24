@@ -35,7 +35,7 @@ fn main() {
 
     // Save bindings
     bindings
-        .write_to_file("src/libbpfcontain/bindings.rs")
+        .write_to_file("src/bindings/generated/generated.rs")
         .expect("Failed to save bindings");
 
     // Make vmlinux if we don't have a good enough version
