@@ -630,6 +630,8 @@ impl Default for audit_ipc_t {
         unsafe { ::std::mem::zeroed() }
     }
 }
+pub type policy_id_t = u64_;
+pub type container_id_t = u64_;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct policy_t {
@@ -762,11 +764,11 @@ impl process_t {
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct container_t {
-    pub policy_id: u64_,
-    pub container_id: u64_,
+    pub policy_id: policy_id_t,
+    pub container_id: container_id_t,
     pub mnt_ns_id: u32_,
     pub pid_ns_id: u32_,
-    pub uts_name: [u8_; 16usize],
+    pub uts_name: [::std::os::raw::c_char; 16usize],
 }
 #[test]
 fn bindgen_test_layout_container_t() {
