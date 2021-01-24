@@ -1,4 +1,4 @@
-VMLINUX = vmlinux_$(shell uname -r).h
+VMLINUX = $(shell awk -F. '{print $$1$$2}' <<< vmlinux_$(shell uname -r)).h
 
 .PHONY: vmlinux
 vmlinux: vmlinux.h
