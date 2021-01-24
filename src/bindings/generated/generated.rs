@@ -349,7 +349,7 @@ pub enum audit_msg_t {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct audit_common {
+pub struct audit_common_t {
     pub decision: policy_decision_t::Type,
     pub policy_id: u64_,
     pub pid: u32_,
@@ -357,184 +357,297 @@ pub struct audit_common {
     pub comm: [u8_; 16usize],
 }
 #[test]
-fn bindgen_test_layout_audit_common() {
+fn bindgen_test_layout_audit_common_t() {
     assert_eq!(
-        ::std::mem::size_of::<audit_common>(),
+        ::std::mem::size_of::<audit_common_t>(),
         40usize,
-        concat!("Size of: ", stringify!(audit_common))
+        concat!("Size of: ", stringify!(audit_common_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<audit_common>(),
+        ::std::mem::align_of::<audit_common_t>(),
         8usize,
-        concat!("Alignment of ", stringify!(audit_common))
+        concat!("Alignment of ", stringify!(audit_common_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_common>())).decision as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_common_t>())).decision as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_common),
+            stringify!(audit_common_t),
             "::",
             stringify!(decision)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_common>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_common_t>())).policy_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_common),
+            stringify!(audit_common_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_common>())).pid as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_common_t>())).pid as *const _ as usize },
         16usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_common),
+            stringify!(audit_common_t),
             "::",
             stringify!(pid)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_common>())).tgid as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_common_t>())).tgid as *const _ as usize },
         20usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_common),
+            stringify!(audit_common_t),
             "::",
             stringify!(tgid)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_common>())).comm as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_common_t>())).comm as *const _ as usize },
         24usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_common),
+            stringify!(audit_common_t),
             "::",
             stringify!(comm)
         )
     );
 }
-impl Default for audit_common {
+impl Default for audit_common_t {
     fn default() -> Self {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type audit_common_t = audit_common;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct audit_file {
+pub struct audit_file_t {
     pub common: audit_common_t,
     pub access: file_permission_t::Type,
     pub st_ino: u64_,
     pub st_dev: u32_,
 }
 #[test]
-fn bindgen_test_layout_audit_file() {
+fn bindgen_test_layout_audit_file_t() {
     assert_eq!(
-        ::std::mem::size_of::<audit_file>(),
+        ::std::mem::size_of::<audit_file_t>(),
         64usize,
-        concat!("Size of: ", stringify!(audit_file))
+        concat!("Size of: ", stringify!(audit_file_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<audit_file>(),
+        ::std::mem::align_of::<audit_file_t>(),
         8usize,
-        concat!("Alignment of ", stringify!(audit_file))
+        concat!("Alignment of ", stringify!(audit_file_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_file>())).common as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_file_t>())).common as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_file),
+            stringify!(audit_file_t),
             "::",
             stringify!(common)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_file>())).access as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_file_t>())).access as *const _ as usize },
         40usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_file),
+            stringify!(audit_file_t),
             "::",
             stringify!(access)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_file>())).st_ino as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_file_t>())).st_ino as *const _ as usize },
         48usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_file),
+            stringify!(audit_file_t),
             "::",
             stringify!(st_ino)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_file>())).st_dev as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<audit_file_t>())).st_dev as *const _ as usize },
         56usize,
         concat!(
             "Offset of field: ",
-            stringify!(audit_file),
+            stringify!(audit_file_t),
             "::",
             stringify!(st_dev)
         )
     );
 }
-impl Default for audit_file {
+impl Default for audit_file_t {
     fn default() -> Self {
         unsafe { ::std::mem::zeroed() }
     }
 }
-pub type audit_file_t = audit_file;
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct audit_cap_t {
+    pub common: audit_common_t,
+    pub cap: capability_t::Type,
+}
+#[test]
+fn bindgen_test_layout_audit_cap_t() {
+    assert_eq!(
+        ::std::mem::size_of::<audit_cap_t>(),
+        48usize,
+        concat!("Size of: ", stringify!(audit_cap_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<audit_cap_t>(),
+        8usize,
+        concat!("Alignment of ", stringify!(audit_cap_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_cap_t>())).common as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_cap_t),
+            "::",
+            stringify!(common)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_cap_t>())).cap as *const _ as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_cap_t),
+            "::",
+            stringify!(cap)
+        )
+    );
+}
+impl Default for audit_cap_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct audit_net_t {
+    pub operation: net_operation_t::Type,
+}
+#[test]
+fn bindgen_test_layout_audit_net_t() {
+    assert_eq!(
+        ::std::mem::size_of::<audit_net_t>(),
+        4usize,
+        concat!("Size of: ", stringify!(audit_net_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<audit_net_t>(),
+        4usize,
+        concat!("Alignment of ", stringify!(audit_net_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_net_t>())).operation as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_net_t),
+            "::",
+            stringify!(operation)
+        )
+    );
+}
+impl Default for audit_net_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct policy {
+pub struct audit_ipc_t {
+    pub other_policy_id: u64_,
+    pub sender: u8_,
+}
+#[test]
+fn bindgen_test_layout_audit_ipc_t() {
+    assert_eq!(
+        ::std::mem::size_of::<audit_ipc_t>(),
+        16usize,
+        concat!("Size of: ", stringify!(audit_ipc_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<audit_ipc_t>(),
+        8usize,
+        concat!("Alignment of ", stringify!(audit_ipc_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).other_policy_id as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_ipc_t),
+            "::",
+            stringify!(other_policy_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_ipc_t>())).sender as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_ipc_t),
+            "::",
+            stringify!(sender)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct policy_t {
     pub default_deny: u8_,
     pub default_taint: u8_,
 }
 #[test]
-fn bindgen_test_layout_policy() {
+fn bindgen_test_layout_policy_t() {
     assert_eq!(
-        ::std::mem::size_of::<policy>(),
+        ::std::mem::size_of::<policy_t>(),
         2usize,
-        concat!("Size of: ", stringify!(policy))
+        concat!("Size of: ", stringify!(policy_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<policy>(),
+        ::std::mem::align_of::<policy_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(policy))
+        concat!("Alignment of ", stringify!(policy_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<policy>())).default_deny as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<policy_t>())).default_deny as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(policy),
+            stringify!(policy_t),
             "::",
             stringify!(default_deny)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<policy>())).default_taint as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<policy_t>())).default_taint as *const _ as usize },
         1usize,
         concat!(
             "Offset of field: ",
-            stringify!(policy),
+            stringify!(policy_t),
             "::",
             stringify!(default_taint)
         )
     );
 }
-pub type policy_t = policy;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct bpfcon_process {
+pub struct process_t {
     pub policy_id: u64_,
     pub pid: u32_,
     pub tgid: u32_,
@@ -542,49 +655,49 @@ pub struct bpfcon_process {
     pub __bindgen_padding_0: [u8; 7usize],
 }
 #[test]
-fn bindgen_test_layout_bpfcon_process() {
+fn bindgen_test_layout_process_t() {
     assert_eq!(
-        ::std::mem::size_of::<bpfcon_process>(),
+        ::std::mem::size_of::<process_t>(),
         24usize,
-        concat!("Size of: ", stringify!(bpfcon_process))
+        concat!("Size of: ", stringify!(process_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<bpfcon_process>(),
+        ::std::mem::align_of::<process_t>(),
         8usize,
-        concat!("Alignment of ", stringify!(bpfcon_process))
+        concat!("Alignment of ", stringify!(process_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<process_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_process),
+            stringify!(process_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).pid as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<process_t>())).pid as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_process),
+            stringify!(process_t),
             "::",
             stringify!(pid)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_process>())).tgid as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<process_t>())).tgid as *const _ as usize },
         12usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_process),
+            stringify!(process_t),
             "::",
             stringify!(tgid)
         )
     );
 }
-impl bpfcon_process {
+impl process_t {
     #[inline]
     pub fn in_execve(&self) -> u8_ {
         unsafe { ::std::mem::transmute(self._bitfield_1.get(0usize, 1u8) as u8) }
@@ -622,10 +735,9 @@ impl bpfcon_process {
         __bindgen_bitfield_unit
     }
 }
-pub type process_t = bpfcon_process;
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct bpfcon_container {
+pub struct container_t {
     pub policy_id: u64_,
     pub container_id: u64_,
     pub mnt_ns_id: u32_,
@@ -633,349 +745,343 @@ pub struct bpfcon_container {
     pub uts_name: [u8_; 16usize],
 }
 #[test]
-fn bindgen_test_layout_bpfcon_container() {
+fn bindgen_test_layout_container_t() {
     assert_eq!(
-        ::std::mem::size_of::<bpfcon_container>(),
+        ::std::mem::size_of::<container_t>(),
         40usize,
-        concat!("Size of: ", stringify!(bpfcon_container))
+        concat!("Size of: ", stringify!(container_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<bpfcon_container>(),
+        ::std::mem::align_of::<container_t>(),
         8usize,
-        concat!("Alignment of ", stringify!(bpfcon_container))
+        concat!("Alignment of ", stringify!(container_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<container_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(container_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).container_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<container_t>())).container_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(container_t),
             "::",
             stringify!(container_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).mnt_ns_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<container_t>())).mnt_ns_id as *const _ as usize },
         16usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(container_t),
             "::",
             stringify!(mnt_ns_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).pid_ns_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<container_t>())).pid_ns_id as *const _ as usize },
         20usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(container_t),
             "::",
             stringify!(pid_ns_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_container>())).uts_name as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<container_t>())).uts_name as *const _ as usize },
         24usize,
         concat!(
             "Offset of field: ",
-            stringify!(bpfcon_container),
+            stringify!(container_t),
             "::",
             stringify!(uts_name)
         )
     );
 }
-pub type container_t = bpfcon_container;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct fs_policy_key {
+pub struct fs_policy_key_t {
     pub policy_id: u64_,
     pub device_id: u32_,
 }
 #[test]
-fn bindgen_test_layout_fs_policy_key() {
+fn bindgen_test_layout_fs_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<fs_policy_key>(),
+        ::std::mem::size_of::<fs_policy_key_t>(),
         12usize,
-        concat!("Size of: ", stringify!(fs_policy_key))
+        concat!("Size of: ", stringify!(fs_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<fs_policy_key>(),
+        ::std::mem::align_of::<fs_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(fs_policy_key))
+        concat!("Alignment of ", stringify!(fs_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<fs_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<fs_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(fs_policy_key),
+            stringify!(fs_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<fs_policy_key>())).device_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<fs_policy_key_t>())).device_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(fs_policy_key),
+            stringify!(fs_policy_key_t),
             "::",
             stringify!(device_id)
         )
     );
 }
-pub type fs_policy_key_t = fs_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct file_policy_key {
+pub struct file_policy_key_t {
     pub policy_id: u64_,
     pub inode_id: u64_,
     pub device_id: u32_,
 }
 #[test]
-fn bindgen_test_layout_file_policy_key() {
+fn bindgen_test_layout_file_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<file_policy_key>(),
+        ::std::mem::size_of::<file_policy_key_t>(),
         20usize,
-        concat!("Size of: ", stringify!(file_policy_key))
+        concat!("Size of: ", stringify!(file_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<file_policy_key>(),
+        ::std::mem::align_of::<file_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(file_policy_key))
+        concat!("Alignment of ", stringify!(file_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<file_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(file_policy_key),
+            stringify!(file_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_policy_key>())).inode_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<file_policy_key_t>())).inode_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(file_policy_key),
+            stringify!(file_policy_key_t),
             "::",
             stringify!(inode_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_policy_key>())).device_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<file_policy_key_t>())).device_id as *const _ as usize },
         16usize,
         concat!(
             "Offset of field: ",
-            stringify!(file_policy_key),
+            stringify!(file_policy_key_t),
             "::",
             stringify!(device_id)
         )
     );
 }
-pub type file_policy_key_t = file_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct dev_policy_key {
+pub struct dev_policy_key_t {
     pub policy_id: u64_,
     pub major: u32_,
     pub minor: u32_,
 }
 #[test]
-fn bindgen_test_layout_dev_policy_key() {
+fn bindgen_test_layout_dev_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<dev_policy_key>(),
+        ::std::mem::size_of::<dev_policy_key_t>(),
         16usize,
-        concat!("Size of: ", stringify!(dev_policy_key))
+        concat!("Size of: ", stringify!(dev_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<dev_policy_key>(),
+        ::std::mem::align_of::<dev_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(dev_policy_key))
+        concat!("Alignment of ", stringify!(dev_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<dev_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<dev_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(dev_policy_key),
+            stringify!(dev_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<dev_policy_key>())).major as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<dev_policy_key_t>())).major as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(dev_policy_key),
+            stringify!(dev_policy_key_t),
             "::",
             stringify!(major)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<dev_policy_key>())).minor as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<dev_policy_key_t>())).minor as *const _ as usize },
         12usize,
         concat!(
             "Offset of field: ",
-            stringify!(dev_policy_key),
+            stringify!(dev_policy_key_t),
             "::",
             stringify!(minor)
         )
     );
 }
-pub type dev_policy_key_t = dev_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct cap_policy_key {
+pub struct cap_policy_key_t {
     pub policy_id: u64_,
 }
 #[test]
-fn bindgen_test_layout_cap_policy_key() {
+fn bindgen_test_layout_cap_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<cap_policy_key>(),
+        ::std::mem::size_of::<cap_policy_key_t>(),
         8usize,
-        concat!("Size of: ", stringify!(cap_policy_key))
+        concat!("Size of: ", stringify!(cap_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<cap_policy_key>(),
+        ::std::mem::align_of::<cap_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(cap_policy_key))
+        concat!("Alignment of ", stringify!(cap_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<cap_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<cap_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(cap_policy_key),
+            stringify!(cap_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
 }
-pub type cap_policy_key_t = cap_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct net_policy_key {
+pub struct net_policy_key_t {
     pub policy_id: u64_,
 }
 #[test]
-fn bindgen_test_layout_net_policy_key() {
+fn bindgen_test_layout_net_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<net_policy_key>(),
+        ::std::mem::size_of::<net_policy_key_t>(),
         8usize,
-        concat!("Size of: ", stringify!(net_policy_key))
+        concat!("Size of: ", stringify!(net_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<net_policy_key>(),
+        ::std::mem::align_of::<net_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(net_policy_key))
+        concat!("Alignment of ", stringify!(net_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<net_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<net_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(net_policy_key),
+            stringify!(net_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
 }
-pub type net_policy_key_t = net_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct ipc_policy_key {
+pub struct ipc_policy_key_t {
     pub policy_id: u64_,
     pub other_policy_id: u64_,
 }
 #[test]
-fn bindgen_test_layout_ipc_policy_key() {
+fn bindgen_test_layout_ipc_policy_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<ipc_policy_key>(),
+        ::std::mem::size_of::<ipc_policy_key_t>(),
         16usize,
-        concat!("Size of: ", stringify!(ipc_policy_key))
+        concat!("Size of: ", stringify!(ipc_policy_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<ipc_policy_key>(),
+        ::std::mem::align_of::<ipc_policy_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(ipc_policy_key))
+        concat!("Alignment of ", stringify!(ipc_policy_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).policy_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<ipc_policy_key_t>())).policy_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(ipc_policy_key),
+            stringify!(ipc_policy_key_t),
             "::",
             stringify!(policy_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_policy_key>())).other_policy_id as *const _ as usize },
+        unsafe {
+            &(*(::std::ptr::null::<ipc_policy_key_t>())).other_policy_id as *const _ as usize
+        },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(ipc_policy_key),
+            stringify!(ipc_policy_key_t),
             "::",
             stringify!(other_policy_id)
         )
     );
 }
-pub type ipc_policy_key_t = ipc_policy_key;
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct inode_key {
+pub struct inode_key_t {
     pub inode_id: u64_,
     pub device_id: u32_,
 }
 #[test]
-fn bindgen_test_layout_inode_key() {
+fn bindgen_test_layout_inode_key_t() {
     assert_eq!(
-        ::std::mem::size_of::<inode_key>(),
+        ::std::mem::size_of::<inode_key_t>(),
         12usize,
-        concat!("Size of: ", stringify!(inode_key))
+        concat!("Size of: ", stringify!(inode_key_t))
     );
     assert_eq!(
-        ::std::mem::align_of::<inode_key>(),
+        ::std::mem::align_of::<inode_key_t>(),
         1usize,
-        concat!("Alignment of ", stringify!(inode_key))
+        concat!("Alignment of ", stringify!(inode_key_t))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<inode_key>())).inode_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<inode_key_t>())).inode_id as *const _ as usize },
         0usize,
         concat!(
             "Offset of field: ",
-            stringify!(inode_key),
+            stringify!(inode_key_t),
             "::",
             stringify!(inode_id)
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<inode_key>())).device_id as *const _ as usize },
+        unsafe { &(*(::std::ptr::null::<inode_key_t>())).device_id as *const _ as usize },
         8usize,
         concat!(
             "Offset of field: ",
-            stringify!(inode_key),
+            stringify!(inode_key_t),
             "::",
             stringify!(device_id)
         )
     );
 }
-pub type inode_key_t = inode_key;
 extern "C" {
     pub fn containerize(policy_id: ::std::os::raw::c_ulong) -> ::std::os::raw::c_int;
 }

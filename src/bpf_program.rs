@@ -5,18 +5,17 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{bail, Context, Result};
-use clap::ArgMatches;
-use glob::glob;
 use std::thread::sleep;
 use std::time::Duration;
 
+use anyhow::{bail, Context, Result};
+use clap::ArgMatches;
+use glob::glob;
 use libbpf_rs::RingBufferBuilder;
 use pod::Pod;
 
 use crate::bindings;
 use crate::bpf;
-pub use crate::bpf::BpfcontainSkelBuilder;
 use crate::config::Settings;
 use crate::ns;
 use crate::policy::Policy;
@@ -36,7 +35,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     let mut ringbuf_builder = RingBufferBuilder::default();
 
     ringbuf_builder
-        .add(skel.maps().audit_file(), audit_file)
+        .add(skel.maps().audit_file_buf(), audit_file)
         .context("Failed to add audit_file ringbuf")?;
 
     let mgr = ringbuf_builder
