@@ -340,15 +340,6 @@ pub mod net_operation_t {
 }
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum event_action_t {
-    EA_UNKNOWN = 0,
-    EA_ERROR = 1,
-    EA_DENY = 2,
-    EA_IMPLICIT_DENY = 3,
-    EA_TAINT = 4,
-}
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum audit_msg_t {
     AUDIT_UNKNOWN = 0,
     AUDIT_ERROR = 1,
@@ -356,415 +347,6 @@ pub enum audit_msg_t {
     AUDIT_IMPLICIT_DENY = 3,
     AUDIT_TAINT = 4,
 }
-#[repr(u32)]
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum event_type_t {
-    ET_NONE = 0,
-    ET_FILE = 1,
-    ET_CAP = 2,
-    ET_NET = 3,
-    ET_IPC = 4,
-    ET_NO_SUCH_CONTAINER = 5,
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct file_info {
-    pub inode_id: u64_,
-    pub device_id: u32_,
-    pub access: file_permission_t::Type,
-}
-#[test]
-fn bindgen_test_layout_file_info() {
-    assert_eq!(
-        ::std::mem::size_of::<file_info>(),
-        16usize,
-        concat!("Size of: ", stringify!(file_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<file_info>(),
-        8usize,
-        concat!("Alignment of ", stringify!(file_info))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_info>())).inode_id as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(file_info),
-            "::",
-            stringify!(inode_id)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_info>())).device_id as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(file_info),
-            "::",
-            stringify!(device_id)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<file_info>())).access as *const _ as usize },
-        12usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(file_info),
-            "::",
-            stringify!(access)
-        )
-    );
-}
-impl Default for file_info {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-pub type file_info_t = file_info;
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct cap_info {
-    pub cap: capability_t::Type,
-}
-#[test]
-fn bindgen_test_layout_cap_info() {
-    assert_eq!(
-        ::std::mem::size_of::<cap_info>(),
-        4usize,
-        concat!("Size of: ", stringify!(cap_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<cap_info>(),
-        4usize,
-        concat!("Alignment of ", stringify!(cap_info))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<cap_info>())).cap as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(cap_info),
-            "::",
-            stringify!(cap)
-        )
-    );
-}
-impl Default for cap_info {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-pub type cap_info_t = cap_info;
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct net_info {
-    pub operation: net_operation_t::Type,
-}
-#[test]
-fn bindgen_test_layout_net_info() {
-    assert_eq!(
-        ::std::mem::size_of::<net_info>(),
-        4usize,
-        concat!("Size of: ", stringify!(net_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<net_info>(),
-        4usize,
-        concat!("Alignment of ", stringify!(net_info))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<net_info>())).operation as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(net_info),
-            "::",
-            stringify!(operation)
-        )
-    );
-}
-impl Default for net_info {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-pub type net_info_t = net_info;
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-pub struct ipc_info {
-    pub sender_pid: u32_,
-    pub receiver_pid: u32_,
-    pub sender_id: u64_,
-    pub receiver_id: u64_,
-}
-#[test]
-fn bindgen_test_layout_ipc_info() {
-    assert_eq!(
-        ::std::mem::size_of::<ipc_info>(),
-        24usize,
-        concat!("Size of: ", stringify!(ipc_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<ipc_info>(),
-        8usize,
-        concat!("Alignment of ", stringify!(ipc_info))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_info>())).sender_pid as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ipc_info),
-            "::",
-            stringify!(sender_pid)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_info>())).receiver_pid as *const _ as usize },
-        4usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ipc_info),
-            "::",
-            stringify!(receiver_pid)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_info>())).sender_id as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ipc_info),
-            "::",
-            stringify!(sender_id)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<ipc_info>())).receiver_id as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(ipc_info),
-            "::",
-            stringify!(receiver_id)
-        )
-    );
-}
-pub type ipc_info_t = ipc_info;
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct bpfcon_event_info {
-    pub type_: event_type_t,
-    pub info: bpfcon_event_info__bindgen_ty_1,
-}
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub union bpfcon_event_info__bindgen_ty_1 {
-    pub file_info: file_info_t,
-    pub cap_info: cap_info_t,
-    pub net_info: net_info_t,
-    pub ipc_info: ipc_info_t,
-    _bindgen_union_align: [u64; 3usize],
-}
-#[test]
-fn bindgen_test_layout_bpfcon_event_info__bindgen_ty_1() {
-    assert_eq!(
-        ::std::mem::size_of::<bpfcon_event_info__bindgen_ty_1>(),
-        24usize,
-        concat!("Size of: ", stringify!(bpfcon_event_info__bindgen_ty_1))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<bpfcon_event_info__bindgen_ty_1>(),
-        8usize,
-        concat!("Alignment of ", stringify!(bpfcon_event_info__bindgen_ty_1))
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<bpfcon_event_info__bindgen_ty_1>())).file_info as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info__bindgen_ty_1),
-            "::",
-            stringify!(file_info)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<bpfcon_event_info__bindgen_ty_1>())).cap_info as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info__bindgen_ty_1),
-            "::",
-            stringify!(cap_info)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<bpfcon_event_info__bindgen_ty_1>())).net_info as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info__bindgen_ty_1),
-            "::",
-            stringify!(net_info)
-        )
-    );
-    assert_eq!(
-        unsafe {
-            &(*(::std::ptr::null::<bpfcon_event_info__bindgen_ty_1>())).ipc_info as *const _
-                as usize
-        },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info__bindgen_ty_1),
-            "::",
-            stringify!(ipc_info)
-        )
-    );
-}
-impl Default for bpfcon_event_info__bindgen_ty_1 {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-#[test]
-fn bindgen_test_layout_bpfcon_event_info() {
-    assert_eq!(
-        ::std::mem::size_of::<bpfcon_event_info>(),
-        32usize,
-        concat!("Size of: ", stringify!(bpfcon_event_info))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<bpfcon_event_info>(),
-        8usize,
-        concat!("Alignment of ", stringify!(bpfcon_event_info))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_event_info>())).type_ as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info),
-            "::",
-            stringify!(type_)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<bpfcon_event_info>())).info as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(bpfcon_event_info),
-            "::",
-            stringify!(info)
-        )
-    );
-}
-impl Default for bpfcon_event_info {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-pub type event_info_t = bpfcon_event_info;
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct event {
-    pub action: event_action_t,
-    pub policy_id: u64_,
-    pub pid: u32_,
-    pub tgid: u32_,
-    pub comm: [u8_; 16usize],
-    pub info: event_info_t,
-}
-#[test]
-fn bindgen_test_layout_event() {
-    assert_eq!(
-        ::std::mem::size_of::<event>(),
-        72usize,
-        concat!("Size of: ", stringify!(event))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<event>(),
-        8usize,
-        concat!("Alignment of ", stringify!(event))
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).action as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(action)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).policy_id as *const _ as usize },
-        8usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(policy_id)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).pid as *const _ as usize },
-        16usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(pid)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).tgid as *const _ as usize },
-        20usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(tgid)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).comm as *const _ as usize },
-        24usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(comm)
-        )
-    );
-    assert_eq!(
-        unsafe { &(*(::std::ptr::null::<event>())).info as *const _ as usize },
-        40usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(event),
-            "::",
-            stringify!(info)
-        )
-    );
-}
-impl Default for event {
-    fn default() -> Self {
-        unsafe { ::std::mem::zeroed() }
-    }
-}
-pub type event_t = event;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct audit_common {
@@ -844,17 +426,18 @@ impl Default for audit_common {
 }
 pub type audit_common_t = audit_common;
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct audit_file {
     pub common: audit_common_t,
     pub access: file_permission_t::Type,
-    pub pathname: [u8_; 4096usize],
+    pub st_ino: u64_,
+    pub st_dev: u32_,
 }
 #[test]
 fn bindgen_test_layout_audit_file() {
     assert_eq!(
         ::std::mem::size_of::<audit_file>(),
-        4144usize,
+        64usize,
         concat!("Size of: ", stringify!(audit_file))
     );
     assert_eq!(
@@ -883,13 +466,23 @@ fn bindgen_test_layout_audit_file() {
         )
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<audit_file>())).pathname as *const _ as usize },
-        44usize,
+        unsafe { &(*(::std::ptr::null::<audit_file>())).st_ino as *const _ as usize },
+        48usize,
         concat!(
             "Offset of field: ",
             stringify!(audit_file),
             "::",
-            stringify!(pathname)
+            stringify!(st_ino)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<audit_file>())).st_dev as *const _ as usize },
+        56usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(audit_file),
+            "::",
+            stringify!(st_dev)
         )
     );
 }

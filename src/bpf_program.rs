@@ -35,9 +35,11 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     let mut ringbuf_builder = RingBufferBuilder::default();
 
+    ringbuf_builder
+        .add(skel.maps().audit_file(), audit_file)
+        .context("Failed to add audit_file ringbuf")?;
+
     let mgr = ringbuf_builder
-        .add(skel.maps().events(), handle_event)
-        .context("Failed to add ringbuf")?
         .build()
         .context("Failed to create ringbuf manager")?;
 
@@ -109,17 +111,11 @@ pub fn load_bpf_program(
     Ok(skel)
 }
 
-/// Handle perf buffer events
-fn handle_event(data: &[u8]) -> i32 {
-    let event = structs::Event::from_bytes(data).expect("Failed to copy event");
+/// File audit events
+fn audit_file(data: &[u8]) -> i32 {
+    let event = structs::AuditFile::from_bytes(data).expect("Failed to copy event");
 
-    match event.action {
-        structs::EventAction::EA_UNKNOWN => log::debug!("{}", event),
-        structs::EventAction::EA_ERROR => log::error!("{}", event),
-        structs::EventAction::EA_DENY => log::info!("{}", event),
-        structs::EventAction::EA_IMPLICIT_DENY => log::info!("{}", event),
-        structs::EventAction::EA_TAINT => log::info!("{}", event),
-    }
+    log::info!("[AUDIT] {}", event);
 
     0
 }
