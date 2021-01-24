@@ -118,46 +118,6 @@ typedef enum {
     AUDIT_TAINT,
 } audit_msg_t;
 
-// typedef struct file_info {
-//    u64 inode_id;
-//    u32 device_id;
-//    file_permission_t access;
-//} file_info_t;
-//
-// typedef struct cap_info {
-//    capability_t cap;
-//} cap_info_t;
-//
-// typedef struct net_info {
-//    net_operation_t operation;
-//} net_info_t;
-//
-// typedef struct ipc_info {
-//    u32 sender_pid;
-//    u32 receiver_pid;
-//    u64 sender_id;
-//    u64 receiver_id;
-//} ipc_info_t;
-//
-// typedef struct bpfcon_event_info {
-//    event_type_t type;
-//    union {
-//        file_info_t file_info;
-//        cap_info_t cap_info;
-//        net_info_t net_info;
-//        ipc_info_t ipc_info;
-//    } info;
-//} event_info_t;
-//
-// typedef struct event {
-//    event_action_t action;
-//    u64 policy_id;
-//    u32 pid;
-//    u32 tgid;
-//    u8 comm[16];
-//    event_info_t info;
-//} event_t;
-
 typedef struct {
     policy_decision_t decision;
     u64 policy_id;
