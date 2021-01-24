@@ -14,25 +14,6 @@ use pod::Pod;
 use super::policy::*;
 use super::raw;
 
-/// A rustified enum representing an audit message type.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
-pub type AuditMsg = raw::audit_msg_t;
-
-impl Display for AuditMsg {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::AUDIT_UNKNOWN => write!(f, "unknown event"),
-            Self::AUDIT_ERROR => write!(f, "error"),
-            Self::AUDIT_DENY => write!(f, "policy deny"),
-            Self::AUDIT_IMPLICIT_DENY => write!(f, "implicit deny"),
-            Self::AUDIT_TAINT => write!(f, "policy taint"),
-        }
-    }
-}
-
 /// Represents the common part of an audit event.
 ///
 /// # Warning
@@ -74,3 +55,60 @@ impl Display for AuditFile {
 }
 
 unsafe impl Pod for AuditFile {}
+
+/// Represents a capability audit event.
+///
+/// # Warning
+///
+/// Keep this in sync with [structs.h](src/include/structs.h)
+pub type AuditCap = raw::audit_cap_t;
+
+impl Display for AuditCap {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let cap = Capability::from_bits(self.cap).expect("Failed to convert capability");
+        write!(f, "{} cap={:#?}", self.common, cap)
+    }
+}
+
+unsafe impl Pod for AuditCap {}
+
+/// Represents a network audit event.
+///
+/// # Warning
+///
+/// Keep this in sync with [structs.h](src/include/structs.h)
+pub type AuditNet = raw::audit_net_t;
+
+impl Display for AuditNet {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let operation =
+            NetOperation::from_bits(self.operation).expect("Failed to convert network operation");
+        write!(f, "{} operation={:#?}", self.common, operation)
+    }
+}
+
+unsafe impl Pod for AuditNet {}
+
+/// Represents a capability audit event.
+///
+/// # Warning
+///
+/// Keep this in sync with [structs.h](src/include/structs.h)
+pub type AuditIpc = raw::audit_ipc_t;
+
+impl Display for AuditIpc {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let operation = match self.sender {
+            0 => "recv",
+            _ => "send",
+        };
+
+        write!(
+            f,
+            "{} operation={} other_id={}",
+            self.common, operation, self.other_policy_id
+        )
+    }
+}
+
+unsafe impl Pod for AuditIpc {}

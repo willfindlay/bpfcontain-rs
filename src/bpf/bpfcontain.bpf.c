@@ -32,6 +32,12 @@ struct ovl_inode {
  * BPF CO-RE Globals                                                         *
  * ========================================================================= */
 
+// Settings
+u32 audit_level =
+    DEFAULT_AUDIT_LEVEL;  // TODO: change this to audit_level_t when we add
+                          // support for enums in libbpf-rs
+
+// Constants
 const volatile u32 bpfcontain_pid;
 const volatile u32 host_mnt_ns_id;
 const volatile u32 host_pid_ns_id;
@@ -111,8 +117,22 @@ BPF_HASH(ipc_deny, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
 BPF_HASH(ipc_taint, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
 
 /* ========================================================================= *
- * Helpers                                                                   *
+ * Audit Helpers                                                             *
  * ========================================================================= */
+
+static __always_inline bool __should_audit(policy_decision_t decision)
+{
+    if (decision & BPFCON_DENY && audit_level & BC_AUDIT_DENY)
+        return true;
+
+    else if (decision & BPFCON_TAINT && audit_level & BC_AUDIT_TAINT)
+        return true;
+
+    else if (decision & BPFCON_ALLOW && audit_level & BC_AUDIT_ALLOW)
+        return true;
+
+    return false;
+}
 
 static __always_inline void
 __do_audit_common(audit_common_t *common, policy_decision_t decision,
@@ -133,9 +153,15 @@ __do_audit_common(audit_common_t *common, policy_decision_t decision,
  * @access: The requested access.
  */
 static __always_inline void
-audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
-            file_permission_t access)
+audit_inode(policy_decision_t decision, u64 policy_id, bool tainted,
+            struct inode *inode, file_permission_t access)
 {
+    if (tainted && !(decision & BPFCON_ALLOW))
+        decision |= BPFCON_DENY;
+
+    if (!__should_audit(decision))
+        return;
+
     // Reserve space for the event on the ring buffer
     audit_file_t *event =
         bpf_ringbuf_reserve(&audit_file_buf, sizeof(audit_file_t), 0);
@@ -159,9 +185,15 @@ audit_inode(policy_decision_t decision, u64 policy_id, struct inode *inode,
  * @policy_id: Current policy ID.
  * @cap: The requested capability.
  */
-static __always_inline void
-audit_cap(policy_decision_t decision, u64 policy_id, capability_t cap)
+static __always_inline void audit_cap(policy_decision_t decision, u64 policy_id,
+                                      bool tainted, capability_t cap)
 {
+    if (tainted && !(decision & BPFCON_ALLOW))
+        decision |= BPFCON_DENY;
+
+    if (!__should_audit(decision))
+        return;
+
     // Reserve space for the event on the ring buffer
     audit_cap_t *event =
         bpf_ringbuf_reserve(&audit_cap_buf, sizeof(audit_cap_t), 0);
@@ -176,6 +208,73 @@ audit_cap(policy_decision_t decision, u64 policy_id, capability_t cap)
     // Submit the event
     bpf_ringbuf_submit(event, 0);
 }
+
+/* Log a network policy event to userspace.
+ *
+ * @decision: The policy decision.
+ * @policy_id: Current policy ID.
+ * @operation: The requested socket operation.
+ */
+static __always_inline void audit_net(policy_decision_t decision, u64 policy_id,
+                                      bool tainted, net_operation_t operation)
+{
+    if (tainted && !(decision & BPFCON_ALLOW))
+        decision |= BPFCON_DENY;
+
+    if (!__should_audit(decision))
+        return;
+
+    // Reserve space for the event on the ring buffer
+    audit_net_t *event =
+        bpf_ringbuf_reserve(&audit_net_buf, sizeof(audit_net_t), 0);
+
+    if (!event)
+        return;
+
+    __do_audit_common(&event->common, decision, policy_id);
+
+    event->operation = operation;
+
+    // Submit the event
+    bpf_ringbuf_submit(event, 0);
+}
+
+/* Log an ipc policy event to userspace.
+ *
+ * @decision: The policy decision.
+ * @policy_id: Current policy ID.
+ * @other_policy_id: The policy ID of the other process.
+ * @sender: 1 if we are the current sender, 0 otherwise
+ */
+static __always_inline void
+audit_ipc(policy_decision_t decision, u64 policy_id, bool tainted,
+          u64 other_policy_id, u8 sender)
+{
+    if (tainted && !(decision & BPFCON_ALLOW))
+        decision |= BPFCON_DENY;
+
+    if (!__should_audit(decision))
+        return;
+
+    // Reserve space for the event on the ring buffer
+    audit_ipc_t *event =
+        bpf_ringbuf_reserve(&audit_ipc_buf, sizeof(audit_ipc_t), 0);
+
+    if (!event)
+        return;
+
+    __do_audit_common(&event->common, decision, policy_id);
+
+    event->other_policy_id = other_policy_id;
+    event->sender = sender;
+
+    // Submit the event
+    bpf_ringbuf_submit(event, 0);
+}
+
+/* ========================================================================= *
+ * Helpers                                                                   *
+ * ========================================================================= */
 
 /* Get the policy with ID @policy_id.
  *
@@ -979,7 +1078,7 @@ bpfcontain_inode_perm(process_t *process, struct inode *inode, u32 access)
         decision &= (~BPFCON_DENY);
 
     ret = do_policy_decision(process, decision, 0);
-    audit_inode(decision, process->policy_id, inode, access);
+    audit_inode(decision, process->policy_id, process->tainted, inode, access);
 
     return ret;
 }
@@ -1632,8 +1731,8 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
     // (even though only one bit will be on at a time)
     u32 access = cap_to_access(cap);
     if (!access) {  // One of our implicit-deny capbilities
-        bpf_printk("Denying on capability %d %u", cap, opts);
-        return -EACCES;
+        decision = BPFCON_DENY;
+        goto out;
     }
 
     cap_policy_key_t key = {};
@@ -1657,7 +1756,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
 out:
     ret = do_policy_decision(process, decision, 1);
-    audit_cap(decision, process->policy_id, access);
+    audit_cap(decision, process->policy_id, process->tainted, access);
 
     return ret;
 }

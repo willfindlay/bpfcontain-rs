@@ -36,7 +36,13 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     ringbuf_builder
         .add(skel.maps().audit_file_buf(), audit_file)
-        .context("Failed to add audit_file ringbuf")?;
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_cap_buf(), audit_cap)
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_net_buf(), audit_net)
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_ipc_buf(), audit_ipc)
+        .context("Failed to add ringbuf")?;
 
     let mgr = ringbuf_builder
         .build()
@@ -114,7 +120,34 @@ pub fn load_bpf_program(
 fn audit_file(data: &[u8]) -> i32 {
     let event = bindings::audit::AuditFile::from_bytes(data).expect("Failed to copy event");
 
-    log::info!("[AUDIT] {}", event);
+    log::info!("{}", event);
+
+    0
+}
+
+/// Capability audit events
+fn audit_cap(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditCap::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("{}", event);
+
+    0
+}
+
+/// Network audit events
+fn audit_net(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditNet::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("{}", event);
+
+    0
+}
+
+/// IPC audit events
+fn audit_ipc(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditIpc::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("{}", event);
 
     0
 }
