@@ -173,8 +173,8 @@ bitflags! {
         const NET_RECV     = raw::net_operation_t::BPFCON_NET_RECV;
         const NET_CREATE   = raw::net_operation_t::BPFCON_NET_CREATE;
         const NET_SHUTDOWN = raw::net_operation_t::BPFCON_NET_SHUTDOWN;
-        const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits | Self::NET_LISTEN.bits
-            | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
+        const MASK_SERVER = Self::NET_CREATE.bits | Self::NET_BIND.bits
+            | Self::NET_LISTEN.bits | Self::NET_ACCEPT.bits | Self::NET_SHUTDOWN.bits;
         const MASK_CLIENT = Self::NET_CONNECT.bits;
         const MASK_SEND = Self::NET_SEND.bits;
         const MASK_RECV = Self::NET_RECV.bits;
