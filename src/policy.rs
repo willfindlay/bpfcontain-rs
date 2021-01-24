@@ -5,8 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+use crate::bindings::policy;
 use crate::bpf::BpfcontainSkel as Skel;
-use crate::libbpfcontain::structs;
 
 use anyhow::{Context, Result};
 use libbpf_rs::MapFlags;
@@ -36,7 +36,7 @@ impl Default for DefaultDecision {
 }
 
 impl ToBitflags for DefaultDecision {
-    type BitFlag = structs::PolicyDecision;
+    type BitFlag = policy::PolicyDecision;
 
     /// Convert a [`PolicyDecision`] into a bitflag representation for loading into an
     /// eBPF map.
@@ -58,7 +58,7 @@ enum PolicyDecision {
 }
 
 impl ToBitflags for PolicyDecision {
-    type BitFlag = structs::PolicyDecision;
+    type BitFlag = policy::PolicyDecision;
 
     /// Convert a [`PolicyDecision`] into a bitflag representation for loading into an
     /// eBPF map.
@@ -93,7 +93,7 @@ enum Capability {
 }
 
 impl ToBitflags for Capability {
-    type BitFlag = structs::Capability;
+    type BitFlag = policy::Capability;
 
     /// Convert a [`Capability`] into a bitflag representation for loading into an
     /// eBPF map.
@@ -130,7 +130,7 @@ enum FileAccess {
 }
 
 impl ToBitflags for FileAccess {
-    type BitFlag = structs::FileAccess;
+    type BitFlag = policy::FileAccess;
 
     /// Convert a [`FileAccess`] into a bitflag representation for loading into an
     /// eBPF map.
@@ -168,7 +168,7 @@ enum NetAccess {
 }
 
 impl ToBitflags for NetAccess {
-    type BitFlag = structs::NetOperation;
+    type BitFlag = policy::NetOperation;
 
     /// Convert a [`NetAccess`] into a bitflag representation for loading into an
     /// eBPF map.
@@ -451,7 +451,7 @@ impl Policy {
         let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))
             .context(format!("Failed to get information for {}", path))?;
 
-        let mut key = structs::FsPolicyKey::zeroed();
+        let mut key = policy::FsPolicyKey::zeroed();
         key.policy_id = self.policy_id();
         key.device_id = st_dev as u32;
         let key = key.as_bytes();
@@ -495,7 +495,7 @@ impl Policy {
             Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
         {
             // Set key using st_dev, st_ino, and policy_id
-            let mut key = structs::FilePolicyKey::zeroed();
+            let mut key = policy::FilePolicyKey::zeroed();
             key.policy_id = self.policy_id();
             key.device_id = st_dev as u32;
             key.inode_id = st_ino;
@@ -537,7 +537,7 @@ impl Policy {
         };
 
         // Set key using policy_id
-        let mut key = structs::CapPolicyKey::zeroed();
+        let mut key = policy::CapPolicyKey::zeroed();
         key.policy_id = self.policy_id();
         let key = key.as_bytes();
 
@@ -576,7 +576,7 @@ impl Policy {
         };
 
         // Set key using policy_id
-        let mut key = structs::NetPolicyKey::zeroed();
+        let mut key = policy::NetPolicyKey::zeroed();
         key.policy_id = self.policy_id();
         let key = key.as_bytes();
 
@@ -610,7 +610,7 @@ impl Policy {
         };
 
         // Set key using policy_id
-        let mut key = structs::IPCPolicyKey::zeroed();
+        let mut key = policy::IPCPolicyKey::zeroed();
         key.policy_id = self.policy_id();
         key.other_policy_id = Self::policy_id_for_name(other);
         let key = key.as_bytes();
@@ -628,7 +628,7 @@ impl Policy {
     }
 
     fn load_terminal_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
-        self.load_device_policy(skel, action, &[(136, structs::MINOR_WILDCARD)], "rwa")
+        self.load_device_policy(skel, action, &[(136, policy::MINOR_WILDCARD)], "rwa")
     }
 
     fn load_random_rule(&self, skel: &mut Skel, action: &PolicyDecision) -> Result<()> {
@@ -655,12 +655,12 @@ impl Policy {
         };
 
         // Set value to read file access
-        let value: u32 = structs::FileAccess::from_flags(access_str).bits();
+        let value: u32 = policy::FileAccess::from_flags(access_str).bits();
         let value = value.as_bytes();
 
         for &(major, minor) in device_nums {
             // Set key using policy_id
-            let mut key = structs::DevPolicyKey::zeroed();
+            let mut key = policy::DevPolicyKey::zeroed();
             key.policy_id = self.policy_id();
             key.major = major;
             key.minor = minor;
@@ -679,7 +679,7 @@ impl Policy {
     /// map.
     fn load_policy_id(&self, skel: &mut Skel) -> Result<()> {
         let key = self.policy_id();
-        let mut value = structs::Policy::default();
+        let mut value = policy::Policy::default();
 
         // No taint rules implies that we should be tainted by default
         if self.taints.is_empty() {

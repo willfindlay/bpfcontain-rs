@@ -14,10 +14,10 @@ use std::time::Duration;
 use libbpf_rs::RingBufferBuilder;
 use pod::Pod;
 
+use crate::bindings;
 use crate::bpf;
 pub use crate::bpf::BpfcontainSkelBuilder;
 use crate::config::Settings;
-use crate::libbpfcontain::structs;
 use crate::ns;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
@@ -113,7 +113,7 @@ pub fn load_bpf_program(
 
 /// File audit events
 fn audit_file(data: &[u8]) -> i32 {
-    let event = structs::AuditFile::from_bytes(data).expect("Failed to copy event");
+    let event = bindings::audit::AuditFile::from_bytes(data).expect("Failed to copy event");
 
     log::info!("[AUDIT] {}", event);
 
