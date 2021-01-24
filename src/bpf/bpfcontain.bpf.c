@@ -65,7 +65,6 @@ ALLOCATOR(process_t);
  * ========================================================================= */
 
 /* Ring buffer for passing logging events to userspace */
-BPF_RINGBUF(events, 4);
 BPF_RINGBUF(audit_file, 4);
 BPF_RINGBUF(audit_cap, 4);
 BPF_RINGBUF(audit_net, 4);
