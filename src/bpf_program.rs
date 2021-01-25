@@ -56,7 +56,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
         if let Err(e) = mgr.poll(Duration::new(1, 0)) {
             log::warn!("Failed to poll perf buffer: {}", e);
         }
-        sleep(Duration::new(1, 0));
+        sleep(Duration::from_millis(100));
     }
 }
 

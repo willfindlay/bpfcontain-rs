@@ -832,6 +832,31 @@ add_process_to_container(container_t *container, u64 host_pid_tgid,
     return process;
 }
 
+/* Remove a process from a container.
+ *
+ * Params:
+ *    @container: A pointer to the container.
+ *    @host_pid: Host pid of the process.
+ */
+static __always_inline void
+remove_process_from_container(container_t *container, u32 host_pid)
+{
+    // Null check on container
+    if (!container)
+        return;
+
+    // Decrement container's refcount
+    lock_xadd(&container->refcount, -1);
+
+    // Delete the container
+    if (container->refcount == 0) {
+        bpf_map_delete_elem(&containers, &container->container_id);
+    }
+
+    // Delete the process
+    bpf_map_delete_elem(&processes, &host_pid);
+}
+
 /* Start a new container.
  *
  * Params:
@@ -2175,6 +2200,22 @@ int sched_process_fork(struct bpf_raw_tracepoint_args *args)
     if (!process) {
         // TODO log error
     }
+
+    return 0;
+}
+
+/* Propagate a process' policy_id to its children */
+SEC("tp_btf/sched_process_exit")
+int sched_process_exit(struct bpf_raw_tracepoint_args *args)
+{
+    struct task_struct *task = (struct task_struct *)args->args[0];
+
+    // Get container using the parent process, if one exists.
+    container_t *container = get_container_by_host_pid(task->pid);
+    if (!container)
+        return 0;
+
+    remove_process_from_container(container, task->pid);
 
     return 0;
 }
