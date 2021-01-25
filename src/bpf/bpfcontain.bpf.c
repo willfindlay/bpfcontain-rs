@@ -33,9 +33,9 @@ struct ovl_inode {
  * ========================================================================= */
 
 // Settings
-u32 audit_level =
-    DEFAULT_AUDIT_LEVEL;  // TODO: change this to audit_level_t when we add
-                          // support for enums in libbpf-rs
+// TODO: change this to audit_level_t when we add
+// support for enums in libbpf-rs
+u32 audit_level = DEFAULT_AUDIT_LEVEL;
 
 // Constants
 const volatile u32 bpfcontain_pid;
