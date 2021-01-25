@@ -77,8 +77,8 @@ BPF_RINGBUF(audit_net_buf, 4);
 BPF_RINGBUF(audit_ipc_buf, 4);
 
 /* Active (containerized) processes */
-BPF_LRU_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0);
-BPF_LRU_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0);
+BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0);
+BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0);
 
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, container_id_t, 0);
