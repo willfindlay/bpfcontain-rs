@@ -612,17 +612,60 @@ static __always_inline u32 get_proc_pid(struct inode *inode)
     return BPF_CORE_READ(proc_inode, pid, numbers[0].nr);
 }
 
+/* Get the PID of the @task according to its _pid namespace_.
+ *
+ * Params:
+ *    @task: pointer to the task struct
+ *
+ * Return:
+ *    A 64-bit integer with the tgid in the upper 32 bits and the pid in the
+ *    lower 32 bits if successful.
+ */
+static __always_inline u32 get_task_ns_pid(struct task_struct *task)
+{
+    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    return (BPF_CORE_READ(task, thread_pid, numbers[level].nr));
+}
+
+/* Get the TGID of the @task according to its _pid namespace_.
+ *
+ * Params:
+ *    @task: pointer to the task struct
+ *
+ * Return:
+ *    A 64-bit integer with the tgid in the upper 32 bits and the pid in the
+ *    lower 32 bits if successful.
+ */
+static __always_inline u32 get_task_ns_tgid(struct task_struct *task)
+{
+    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    return (BPF_CORE_READ(task, group_leader, thread_pid, numbers[level].nr));
+}
+
+/* Get the PID and TGID of the @task according to its _pid namespace_.
+ *
+ * Params:
+ *    @task: pointer to the task struct
+ *
+ * Return:
+ *    A 64-bit integer with the tgid in the upper 32 bits and the pid in the
+ *    lower 32 bits if successful.
+ */
+static __always_inline u64 get_task_ns_pid_tgid(struct task_struct *task)
+{
+    return (u64)get_task_ns_tgid(task) << 32 | get_task_ns_pid(task);
+}
+
 /* Get the PID of the current task according to its _pid namespace_.
  *
  * Return:
  *    A 32 bit pid
  *    Otherwise, 0
  */
-static __always_inline u64 get_current_ns_pid()
+static __always_inline u32 get_current_ns_pid()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
-    return BPF_CORE_READ(task, thread_pid, numbers[level].nr);
+    return get_task_ns_pid(task);
 }
 
 /* Get the TGID of the current task according to its _pid namespace_.
@@ -631,11 +674,10 @@ static __always_inline u64 get_current_ns_pid()
  *    A 32 bit tgid
  *    Otherwise, 0
  */
-static __always_inline u64 get_current_ns_tgid()
+static __always_inline u32 get_current_ns_tgid()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
-    return BPF_CORE_READ(task, group_leader, thread_pid, numbers[level].nr);
+    return get_task_ns_tgid(task);
 }
 
 /* Get the PID and TGID of the current task according to its _pid namespace_.
@@ -647,8 +689,7 @@ static __always_inline u64 get_current_ns_tgid()
 static __always_inline u64 get_current_ns_pid_tgid()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
-    return (u64)get_current_ns_tgid() << 32 | get_current_ns_pid();
+    return get_task_ns_pid_tgid(task);
 }
 
 /* Get a pointer to the path struct that contains @dentry.
@@ -774,6 +815,8 @@ add_process_to_container(container_t *container, u64 host_pid_tgid,
     process->host_tgid = (host_pid_tgid >> 32);
     process->pid = pid_tgid;
     process->tgid = (pid_tgid >> 32);
+
+    bpf_printk("child pid is %u", process->host_pid);
 
     // Add the process to the processes map
     bpf_map_update_elem(&processes, &process->host_pid, process, BPF_NOEXIST);
@@ -2113,19 +2156,22 @@ int fentry_commit_creds(struct cred *new)
 //}
 
 /* Propagate a process' policy_id to its children */
-SEC("tracepoint/sched/sched_process_fork")
-int sched_process_fork(struct trace_event_raw_sched_process_fork *args)
+SEC("tp_btf/sched_process_fork")
+int sched_process_fork(struct bpf_raw_tracepoint_args *args)
 {
-    u32 ppid = args->parent_pid;
+    struct task_struct *parent = (struct task_struct *)args->args[0];
+    struct task_struct *child = (struct task_struct *)args->args[1];
 
     // Get container using the parent process, if one exists.
-    container_t *container = get_container_by_host_pid(ppid);
+    container_t *container = get_container_by_host_pid(parent->pid);
     if (!container)
         return 0;
 
+    u64 pid_tgid = (u64)child->tgid << 32 | child->pid;
+
     // Add the new process to the container
-    process_t *process = add_process_to_container(
-        container, bpf_get_current_pid_tgid(), get_current_ns_pid_tgid());
+    process_t *process = add_process_to_container(container, pid_tgid,
+                                                  get_task_ns_pid_tgid(child));
     if (!process) {
         // TODO log error
     }
