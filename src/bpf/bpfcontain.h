@@ -20,11 +20,16 @@
 #include "kernel_defs.h"
 #include "maps.h"
 
+#define barrier_var(var)    asm volatile("" : "=r"(var) : "0"(var))
 #define lock_xadd(ptr, val) ((void)__sync_fetch_and_add(ptr, val))
 
+#define MAX_PATH_DEPTH 16  // 16 nested dentries should be plenty
+
 #define BPFCON_MAX_CONTAINERS 10240
-#define BPFCON_MAX_PROCESSES  10240
-#define BPFCON_MAX_POLICY     10240
+// TODO: this will likely no longer be necessary once we have task
+// local storage in 5.11
+#define BPFCON_MAX_PROCESSES 10240
+#define BPFCON_MAX_POLICY    10240
 
 #endif /* ifndef PROGS_BPF_H */
 

@@ -215,6 +215,12 @@ typedef struct {
 
 typedef struct {
     u64 policy_id;
+    u64 inode_id;
+    u32 device_id;
+} __attribute__((__packed__)) subdir_policy_key_t;
+
+typedef struct {
+    u64 policy_id;
 } __attribute__((__packed__)) cap_policy_key_t;
 
 typedef struct {

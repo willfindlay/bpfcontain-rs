@@ -898,6 +898,56 @@ fn bindgen_test_layout_dev_policy_key_t() {
 }
 #[repr(C, packed)]
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+pub struct subdir_policy_key_t {
+    pub policy_id: u64_,
+    pub inode_id: u64_,
+    pub device_id: u32_,
+}
+#[test]
+fn bindgen_test_layout_subdir_policy_key_t() {
+    assert_eq!(
+        ::std::mem::size_of::<subdir_policy_key_t>(),
+        20usize,
+        concat!("Size of: ", stringify!(subdir_policy_key_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<subdir_policy_key_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(subdir_policy_key_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<subdir_policy_key_t>())).policy_id as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(subdir_policy_key_t),
+            "::",
+            stringify!(policy_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<subdir_policy_key_t>())).inode_id as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(subdir_policy_key_t),
+            "::",
+            stringify!(inode_id)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<subdir_policy_key_t>())).device_id as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(subdir_policy_key_t),
+            "::",
+            stringify!(device_id)
+        )
+    );
+}
+#[repr(C, packed)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 pub struct cap_policy_key_t {
     pub policy_id: u64_,
 }
