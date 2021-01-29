@@ -923,7 +923,7 @@ start_container(policy_id_t policy_id, bool tainted)
 
     // In a different namespace
     if (!under_init_nsproxy()) {
-        bpf_printk("Hello docker world");  // TODO
+        // TODO do we want to do something different here?
     }
 
     if (!add_process_to_container(container, bpf_get_current_pid_tgid(),
@@ -1181,12 +1181,6 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
         return BPFCON_NO_DECISION;
 
     // TODO: Are we in _our_ overlayfs?
-
-    // struct nsproxy *__init_nsproxy = (struct nsproxy *)&init_nsproxy;
-    // bpf_printk("%u %u", BPF_CORE_READ(__init_nsproxy, mnt_ns, user_ns,
-    // ns.inum),
-    //           BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum));
-
     return decision;
 }
 
@@ -1254,8 +1248,7 @@ bpfcontain_inode_perm(container_t *container, struct inode *inode, u32 access)
     // TODO we want to use this to get the underlying inode in overlay
     // filesystems
     if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
-        // struct ovl_inode *ovl_inode = get_overlayfs_inode(inode);
-        // bpf_printk("ovl inode address %lx", ovl_inode);
+        // TODO
     }
 
     // per-file allow should override per filesystem deny
@@ -1322,12 +1315,6 @@ int BPF_PROG(file_permission, struct file *file, int mask)
 SEC("lsm/file_open")
 int BPF_PROG(file_open, struct file *file)
 {
-    // FIXME: temporary
-    // if (filter_inode_by_magic(file->f_inode, OVERLAYFS_SUPER_MAGIC)) {
-    //    bpf_printk("Hello overlayfs world");
-    //    bpf_printk("file mnt ns is %lu", get_file_mnt_ns_id(file));
-    //}
-
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     container_t *container = get_container_by_host_pid(pid);
