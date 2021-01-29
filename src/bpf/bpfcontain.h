@@ -23,8 +23,9 @@
 #define lock_xadd(ptr, val) ((void)__sync_fetch_and_add(ptr, val))
 
 #define BPFCON_MAX_CONTAINERS 10240
-#define BPFCON_MAX_PROCESSES  10240
-#define BPFCON_MAX_POLICY     10240
+// TODO: This will no longer be necessary with task_local_storage in 5.11
+#define BPFCON_MAX_PROCESSES 10240
+#define BPFCON_MAX_POLICY    10240
 
 #endif /* ifndef PROGS_BPF_H */
 
