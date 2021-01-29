@@ -234,12 +234,48 @@ pub mod file_permission_t {
     pub const BPFCON_MAY_CHDIR: Type = 4096;
 }
 pub mod capability_t {
-    pub type Type = ::std::os::raw::c_uint;
-    pub const BPFCON_CAP_NET_BIND_SERVICE: Type = 1;
-    pub const BPFCON_CAP_NET_RAW: Type = 2;
-    pub const BPFCON_CAP_NET_BROADCAST: Type = 4;
-    pub const BPFCON_CAP_DAC_OVERRIDE: Type = 8;
-    pub const BPFCON_CAP_DAC_READ_SEARCH: Type = 16;
+    pub type Type = ::std::os::raw::c_ulong;
+    pub const BPFCON_CAP_CHOWN: Type = 1;
+    pub const BPFCON_CAP_DAC_OVERRIDE: Type = 2;
+    pub const BPFCON_CAP_DAC_READ_SEARCH: Type = 4;
+    pub const BPFCON_CAP_FOWNER: Type = 8;
+    pub const BPFCON_CAP_FSETID: Type = 16;
+    pub const BPFCON_CAP_KILL: Type = 32;
+    pub const BPFCON_CAP_SETGID: Type = 64;
+    pub const BPFCON_CAP_SETUID: Type = 128;
+    pub const BPFCON_CAP_SETPCAP: Type = 256;
+    pub const BPFCON_CAP_LINUX_IMMUTABLE: Type = 512;
+    pub const BPFCON_CAP_NET_BIND_SERVICE: Type = 1024;
+    pub const BPFCON_CAP_NET_BROADCAST: Type = 2048;
+    pub const BPFCON_CAP_NET_ADMIN: Type = 4096;
+    pub const BPFCON_CAP_NET_RAW: Type = 8192;
+    pub const BPFCON_CAP_IPC_LOCK: Type = 16384;
+    pub const BPFCON_CAP_IPC_OWNER: Type = 32768;
+    pub const BPFCON_CAP_SYS_MODULE: Type = 65536;
+    pub const BPFCON_CAP_SYS_RAWIO: Type = 131072;
+    pub const BPFCON_CAP_SYS_CHROOT: Type = 262144;
+    pub const BPFCON_CAP_SYS_PTRACE: Type = 524288;
+    pub const BPFCON_CAP_SYS_PACCT: Type = 1048576;
+    pub const BPFCON_CAP_SYS_ADMIN: Type = 2097152;
+    pub const BPFCON_CAP_SYS_BOOT: Type = 4194304;
+    pub const BPFCON_CAP_SYS_NICE: Type = 8388608;
+    pub const BPFCON_CAP_SYS_RESOURCE: Type = 16777216;
+    pub const BPFCON_CAP_SYS_TIME: Type = 33554432;
+    pub const BPFCON_CAP_SYS_TTY_CONFIG: Type = 67108864;
+    pub const BPFCON_CAP_MKNOD: Type = 134217728;
+    pub const BPFCON_CAP_LEASE: Type = 268435456;
+    pub const BPFCON_CAP_AUDIT_WRITE: Type = 536870912;
+    pub const BPFCON_CAP_AUDIT_CONTROL: Type = 1073741824;
+    pub const BPFCON_CAP_SETFCAP: Type = 2147483648;
+    pub const BPFCON_CAP_MAC_OVERRIDE: Type = 4294967296;
+    pub const BPFCON_CAP_MAC_ADMIN: Type = 8589934592;
+    pub const BPFCON_CAP_SYSLOG: Type = 17179869184;
+    pub const BPFCON_CAP_WAKE_ALARM: Type = 34359738368;
+    pub const BPFCON_CAP_BLOCK_SUSPEND: Type = 68719476736;
+    pub const BPFCON_CAP_AUDIT_READ: Type = 137438953472;
+    pub const BPFCON_CAP_PERFMON: Type = 274877906944;
+    pub const BPFCON_CAP_BPF: Type = 549755813888;
+    pub const BPFCON_CAP_CHECKPOINT_RESTORE: Type = 1099511627776;
 }
 pub mod net_category_t {
     pub type Type = ::std::os::raw::c_uint;

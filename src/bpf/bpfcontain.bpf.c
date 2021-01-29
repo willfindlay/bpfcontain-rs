@@ -1859,26 +1859,134 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
  *
  * return: Converted capability.
  */
-static __always_inline u32 cap_to_access(int cap)
+static __always_inline capability_t cap_to_access(int cap)
 {
-    if (cap == CAP_NET_BIND_SERVICE) {
-        return BPFCON_CAP_NET_BIND_SERVICE;
-    }
-
-    if (cap == CAP_NET_RAW) {
-        return BPFCON_CAP_NET_RAW;
-    }
-
-    if (cap == CAP_NET_BROADCAST) {
-        return BPFCON_CAP_NET_BROADCAST;
-    }
-
-    if (cap == CAP_DAC_OVERRIDE) {
-        return BPFCON_CAP_DAC_OVERRIDE;
-    }
-
-    if (cap == CAP_DAC_READ_SEARCH) {
-        return BPFCON_CAP_DAC_READ_SEARCH;
+    switch (cap) {
+        case CAP_CHOWN:
+            return BPFCON_CAP_CHOWN;
+            break;
+        case CAP_DAC_OVERRIDE:
+            return BPFCON_CAP_DAC_OVERRIDE;
+            break;
+        case CAP_DAC_READ_SEARCH:
+            return BPFCON_CAP_DAC_READ_SEARCH;
+            break;
+        case CAP_FOWNER:
+            return BPFCON_CAP_FOWNER;
+            break;
+        case CAP_FSETID:
+            return BPFCON_CAP_FSETID;
+            break;
+        case CAP_KILL:
+            return BPFCON_CAP_KILL;
+            break;
+        case CAP_SETGID:
+            return BPFCON_CAP_SETGID;
+            break;
+        case CAP_SETUID:
+            return BPFCON_CAP_SETUID;
+            break;
+        case CAP_SETPCAP:
+            return BPFCON_CAP_SETPCAP;
+            break;
+        case CAP_LINUX_IMMUTABLE:
+            return BPFCON_CAP_LINUX_IMMUTABLE;
+            break;
+        case CAP_NET_BIND_SERVICE:
+            return BPFCON_CAP_NET_BIND_SERVICE;
+            break;
+        case CAP_NET_BROADCAST:
+            return BPFCON_CAP_NET_BROADCAST;
+            break;
+        case CAP_NET_ADMIN:
+            return BPFCON_CAP_NET_ADMIN;
+            break;
+        case CAP_NET_RAW:
+            return BPFCON_CAP_NET_RAW;
+            break;
+        case CAP_IPC_LOCK:
+            return BPFCON_CAP_IPC_LOCK;
+            break;
+        case CAP_IPC_OWNER:
+            return BPFCON_CAP_IPC_OWNER;
+            break;
+        case CAP_SYS_MODULE:
+            return BPFCON_CAP_SYS_MODULE;
+            break;
+        case CAP_SYS_RAWIO:
+            return BPFCON_CAP_SYS_RAWIO;
+            break;
+        case CAP_SYS_CHROOT:
+            return BPFCON_CAP_SYS_CHROOT;
+            break;
+        case CAP_SYS_PTRACE:
+            return BPFCON_CAP_SYS_PTRACE;
+            break;
+        case CAP_SYS_PACCT:
+            return BPFCON_CAP_SYS_PACCT;
+            break;
+        case CAP_SYS_ADMIN:
+            return BPFCON_CAP_SYS_ADMIN;
+            break;
+        case CAP_SYS_BOOT:
+            return BPFCON_CAP_SYS_BOOT;
+            break;
+        case CAP_SYS_NICE:
+            return BPFCON_CAP_SYS_NICE;
+            break;
+        case CAP_SYS_RESOURCE:
+            return BPFCON_CAP_SYS_RESOURCE;
+            break;
+        case CAP_SYS_TIME:
+            return BPFCON_CAP_SYS_TIME;
+            break;
+        case CAP_SYS_TTY_CONFIG:
+            return BPFCON_CAP_SYS_TTY_CONFIG;
+            break;
+        case CAP_MKNOD:
+            return BPFCON_CAP_MKNOD;
+            break;
+        case CAP_LEASE:
+            return BPFCON_CAP_LEASE;
+            break;
+        case CAP_AUDIT_WRITE:
+            return BPFCON_CAP_AUDIT_WRITE;
+            break;
+        case CAP_AUDIT_CONTROL:
+            return BPFCON_CAP_AUDIT_CONTROL;
+            break;
+        case CAP_SETFCAP:
+            return BPFCON_CAP_SETFCAP;
+            break;
+        case CAP_MAC_OVERRIDE:
+            return BPFCON_CAP_MAC_OVERRIDE;
+            break;
+        case CAP_MAC_ADMIN:
+            return BPFCON_CAP_MAC_ADMIN;
+            break;
+        case CAP_SYSLOG:
+            return BPFCON_CAP_SYSLOG;
+            break;
+        case CAP_WAKE_ALARM:
+            return BPFCON_CAP_WAKE_ALARM;
+            break;
+        case CAP_BLOCK_SUSPEND:
+            return BPFCON_CAP_BLOCK_SUSPEND;
+            break;
+        case CAP_AUDIT_READ:
+            return BPFCON_CAP_AUDIT_READ;
+            break;
+        case CAP_PERFMON:
+            return BPFCON_CAP_PERFMON;
+            break;
+        case CAP_BPF:
+            return BPFCON_CAP_BPF;
+            break;
+        case CAP_CHECKPOINT_RESTORE:
+            return BPFCON_CAP_CHECKPOINT_RESTORE;
+            break;
+        default:
+            break;
     }
 
     return 0;
@@ -1903,8 +2011,8 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
     // Convert cap to an "access vector"
     // (even though only one bit will be on at a time)
-    u32 access = cap_to_access(cap);
-    if (!access) {  // One of our implicit-deny capbilities
+    capability_t access = cap_to_access(cap);
+    if (!access) {  // Something has gone wrong
         decision = BPFCON_DENY;
         goto out;
     }
@@ -1930,7 +2038,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
 out:
     ret = do_policy_decision(container, decision, 1);
-    audit_cap(decision, container->policy_id, container->tainted, access);
+    audit_cap(decision, container->policy_id, 1, access);
 
     return ret;
 }

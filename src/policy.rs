@@ -543,13 +543,13 @@ impl Policy {
         let key = key.as_bytes();
 
         // Update old value with new value
-        let mut value: u32 = capability.to_bitflags().bits();
+        let mut value: u64 = capability.to_bitflags().bits();
         if let Some(old_value) = map
             .lookup(key, MapFlags::ANY)
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
-            let old_value: u32 =
-                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+            let old_value: u64 =
+                u64::from_bytes(&old_value).expect("Buffer is too short or not aligned");
             value |= old_value;
         }
         let value = value.as_bytes();

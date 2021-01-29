@@ -152,11 +152,47 @@ bitflags! {
     /// Keep this in sync with [structs.h](src/include/structs.h)
     #[derive(Default)]
     pub struct Capability :raw::capability_t::Type {
+        const CHOWN = raw::capability_t::BPFCON_CAP_CHOWN;
+        const DAC_OVERRIDE = raw::capability_t::BPFCON_CAP_DAC_OVERRIDE;
+        const DAC_READ_SEARCH = raw::capability_t::BPFCON_CAP_DAC_READ_SEARCH;
+        const FOWNER = raw::capability_t::BPFCON_CAP_FOWNER;
+        const FSETID = raw::capability_t::BPFCON_CAP_FSETID;
+        const KILL = raw::capability_t::BPFCON_CAP_KILL;
+        const SETGID = raw::capability_t::BPFCON_CAP_SETGID;
+        const SETUID = raw::capability_t::BPFCON_CAP_SETUID;
+        const SETPCAP = raw::capability_t::BPFCON_CAP_SETPCAP;
+        const LINUX_IMMUTABLE = raw::capability_t::BPFCON_CAP_LINUX_IMMUTABLE;
         const NET_BIND_SERVICE = raw::capability_t::BPFCON_CAP_NET_BIND_SERVICE;
-        const NET_RAW          = raw::capability_t::BPFCON_CAP_NET_RAW;
-        const NET_BROADCAST    = raw::capability_t::BPFCON_CAP_NET_BROADCAST;
-        const DAC_OVERRIDE     = raw::capability_t::BPFCON_CAP_DAC_OVERRIDE;
-        const DAC_READ_SEARCH  = raw::capability_t::BPFCON_CAP_DAC_READ_SEARCH;
+        const NET_BROADCAST = raw::capability_t::BPFCON_CAP_NET_BROADCAST;
+        const NET_ADMIN = raw::capability_t::BPFCON_CAP_NET_ADMIN;
+        const NET_RAW = raw::capability_t::BPFCON_CAP_NET_RAW;
+        const IPC_LOCK = raw::capability_t::BPFCON_CAP_IPC_LOCK;
+        const IPC_OWNER = raw::capability_t::BPFCON_CAP_IPC_OWNER;
+        const SYS_MODULE = raw::capability_t::BPFCON_CAP_SYS_MODULE;
+        const SYS_RAWIO = raw::capability_t::BPFCON_CAP_SYS_RAWIO;
+        const SYS_CHROOT = raw::capability_t::BPFCON_CAP_SYS_CHROOT;
+        const SYS_PTRACE = raw::capability_t::BPFCON_CAP_SYS_PTRACE;
+        const SYS_PACCT = raw::capability_t::BPFCON_CAP_SYS_PACCT;
+        const SYS_ADMIN = raw::capability_t::BPFCON_CAP_SYS_ADMIN;
+        const SYS_BOOT = raw::capability_t::BPFCON_CAP_SYS_BOOT;
+        const SYS_NICE = raw::capability_t::BPFCON_CAP_SYS_NICE;
+        const SYS_RESOURCE = raw::capability_t::BPFCON_CAP_SYS_RESOURCE;
+        const SYS_TIME = raw::capability_t::BPFCON_CAP_SYS_TIME;
+        const SYS_TTY_CONFIG = raw::capability_t::BPFCON_CAP_SYS_TTY_CONFIG;
+        const MKNOD = raw::capability_t::BPFCON_CAP_MKNOD;
+        const LEASE = raw::capability_t::BPFCON_CAP_LEASE;
+        const AUDIT_WRITE = raw::capability_t::BPFCON_CAP_AUDIT_WRITE;
+        const AUDIT_CONTROL = raw::capability_t::BPFCON_CAP_AUDIT_CONTROL;
+        const SETFCAP = raw::capability_t::BPFCON_CAP_SETFCAP;
+        const MAC_OVERRIDE = raw::capability_t::BPFCON_CAP_MAC_OVERRIDE;
+        const MAC_ADMIN = raw::capability_t::BPFCON_CAP_MAC_ADMIN;
+        const SYSLOG = raw::capability_t::BPFCON_CAP_SYSLOG;
+        const WAKE_ALARM = raw::capability_t::BPFCON_CAP_WAKE_ALARM;
+        const BLOCK_SUSPEND = raw::capability_t::BPFCON_CAP_BLOCK_SUSPEND;
+        const AUDIT_READ = raw::capability_t::BPFCON_CAP_AUDIT_READ;
+        const PERFMON = raw::capability_t::BPFCON_CAP_PERFMON;
+        const BPF = raw::capability_t::BPFCON_CAP_BPF;
+        const CHECKPOINT_RESTORE = raw::capability_t::BPFCON_CAP_CHECKPOINT_RESTORE;
     }
 }
 
