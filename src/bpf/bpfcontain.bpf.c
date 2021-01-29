@@ -42,6 +42,9 @@ const volatile u32 bpfcontain_pid;
 const volatile u32 host_mnt_ns_id;
 const volatile u32 host_pid_ns_id;
 
+extern const void init_nsproxy __ksym;
+extern const void init_user_ns __ksym;
+
 /* ========================================================================= *
  * Allocator Maps                                                            *
  * ========================================================================= */
@@ -692,6 +695,22 @@ static __always_inline u64 get_current_ns_pid_tgid()
     return get_task_ns_pid_tgid(task);
 }
 
+/* Returns true if the current process is under the host nsproxy. That is, if it
+ * has no special namespace associations.
+ *
+ * This can serve as a proxy for whether or not we are in a "container" as
+ * defined by systems like docker, k8s, etc.
+ *
+ * Return:
+ *    True if we are under init_nsproxy
+ *    False otherwise
+ */
+static __always_inline bool under_init_nsproxy()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    return (long)&init_nsproxy == (long)BPF_CORE_READ(task, nsproxy);
+}
+
 /* Get a pointer to the path struct that contains @dentry.
  *
  * @dentry: Pointer to the dentry struct.
@@ -816,8 +835,6 @@ add_process_to_container(container_t *container, u64 host_pid_tgid,
     process->pid = pid_tgid;
     process->tgid = (pid_tgid >> 32);
 
-    bpf_printk("child pid is %u", process->host_pid);
-
     // Add the process to the processes map
     bpf_map_update_elem(&processes, &process->host_pid, process, BPF_NOEXIST);
 
@@ -869,10 +886,18 @@ remove_process_from_container(container_t *container, u32 host_pid)
 static __always_inline container_t *
 start_container(policy_id_t policy_id, bool tainted)
 {
+    // Should not be able to start a container without a valid policy ID
+    if (!bpf_map_lookup_elem(&policies, &policy_id)) {
+        // TODO: Log that an error occurred
+        return NULL;
+    }
+
     // Allocate a new container
     container_t *container = new_container_t();
-    if (!container)
+    if (!container) {
+        // TODO: Log that an error occurred
         return NULL;
+    }
 
     u32 pid = bpf_get_current_pid_tgid();
 
@@ -887,7 +912,8 @@ start_container(policy_id_t policy_id, bool tainted)
     // The id of the bpfcontain policy that should be associated with the
     // container
     container->policy_id = policy_id;
-    // The container's refcount. Starts at 1 to accomodate the initial process
+    // The container's refcount (number of associated processes)
+    // This value is _only_ modified atomically
     container->refcount = 0;
     // Is the container tainted?
     container->tainted = tainted;
@@ -895,13 +921,14 @@ start_container(policy_id_t policy_id, bool tainted)
     // this usually corresponds with their notion of a container id.
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
 
-    // In a different PID ns:
-    if (get_current_ns_pid() == 1) {
-        // TODO
+    // In a different namespace
+    if (!under_init_nsproxy()) {
+        bpf_printk("Hello docker world");  // TODO
     }
 
     if (!add_process_to_container(container, bpf_get_current_pid_tgid(),
                                   get_current_ns_pid_tgid())) {
+        // TODO: Log that an error occurred
         return NULL;
     }
 
@@ -1149,8 +1176,16 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
     if (!filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC))
         return BPFCON_NO_DECISION;
 
-    // Is this _our_ overlayfs?
-    // TODO
+    // Are we in a lower namespace?
+    if (under_init_nsproxy())
+        return BPFCON_NO_DECISION;
+
+    // TODO: Are we in _our_ overlayfs?
+
+    // struct nsproxy *__init_nsproxy = (struct nsproxy *)&init_nsproxy;
+    // bpf_printk("%u %u", BPF_CORE_READ(__init_nsproxy, mnt_ns, user_ns,
+    // ns.inum),
+    //           BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum));
 
     return decision;
 }
@@ -1288,10 +1323,10 @@ SEC("lsm/file_open")
 int BPF_PROG(file_open, struct file *file)
 {
     // FIXME: temporary
-    if (filter_inode_by_magic(file->f_inode, OVERLAYFS_SUPER_MAGIC)) {
-        bpf_printk("Hello overlayfs world");
-        bpf_printk("file mnt ns is %lu", get_file_mnt_ns_id(file));
-    }
+    // if (filter_inode_by_magic(file->f_inode, OVERLAYFS_SUPER_MAGIC)) {
+    //    bpf_printk("Hello overlayfs world");
+    //    bpf_printk("file mnt ns is %lu", get_file_mnt_ns_id(file));
+    //}
 
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -1330,7 +1365,7 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 
     // FIXME: temporary
     if (get_current_ns_pid() == 1) {
-        start_container(42, 0);
+        start_container(3069983010007500772UL, 0);
     }
 
     // Look up the container using the current PID
@@ -2203,7 +2238,7 @@ int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
 
 /* Disallow ptrace */
 // SEC("lsm/ptrace_traceme")
-// int BPF_PROG(ptrace_traceme, int unused)
+// int BPF_PROG(ptrace_traceme, struct task_struct *parent)
 //{
 //  // Look up the container using the current PID
 //  u32 pid = bpf_get_current_pid_tgid();
@@ -2216,14 +2251,9 @@ int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
 //    return -EACCES;
 //}
 
-/* ========================================================================= *
- * Kernel Hardening                                                          *
- * ========================================================================= */
-
-/* It is punishable by death to escalate privileges without going through an
- * execve. */
-SEC("fentry/commit_creds")
-int fentry_commit_creds(struct cred *new)
+SEC("lsm/sb_mount")
+int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
+             const char *type, unsigned long flags, void *data)
 {
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -2233,60 +2263,83 @@ int fentry_commit_creds(struct cred *new)
     if (!container)
         return 0;
 
-    // TODO: make this work without checking for in_execve, since we want to
-    // remove that field from process_t
-    // Check to see if the process is in the middle of an execve
-    // if (process->in_execve)
-    //    return 0;
+    return -EACCES;
+}
 
-    // FIXME: find some better logic to gate this, right now it is killing all
-    // SUID binaries
-    // bpf_send_signal(SIGKILL);
+/* It is punishable by death to attempt to switch namespaces while in
+ * a container. */
+SEC("fentry/switch_task_namespaces")
+int fentry_switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    bpf_send_signal(SIGKILL);
 
     return 0;
 }
 
+/* It is punishable by death to escalate privileges without going through an
+ * execve. */
+// FIXME: This seems like a totally flawed approach
+// SEC("fentry/commit_creds")
+// int fentry_commit_creds(struct cred *new)
+//{
+//    // Look up the container using the current PID
+//    u32 pid = bpf_get_current_pid_tgid();
+//    container_t *container = get_container_by_host_pid(pid);
+//
+//    // Unconfined
+//    if (!container)
+//        return 0;
+//
+//    // In a lower namespace
+//    long cred_user_ns_addr = (long)BPF_CORE_READ(new, user_ns);
+//    bpf_printk("%lx", cred_user_ns_addr);
+//    if (cred_user_ns_addr && cred_user_ns_addr != (long)&init_user_ns)
+//        return 0;
+//
+//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+//
+//    u32 old_uid = BPF_CORE_READ(task, real_cred, uid.val);
+//    u32 old_gid = BPF_CORE_READ(task, real_cred, gid.val);
+//    u32 old_euid = BPF_CORE_READ(task, real_cred, euid.val);
+//    u32 old_egid = BPF_CORE_READ(task, real_cred, egid.val);
+//
+//    u32 new_uid = BPF_CORE_READ(new, uid.val);
+//    u32 new_gid = BPF_CORE_READ(new, gid.val);
+//    u32 new_euid = BPF_CORE_READ(new, euid.val);
+//    u32 new_egid = BPF_CORE_READ(new, egid.val);
+//
+//    bpf_printk("old_uid = %u new_uid = %u", old_uid, new_uid);
+//    bpf_printk("old_gid = %u new_gid = %u", old_gid, new_gid);
+//    bpf_printk("old_euid = %u new_euid = %u", old_euid, new_euid);
+//    bpf_printk("old_egid = %u new_egid = %u", old_egid, new_egid);
+//    bpf_printk("");
+//
+//    if (old_uid != 0 && new_uid == 0)
+//        bpf_send_signal(SIGKILL);
+//
+//    if (old_gid != 0 && new_gid == 0)
+//        bpf_send_signal(SIGKILL);
+//
+//    if (old_euid != 0 && new_euid == 0)
+//        bpf_send_signal(SIGKILL);
+//
+//    if (old_egid != 0 && new_egid == 0)
+//        bpf_send_signal(SIGKILL);
+//
+//    return 0;
+//}
+
 /* ========================================================================= *
  * Bookkeeping                                                               *
  * ========================================================================= */
-
-/* Turn on in_execve bit when we are committing credentials */
-// SEC("lsm/bprm_committing_creds")
-// int BPF_PROG(bprm_committing_creds, struct linux_binprm *bprm)
-//{
-//    int ret = 0;
-//
-//    // Look up the process using the current PID
-//    u32 pid = bpf_get_current_pid_tgid();
-//    process_t *process = bpf_map_lookup_elem(&processes, &pid);
-//
-//    // Unconfined
-//    if (!process)
-//        return 0;
-//
-//    process->in_execve = 1;
-//
-//    return 0;
-//}
-
-/* Turn off in_execve bit when we are done committing credentials */
-// SEC("lsm/bprm_committed_creds")
-// int BPF_PROG(bprm_committed_creds, struct linux_binprm *bprm)
-//{
-//    int ret = 0;
-//
-//    // Look up the process using the current PID
-//    u32 pid = bpf_get_current_pid_tgid();
-//    process_t *process = bpf_map_lookup_elem(&processes, &pid);
-//
-//    // Unconfined
-//    if (!process)
-//        return 0;
-//
-//    process->in_execve = 0;
-//
-//    return 0;
-//}
 
 /* Propagate a process' policy_id to its children */
 SEC("tp_btf/sched_process_fork")
@@ -2327,98 +2380,6 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
 
     return 0;
 }
-
-/* ========================================================================= *
- * Filesystem Mounts                                                         *
- * ========================================================================= */
-
-/* TODO: Updating the mnt_ns_active_fs map makes sense here, but we need to
- * figure out how we are going to delete afterwards. Otherwise, incorrect data
- * will carry between containers as namespace ids / device ids are re-used by
- * the kernel. */
-// SEC("lsm/sb_set_mnt_opts")
-// int BPF_PROG(sb_set_mnt_opts, struct super_block *sb, void *mnt_opts,
-//             unsigned long kern_flags, unsigned long *set_kern_flags)
-//{
-//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-//    // struct file_system_type *type = sb->s_type;
-//
-//    struct mnt_ns_fs key = {};
-//
-//    key.device_id = new_encode_dev(sb->s_dev);
-//    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-//
-//    if (!key.mnt_ns) {
-//        return 0;
-//    }
-//
-//    bpf_printk("alloc mount ns");
-//    bpf_printk("dev_id = %lu", key.device_id);
-//    bpf_printk("mnt_ns = %u", key.mnt_ns);
-//    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
-//
-//    u8 val = 1;
-//    bpf_map_update_elem(&mnt_ns_active_fs, &key, &val, 0);
-//
-//    return 0;
-//}
-//
-// SEC("lsm/sb_free_security")
-// int BPF_PROG(sb_free_security, struct super_block *sb)
-//{
-//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-//
-//    struct mnt_ns_fs key = {};
-//
-//    key.device_id = new_encode_dev(sb->s_dev);
-//    key.mnt_ns = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-//
-//    bpf_printk("free mount ns");
-//    bpf_printk("dev_id = %lu", key.device_id);
-//    bpf_printk("mnt_ns = %u", key.mnt_ns);
-//    bpf_printk("   pid = %u\n", (u32)bpf_get_current_pid_tgid());
-//
-//    if (!key.mnt_ns) {
-//        return 0;
-//    }
-//
-//    u8 val = 1;
-//    bpf_map_delete_elem(&mnt_ns_active_fs, &key);
-//
-//    return 0;
-//}
-
-// SEC("lsm/sb_mount")
-// int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
-//             const char *type, unsigned long flags, void *data)
-//{
-//    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-//
-//    if (flags & MS_REMOUNT) {
-//        // TODO handle remount
-//    } else if (flags & MS_BIND) {
-//        // TODO handle bind
-//    } else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE)) {
-//        // TODO handle change type
-//    } else if (flags & MS_MOVE) {
-//        // TODO handle mount move
-//    } else {
-//        u32 inum = BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
-//        u32 pid = BPF_CORE_READ(task, pid);
-//        char comm[16];
-//        bpf_get_current_comm(comm, sizeof(comm));
-//        u64 cgroup_id = bpf_get_current_cgroup_id();
-//        bpf_printk("  cgroup = %lu", cgroup_id);
-//        bpf_printk("  mnt_ns = %u", inum);
-//        bpf_printk("     pid = %u", pid);
-//        bpf_printk("    comm = %s", comm);
-//        bpf_printk("dev_name = %s", dev_name);
-//        bpf_printk("    type = %s\n", type);
-//        // TODO handle new mount
-//    }
-//
-//    return 0;
-//}
 
 /* ========================================================================= *
  * Uprobe Commands                                                           *
