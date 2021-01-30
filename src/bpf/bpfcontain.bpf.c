@@ -1351,9 +1351,9 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
     int ret = 0;
 
     // FIXME: temporary
-    if (get_current_ns_pid() == 1) {
-        start_container(3069983010007500772UL, 0);
-    }
+    // if (get_current_ns_pid() == 1) {
+    //    start_container(3069983010007500772UL, 0);
+    //}
 
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
