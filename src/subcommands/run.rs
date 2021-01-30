@@ -7,8 +7,8 @@
 
 use anyhow::{Context, Result};
 use clap::ArgMatches;
-use std::ffi::CString;
 use std::path::Path;
+use std::process::Command;
 
 use crate::bindings::containerize;
 use crate::config::Settings;
@@ -38,14 +38,10 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Parse out args
     let args: Vec<_> = policy.cmd.split_whitespace().skip(1).collect();
 
-    nix::unistd::execv(
-        &CString::new(command).expect("Failed to create C string"),
-        &args
-            .iter()
-            .map(|&s| CString::new(s).expect("Failed to create C string"))
-            .collect::<Vec<_>>()[..],
-    )
-    .context("Failed to execve")?;
+    Command::new(command)
+        .args(args)
+        .status()
+        .context("Failed to run command")?;
 
     Ok(())
 }
