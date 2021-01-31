@@ -195,11 +195,6 @@ typedef u64 policy_id_t;
 typedef u64 container_id_t;
 
 typedef struct {
-    u8 default_deny;
-    u8 default_taint;
-} policy_t;
-
-typedef struct {
     container_id_t container_id;
     u32 host_pid;
     u32 host_tgid;
@@ -222,7 +217,8 @@ typedef struct {
     // this should only be incremented and decremented atomically
     u32 refcount;
     // Is the container in a tainted state?
-    u8 tainted;
+    u8 tainted : 1;
+    u8 default_deny : 1;
     // often corresponds with container id on the docker side
     char uts_name[16];
 } container_t;

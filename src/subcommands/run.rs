@@ -5,10 +5,12 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{Context, Result};
-use clap::ArgMatches;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
+
+use anyhow::{bail, Context, Result};
+use clap::ArgMatches;
 
 use crate::bindings::containerize;
 use crate::config::Settings;
@@ -27,7 +29,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let policy = Policy::from_path(policy_path).context("Failed to parse policy")?;
 
     // Containerize
-    containerize(policy.policy_id()).context("Failed to containerize")?;
+    containerize(&policy).context("Failed to containerize")?;
 
     // Parse out command
     let command = policy
@@ -38,10 +40,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Parse out args
     let args: Vec<_> = policy.cmd.split_whitespace().skip(1).collect();
 
-    Command::new(command)
-        .args(args)
-        .status()
-        .context("Failed to run command")?;
+    let err = Command::new(command).args(args).exec();
 
-    Ok(())
+    bail!("Failed to run {}: {:?}", command, err);
 }
