@@ -1296,8 +1296,8 @@ int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
     return 0;
 }
 
-SEC("lsm/file_permission")
-int BPF_PROG(file_permission, struct file *file, int mask)
+SEC("lsm/inode_permission")
+int BPF_PROG(inode_permission, struct inode *inode, int mask)
 {
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -1308,24 +1308,7 @@ int BPF_PROG(file_permission, struct file *file, int mask)
         return 0;
 
     // Make an access control decision
-    return bpfcontain_inode_perm(container, file->f_inode,
-                                 mask_to_access(file->f_inode, mask));
-}
-
-SEC("lsm/file_open")
-int BPF_PROG(file_open, struct file *file)
-{
-    // Look up the container using the current PID
-    u32 pid = bpf_get_current_pid_tgid();
-    container_t *container = get_container_by_host_pid(pid);
-
-    // Unconfined
-    if (!container)
-        return 0;
-
-    // Make an access control decision
-    return bpfcontain_inode_perm(container, file->f_inode,
-                                 file_to_access(file));
+    return bpfcontain_inode_perm(container, inode, mask_to_access(inode, mask));
 }
 
 SEC("lsm/file_receive")
