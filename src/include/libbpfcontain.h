@@ -7,4 +7,4 @@
 
 #include "../include/structs.h"
 
-int containerize(unsigned long policy_id);
+int containerize(u64 policy_id, u8 default_taint, u8 default_deny);

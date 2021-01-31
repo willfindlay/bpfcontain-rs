@@ -12,10 +12,6 @@ use pod::Pod;
 
 use super::raw;
 
-/// Represents a policy on the BPF side.
-pub type Policy = raw::policy_t;
-unsafe impl Pod for Policy {}
-
 /// Represents a per-filesystem policy key on the BPF side.
 pub type FsPolicyKey = raw::fs_policy_key_t;
 unsafe impl Pod for FsPolicyKey {}

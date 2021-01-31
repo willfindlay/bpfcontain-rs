@@ -86,9 +86,6 @@ BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0);
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, container_id_t, 0);
 
-/* Active policy */
-BPF_HASH(policies, u64, policy_t, BPFCON_MAX_CONTAINERS, 0);
-
 /* Filesystem policy */
 BPF_HASH(fs_allow, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
 BPF_HASH(fs_deny, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
@@ -278,23 +275,6 @@ audit_ipc(policy_decision_t decision, u64 policy_id, bool tainted,
 /* ========================================================================= *
  * Helpers                                                                   *
  * ========================================================================= */
-
-/* Get the policy with ID @policy_id.
- *
- * TODO: call this instead wherever we get the current policy
- *
- * @policy_id: Container ID to lookup.
- *
- * return: Pointer to the policy.
- */
-static __always_inline policy_t *get_policy(u64 policy_id)
-{
-    policy_t *policy = bpf_map_lookup_elem(&policies, &policy_id);
-    // if (!policy)
-    //    log_event(ET_NO_SUCH_CONTAINER, EA_ERROR, policy_id);
-
-    return policy;
-}
 
 /* mediated_fs - Returns true if we are mediating the filesystem (i.e. it is
  * _not_ an unnamed device).
@@ -493,14 +473,8 @@ do_policy_decision(container_t *container, policy_decision_t decision,
         return 0;
     }
 
-    policy_t *policy = bpf_map_lookup_elem(&policies, &container->policy_id);
-    // Something went wrong, assume default deny
-    if (!policy) {
-        return -EACCES;
-    }
-
     // If tainted and default-deny with no policy decision, deny
-    if (tainted && policy->default_deny) {
+    if (tainted && container->default_deny) {
         return -EACCES;
     }
 
@@ -884,14 +858,8 @@ remove_process_from_container(container_t *container, u32 host_pid)
  *    Otherwise, NULL
  */
 static __always_inline container_t *
-start_container(policy_id_t policy_id, bool tainted)
+start_container(policy_id_t policy_id, bool default_taint, bool default_deny)
 {
-    // Should not be able to start a container without a valid policy ID
-    if (!bpf_map_lookup_elem(&policies, &policy_id)) {
-        // TODO: Log that an error occurred
-        return NULL;
-    }
-
     // Allocate a new container
     container_t *container = new_container_t();
     if (!container) {
@@ -916,7 +884,9 @@ start_container(policy_id_t policy_id, bool tainted)
     // This value is _only_ modified atomically
     container->refcount = 0;
     // Is the container tainted?
-    container->tainted = tainted;
+    container->tainted = default_taint;
+    // Is the container default deny?
+    container->default_deny = default_deny;
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id.
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
@@ -2362,23 +2332,16 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
  *
  * return: Converted access mask.
  */
+// FIXME: need to add default_taint to libbpfcontain containerize
 SEC("uprobe/do_containerize")
-int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
+int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id, u8 default_taint,
+               u8 default_deny)
 {
     int ret = 0;
 
-    // Look up the `policy` using `policy_id`
-    policy_t *policy = bpf_map_lookup_elem(&policies, &policy_id);
-
-    // If the policy doesn't exist, report an error and bail
-    if (!policy) {
-        ret = -ENOENT;
-        goto out;
-    }
-
     // Try to add a process to `processes` with `pid`/`tgid`, associated with
     // `policy_id`
-    if (!start_container(policy_id, policy->default_taint)) {
+    if (!start_container(policy_id, default_taint, default_deny)) {
         ret = -EINVAL;
         goto out;
     }

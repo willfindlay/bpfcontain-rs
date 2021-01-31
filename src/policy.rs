@@ -321,10 +321,6 @@ pub struct Policy {
 }
 
 impl Policy {
-    pub fn policy_id(&self) -> u64 {
-        Self::policy_id_for_name(&self.name)
-    }
-
     /// Construct a new policy by parsing the YAML policy file located at `path`.
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         use std::fs::File;
@@ -339,6 +335,10 @@ impl Policy {
         serde_yaml::from_str(string).context("Failed to parse policy string")
     }
 
+    pub fn policy_id(&self) -> u64 {
+        Self::policy_id_for_name(&self.name)
+    }
+
     fn policy_id_for_name(name: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -349,11 +349,15 @@ impl Policy {
         hasher.finish()
     }
 
-    pub fn load(&self, skel: &mut Skel) -> Result<()> {
-        // Load the `policy_id` into the `policy` eBPF map
-        self.load_policy_id(skel)
-            .context(format!("Failed to load policy ID "))?;
+    pub fn default_taint(&self) -> bool {
+        self.taints.len() == 0
+    }
 
+    pub fn default_deny(&self) -> bool {
+        self.default == DefaultDecision::Deny
+    }
+
+    pub fn load(&self, skel: &mut Skel) -> Result<()> {
         // Load rights
         for rule in self.rights.iter() {
             // TODO: Handle errors gracefully
@@ -677,38 +681,6 @@ impl Policy {
                 key, value
             ))?;
         }
-
-        Ok(())
-    }
-
-    /// Computes and loads the correct `policy_id` into the `policy` eBPF
-    /// map.
-    fn load_policy_id(&self, skel: &mut Skel) -> Result<()> {
-        let key = self.policy_id();
-        let mut value = policy::Policy::default();
-
-        // No taint rules implies that we should be tainted by default
-        if self.taints.is_empty() {
-            value.default_taint = 1;
-        } else {
-            value.default_taint = 0;
-        }
-
-        match self.default {
-            DefaultDecision::Allow => value.default_deny = 0,
-            DefaultDecision::Deny => value.default_deny = 1,
-        };
-
-        let key = key.as_bytes();
-        let value = value.as_bytes();
-
-        skel.maps()
-            .policies()
-            .update(key, value, MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
 
         Ok(())
     }
