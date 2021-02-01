@@ -1141,6 +1141,204 @@ fn bindgen_test_layout_inode_key_t() {
         )
     );
 }
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct file_policy_val_t {
+    pub allow: file_permission_t::Type,
+    pub taint: file_permission_t::Type,
+    pub deny: file_permission_t::Type,
+}
+#[test]
+fn bindgen_test_layout_file_policy_val_t() {
+    assert_eq!(
+        ::std::mem::size_of::<file_policy_val_t>(),
+        12usize,
+        concat!("Size of: ", stringify!(file_policy_val_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<file_policy_val_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(file_policy_val_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<file_policy_val_t>())).allow as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(file_policy_val_t),
+            "::",
+            stringify!(allow)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<file_policy_val_t>())).taint as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(file_policy_val_t),
+            "::",
+            stringify!(taint)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<file_policy_val_t>())).deny as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(file_policy_val_t),
+            "::",
+            stringify!(deny)
+        )
+    );
+}
+impl Default for file_policy_val_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct cap_policy_val_t {
+    pub allow: capability_t::Type,
+    pub taint: capability_t::Type,
+    pub deny: capability_t::Type,
+}
+#[test]
+fn bindgen_test_layout_cap_policy_val_t() {
+    assert_eq!(
+        ::std::mem::size_of::<cap_policy_val_t>(),
+        24usize,
+        concat!("Size of: ", stringify!(cap_policy_val_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<cap_policy_val_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(cap_policy_val_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cap_policy_val_t>())).allow as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cap_policy_val_t),
+            "::",
+            stringify!(allow)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cap_policy_val_t>())).taint as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cap_policy_val_t),
+            "::",
+            stringify!(taint)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cap_policy_val_t>())).deny as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cap_policy_val_t),
+            "::",
+            stringify!(deny)
+        )
+    );
+}
+impl Default for cap_policy_val_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct net_policy_val_t {
+    pub allow: net_operation_t::Type,
+    pub taint: net_operation_t::Type,
+    pub deny: net_operation_t::Type,
+}
+#[test]
+fn bindgen_test_layout_net_policy_val_t() {
+    assert_eq!(
+        ::std::mem::size_of::<net_policy_val_t>(),
+        12usize,
+        concat!("Size of: ", stringify!(net_policy_val_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<net_policy_val_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(net_policy_val_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<net_policy_val_t>())).allow as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(net_policy_val_t),
+            "::",
+            stringify!(allow)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<net_policy_val_t>())).taint as *const _ as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(net_policy_val_t),
+            "::",
+            stringify!(taint)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<net_policy_val_t>())).deny as *const _ as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(net_policy_val_t),
+            "::",
+            stringify!(deny)
+        )
+    );
+}
+impl Default for net_policy_val_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
+#[repr(C, packed)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ipc_policy_val_t {
+    pub decision: policy_decision_t::Type,
+}
+#[test]
+fn bindgen_test_layout_ipc_policy_val_t() {
+    assert_eq!(
+        ::std::mem::size_of::<ipc_policy_val_t>(),
+        4usize,
+        concat!("Size of: ", stringify!(ipc_policy_val_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ipc_policy_val_t>(),
+        1usize,
+        concat!("Alignment of ", stringify!(ipc_policy_val_t))
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<ipc_policy_val_t>())).decision as *const _ as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ipc_policy_val_t),
+            "::",
+            stringify!(decision)
+        )
+    );
+}
+impl Default for ipc_policy_val_t {
+    fn default() -> Self {
+        unsafe { ::std::mem::zeroed() }
+    }
+}
 extern "C" {
     pub fn containerize(
         policy_id: u64_,

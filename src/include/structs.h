@@ -224,7 +224,7 @@ typedef struct {
 } container_t;
 
 /* ========================================================================= *
- * Keys for BPF Maps                                                         *
+ * Keys for Policy Maps                                                      *
  * ========================================================================= */
 
 typedef struct {
@@ -262,5 +262,31 @@ typedef struct {
     u64 inode_id;
     u32 device_id;
 } __attribute__((__packed__)) inode_key_t;
+
+/* ========================================================================= *
+ * Values for Policy Maps                                                    *
+ * ========================================================================= */
+
+typedef struct {
+    file_permission_t allow;
+    file_permission_t taint;
+    file_permission_t deny;
+} __attribute__((__packed__)) file_policy_val_t;
+
+typedef struct {
+    capability_t allow;
+    capability_t taint;
+    capability_t deny;
+} __attribute__((__packed__)) cap_policy_val_t;
+
+typedef struct {
+    net_operation_t allow;
+    net_operation_t taint;
+    net_operation_t deny;
+} __attribute__((__packed__)) net_policy_val_t;
+
+typedef struct {
+    policy_decision_t decision;
+} __attribute__((__packed__)) ipc_policy_val_t;
 
 #endif /* STRUCTS_H */
