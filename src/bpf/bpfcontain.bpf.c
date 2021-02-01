@@ -316,8 +316,7 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
         access |= BPFCON_MAY_WRITE;
     }
 
-    // FIXME: not working
-    if (access & MAY_CHDIR) {
+    if (S_ISDIR(BPF_CORE_READ(inode, i_mode)) && (mask & MAY_CHDIR)) {
         access |= BPFCON_MAY_CHDIR;
     }
 
