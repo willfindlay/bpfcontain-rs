@@ -42,6 +42,22 @@ unsafe impl Pod for NetPolicyKey {}
 pub type IPCPolicyKey = raw::ipc_policy_key_t;
 unsafe impl Pod for IPCPolicyKey {}
 
+/// Represents a file policy value on the BPF side.
+pub type FilePolicyVal = raw::file_policy_val_t;
+unsafe impl Pod for FilePolicyVal {}
+
+/// Represents a file policy value on the BPF side.
+pub type CapPolicyVal = raw::cap_policy_val_t;
+unsafe impl Pod for CapPolicyVal {}
+
+/// Represents a network policy value on the BPF side.
+pub type NetPolicyVal = raw::net_policy_val_t;
+unsafe impl Pod for NetPolicyVal {}
+
+/// Represents a file policy value on the BPF side.
+pub type IpcPolicyVal = raw::ipc_policy_val_t;
+unsafe impl Pod for IpcPolicyVal {}
+
 // bitflags below this line ----------------------------------------------------
 // warning: these must be kept in sync with the BPF side
 

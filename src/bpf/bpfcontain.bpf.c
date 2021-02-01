@@ -87,34 +87,23 @@ BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0);
 BPF_INODE_STORAGE(task_inodes, container_id_t, 0);
 
 /* Filesystem policy */
-BPF_HASH(fs_allow, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(fs_deny, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(fs_taint, fs_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0);
 
 /* File policy */
-BPF_HASH(file_allow, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(file_deny, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(file_taint, file_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(file_policy, file_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
+         0);
 
 /* Device policy */
-BPF_HASH(dev_allow, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(dev_deny, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(dev_taint, dev_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(dev_policy, dev_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0);
 
 /* Capability policy */
-BPF_HASH(cap_allow, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(cap_deny, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(cap_taint, cap_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(cap_policy, cap_policy_key_t, cap_policy_val_t, BPFCON_MAX_POLICY, 0);
 
 /* Network policy */
-BPF_HASH(net_allow, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(net_deny, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
-BPF_HASH(net_taint, net_policy_key_t, u32, BPFCON_MAX_POLICY, 0);
+BPF_HASH(net_policy, net_policy_key_t, net_policy_val_t, BPFCON_MAX_POLICY, 0);
 
 /* IPC policy */
-BPF_HASH(ipc_allow, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
-BPF_HASH(ipc_deny, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
-BPF_HASH(ipc_taint, ipc_policy_key_t, u64, BPFCON_MAX_POLICY, 0);
+BPF_HASH(ipc_policy, ipc_policy_key_t, ipc_policy_val_t, BPFCON_MAX_POLICY, 0);
 
 /* ========================================================================= *
  * Audit Helpers                                                             *
@@ -380,35 +369,33 @@ check_ipc_access(container_t *container, container_t *other_container)
     key.policy_id = other_container->policy_id;
     key.other_policy_id = container->policy_id;
 
-    // Allowed access must be mututal
-    u32 *allowed = bpf_map_lookup_elem(&ipc_allow, &key);
-    u32 *other_allowed = bpf_map_lookup_elem(&ipc_allow, &other_key);
-    if (allowed && other_allowed) {
-        decision |= BPFCON_ALLOW;
-    }
+    ipc_policy_val_t *val = bpf_map_lookup_elem(&ipc_policy, &key);
+    ipc_policy_val_t *other_val = bpf_map_lookup_elem(&ipc_policy, &other_key);
 
-    // The following if-statements need to be mixed like this in order to
-    // prevent an unfortunate LLVM optimization that triggers the verifier
-    // TODO: Find a more future-proof solution
+    if (val && other_val) {
+        if ((val->decision & BPFCON_ALLOW) &&
+            (other_val->decision & BPFCON_ALLOW))
+            decision |= BPFCON_ALLOW;
 
-    // Any denied access results in a denial
-    if (bpf_map_lookup_elem(&ipc_deny, &key)) {
-        decision |= BPFCON_DENY;
-    }
+        if ((val->decision & BPFCON_DENY) ||
+            (other_val->decision & BPFCON_DENY))
+            decision |= BPFCON_DENY;
 
-    // Any tainted access results in a taint
-    if (bpf_map_lookup_elem(&ipc_taint, &key)) {
-        decision |= BPFCON_TAINT;
-    }
+        if ((val->decision & BPFCON_TAINT) ||
+            (other_val->decision & BPFCON_TAINT))
+            decision |= BPFCON_TAINT;
+    } else if (val) {
+        if (val->decision & BPFCON_DENY)
+            decision |= BPFCON_DENY;
 
-    // Any denied access results in a denial
-    if (bpf_map_lookup_elem(&ipc_deny, &other_key)) {
-        decision |= BPFCON_DENY;
-    }
+        if (val->decision & BPFCON_TAINT)
+            decision |= BPFCON_TAINT;
+    } else if (other_val) {
+        if (other_val->decision & BPFCON_DENY)
+            decision |= BPFCON_DENY;
 
-    // Any tainted access results in a taint
-    if (bpf_map_lookup_elem(&ipc_taint, &other_key)) {
-        decision |= BPFCON_TAINT;
+        if (other_val->decision & BPFCON_TAINT)
+            decision |= BPFCON_TAINT;
     }
 
     return decision;
@@ -949,23 +936,16 @@ do_fs_permission(container_t *container, struct inode *inode, u32 access)
     key.policy_id = container->policy_id;
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
 
-    // If we are allowing the _entire_ access, allow
-    u32 *allowed = bpf_map_lookup_elem(&fs_allow, &key);
-    if (allowed && ((*allowed & access) == access)) {
+    file_policy_val_t *val = bpf_map_lookup_elem(&fs_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    // If we are denying _any part_ of the access, deny
-    u32 *denied = bpf_map_lookup_elem(&fs_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    // If we are tainting _any part_ of the access, taint
-    u32 *tainted = bpf_map_lookup_elem(&fs_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
     return decision;
 }
@@ -990,23 +970,16 @@ do_file_permission(container_t *container, struct inode *inode, u32 access)
     key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
     key.inode_id = BPF_CORE_READ(inode, i_ino);
 
-    // If we are allowing the _entire_ access, allow
-    u32 *allowed = bpf_map_lookup_elem(&file_allow, &key);
-    if (allowed && ((*allowed & access) == access)) {
+    file_policy_val_t *val = bpf_map_lookup_elem(&file_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    // If we are denying _any part_ of the access, deny
-    u32 *denied = bpf_map_lookup_elem(&file_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    // If we are tainting _any part_ of the access, taint
-    u32 *tainted = bpf_map_lookup_elem(&file_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
     return decision;
 }
@@ -1040,46 +1013,32 @@ do_dev_permission(container_t *container, struct inode *inode, u32 access)
      */
     key.minor = MINOR_WILDCARD;
 
-    // If we are allowing the _entire_ access, allow
-    u32 *allowed = bpf_map_lookup_elem(&dev_allow, &key);
-    if (allowed && ((*allowed & access) == access)) {
+    file_policy_val_t *val = bpf_map_lookup_elem(&dev_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    // If we are denying _any part_ of the access, deny
-    u32 *denied = bpf_map_lookup_elem(&dev_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    // If we are tainting _any part_ of the access, taint
-    u32 *tainted = bpf_map_lookup_elem(&dev_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
     /*
      * Try with minor = i_rdev's minor second
      */
     key.minor = MINOR(BPF_CORE_READ(inode, i_rdev));
 
-    // If we are allowing the _entire_ access, allow
-    allowed = bpf_map_lookup_elem(&dev_allow, &key);
-    if (allowed && ((*allowed & access) == access)) {
+    val = bpf_map_lookup_elem(&dev_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    // If we are denying _any part_ of the access, deny
-    denied = bpf_map_lookup_elem(&dev_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    // If we are tainting _any part_ of the access, taint
-    tainted = bpf_map_lookup_elem(&dev_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
     return decision;
 }
@@ -1595,23 +1554,16 @@ bpfcontain_net_www_perm(container_t *container, u32 access)
 
     key.policy_id = container->policy_id;
 
-    // If we are allowing the _entire_ access, allow
-    u32 *allowed = bpf_map_lookup_elem(&net_allow, &key);
-    if (allowed && ((*allowed & access) == access)) {
+    net_policy_val_t *val = bpf_map_lookup_elem(&net_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    // If we are denying _any part_ of the access, deny
-    u32 *denied = bpf_map_lookup_elem(&net_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    // If we are tainting _any part_ of the access, taint
-    u32 *tainted = bpf_map_lookup_elem(&net_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
     audit_net(decision, container->policy_id, container->tainted, access);
 
@@ -1995,20 +1947,16 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
     key.policy_id = container->policy_id;
 
-    u32 *allowed = bpf_map_lookup_elem(&cap_allow, &key);
-    if (allowed && (*allowed & access) == access) {
+    cap_policy_val_t *val = bpf_map_lookup_elem(&cap_policy, &key);
+    // Entire access must match to allow
+    if (val && (val->allow & access) == access)
         decision |= BPFCON_ALLOW;
-    }
-
-    u32 *denied = bpf_map_lookup_elem(&cap_deny, &key);
-    if (denied && (*denied & access)) {
-        decision |= BPFCON_DENY;
-    }
-
-    u32 *tainted = bpf_map_lookup_elem(&cap_taint, &key);
-    if (tainted && (*tainted & access)) {
+    // Any part of access must match to taint
+    if (val && (val->taint & access))
         decision |= BPFCON_TAINT;
-    }
+    // Any part of access must match to deny
+    if (val && (val->deny & access))
+        decision |= BPFCON_DENY;
 
 out:
     ret = do_policy_decision(container, decision, 1);

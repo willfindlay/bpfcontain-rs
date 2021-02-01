@@ -447,11 +447,7 @@ impl Policy {
     ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.fs_allow(),
-            PolicyDecision::Deny => maps.fs_deny(),
-            PolicyDecision::Taint => maps.fs_taint(),
-        };
+        let map = maps.fs_policy();
 
         let (st_dev, _) = Self::path_to_dev_ino(&PathBuf::from(path))
             .context(format!("Failed to get information for {}", path))?;
@@ -462,14 +458,21 @@ impl Policy {
         let key = key.as_bytes();
 
         // Update old value with new value
-        let mut value: u32 = access.to_bitflags().bits();
+        let mut value = policy::FilePolicyVal::default();
+        match action {
+            PolicyDecision::Allow => value.allow = access.to_bitflags().bits(),
+            PolicyDecision::Taint => value.taint = access.to_bitflags().bits(),
+            PolicyDecision::Deny => value.deny = access.to_bitflags().bits(),
+        }
         if let Some(old_value) = map
             .lookup(key, MapFlags::ANY)
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
-            let old_value: u32 =
-                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-            value |= old_value;
+            let old_value = policy::FilePolicyVal::from_bytes(&old_value)
+                .expect("Buffer is too short or not aligned");
+            value.allow |= old_value.allow;
+            value.taint |= old_value.taint;
+            value.deny |= old_value.deny;
         }
         let value = value.as_bytes();
 
@@ -490,11 +493,7 @@ impl Policy {
     ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.file_allow(),
-            PolicyDecision::Deny => maps.file_deny(),
-            PolicyDecision::Taint => maps.file_taint(),
-        };
+        let map = maps.file_policy();
 
         for (st_dev, st_ino) in
             Self::glob_to_dev_ino(path).context(format!("Failed to glob {}", path))?
@@ -507,14 +506,21 @@ impl Policy {
             let key = key.as_bytes();
 
             // Update old value with new value
-            let mut value: u32 = access.to_bitflags().bits();
+            let mut value = policy::FilePolicyVal::default();
+            match action {
+                PolicyDecision::Allow => value.allow = access.to_bitflags().bits(),
+                PolicyDecision::Taint => value.taint = access.to_bitflags().bits(),
+                PolicyDecision::Deny => value.deny = access.to_bitflags().bits(),
+            }
             if let Some(old_value) = map
                 .lookup(key, MapFlags::ANY)
                 .context(format!("Exception during map lookup with key {:?}", key))?
             {
-                let old_value: u32 =
-                    u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-                value |= old_value;
+                let old_value = policy::FilePolicyVal::from_bytes(&old_value)
+                    .expect("Buffer is too short or not aligned");
+                value.allow |= old_value.allow;
+                value.taint |= old_value.taint;
+                value.deny |= old_value.deny;
             }
             let value = value.as_bytes();
 
@@ -535,11 +541,7 @@ impl Policy {
     ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.cap_allow(),
-            PolicyDecision::Deny => maps.cap_deny(),
-            PolicyDecision::Taint => maps.cap_taint(),
-        };
+        let map = maps.cap_policy();
 
         // Set key using policy_id
         let mut key = policy::CapPolicyKey::zeroed();
@@ -547,14 +549,21 @@ impl Policy {
         let key = key.as_bytes();
 
         // Update old value with new value
-        let mut value: u64 = capability.to_bitflags().bits();
+        let mut value = policy::CapPolicyVal::default();
+        match action {
+            PolicyDecision::Allow => value.allow = capability.to_bitflags().bits(),
+            PolicyDecision::Taint => value.taint = capability.to_bitflags().bits(),
+            PolicyDecision::Deny => value.deny = capability.to_bitflags().bits(),
+        }
         if let Some(old_value) = map
             .lookup(key, MapFlags::ANY)
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
-            let old_value: u64 =
-                u64::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-            value |= old_value;
+            let old_value = policy::CapPolicyVal::from_bytes(&old_value)
+                .expect("Buffer is too short or not aligned");
+            value.allow |= old_value.allow;
+            value.taint |= old_value.taint;
+            value.deny |= old_value.deny;
         }
         let value = value.as_bytes();
 
@@ -574,11 +583,7 @@ impl Policy {
     ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.net_allow(),
-            PolicyDecision::Deny => maps.net_deny(),
-            PolicyDecision::Taint => maps.net_taint(),
-        };
+        let map = maps.net_policy();
 
         // Set key using policy_id
         let mut key = policy::NetPolicyKey::zeroed();
@@ -586,14 +591,21 @@ impl Policy {
         let key = key.as_bytes();
 
         // Update old value with new value
-        let mut value: u32 = access.to_bitflags().bits();
+        let mut value = policy::NetPolicyVal::default();
+        match action {
+            PolicyDecision::Allow => value.allow = access.to_bitflags().bits(),
+            PolicyDecision::Taint => value.taint = access.to_bitflags().bits(),
+            PolicyDecision::Deny => value.deny = access.to_bitflags().bits(),
+        }
         if let Some(old_value) = map
             .lookup(key, MapFlags::ANY)
             .context(format!("Exception during map lookup with key {:?}", key))?
         {
-            let old_value: u32 =
-                u32::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-            value |= old_value;
+            let old_value = policy::NetPolicyVal::from_bytes(&old_value)
+                .expect("Buffer is too short or not aligned");
+            value.allow |= old_value.allow;
+            value.taint |= old_value.taint;
+            value.deny |= old_value.deny;
         }
         let value = value.as_bytes();
 
@@ -608,11 +620,7 @@ impl Policy {
     fn load_ipc_rule(&self, skel: &mut Skel, other: &str, action: &PolicyDecision) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.ipc_allow(),
-            PolicyDecision::Deny => maps.ipc_deny(),
-            PolicyDecision::Taint => maps.ipc_taint(),
-        };
+        let map = maps.ipc_policy();
 
         // Set key using policy_id
         let mut key = policy::IPCPolicyKey::zeroed();
@@ -621,7 +629,16 @@ impl Policy {
         let key = key.as_bytes();
 
         // Value doesn't matter
-        let value: u8 = 1;
+        let mut value = policy::IpcPolicyVal::default();
+        value.decision = action.to_bitflags().bits();
+        if let Some(old_value) = map
+            .lookup(key, MapFlags::ANY)
+            .context(format!("Exception during map lookup with key {:?}", key))?
+        {
+            let old_value = policy::IpcPolicyVal::from_bytes(&old_value)
+                .expect("Buffer is too short or not aligned");
+            value.decision |= old_value.decision;
+        }
         let value = value.as_bytes();
 
         map.update(key, value, MapFlags::ANY).context(format!(
@@ -658,14 +675,19 @@ impl Policy {
     ) -> Result<()> {
         // Look up the correct map
         let mut maps = skel.maps();
-        let map = match action {
-            PolicyDecision::Allow => maps.dev_allow(),
-            PolicyDecision::Deny => maps.dev_deny(),
-            PolicyDecision::Taint => maps.dev_taint(),
-        };
+        let map = maps.dev_policy();
 
         // Set value to read file access
-        let value: u32 = policy::FileAccess::from_flags(access_str).bits();
+        let mut value = policy::FilePolicyVal::default();
+        match action {
+            PolicyDecision::Allow => {
+                value.allow = policy::FileAccess::from_flags(access_str).bits()
+            }
+            PolicyDecision::Taint => {
+                value.taint = policy::FileAccess::from_flags(access_str).bits()
+            }
+            PolicyDecision::Deny => value.deny = policy::FileAccess::from_flags(access_str).bits(),
+        }
         let value = value.as_bytes();
 
         for &(major, minor) in device_nums {
