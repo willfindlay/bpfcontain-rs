@@ -274,7 +274,7 @@ audit_ipc(policy_decision_t decision, u64 policy_id, bool tainted,
  */
 static __always_inline int mediated_fs(struct inode *inode)
 {
-    unsigned long flags = BPF_CORE_READ(inode, i_sb, s_flags);
+    unsigned long flags = inode->i_sb->s_flags;
     return !(flags & SB_NOUSER);
 }
 
@@ -305,13 +305,13 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
         access |= BPFCON_MAY_WRITE;
     }
 
-    if (S_ISDIR(BPF_CORE_READ(inode, i_mode)) && (mask & MAY_CHDIR)) {
+    if (S_ISDIR(inode->i_mode) && (mask & MAY_CHDIR)) {
         access |= BPFCON_MAY_CHDIR;
     }
 
     // Ignore execute permissions on directories, since we already caught
     // MAY_CHDIR
-    if (!S_ISDIR(BPF_CORE_READ(inode, i_mode)) && (mask & MAY_EXEC)) {
+    if (!S_ISDIR(inode->i_mode) && (mask & MAY_EXEC)) {
         access |= BPFCON_MAY_EXEC;
     }
 
@@ -741,9 +741,7 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
 static __always_inline bool
 filter_inode_by_magic(struct inode *inode, u64 magic)
 {
-    u64 inode_magic = BPF_CORE_READ(inode, i_sb, s_magic);
-
-    if (inode_magic == magic)
+    if (inode->i_sb->s_magic == magic)
         return true;
 
     return false;
@@ -934,7 +932,7 @@ do_fs_permission(container_t *container, struct inode *inode, u32 access)
     fs_policy_key_t key = {};
 
     key.policy_id = container->policy_id;
-    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
+    key.device_id = new_encode_dev(inode->i_sb->s_dev);
 
     file_policy_val_t *val = bpf_map_lookup_elem(&fs_policy, &key);
     // Entire access must match to allow
@@ -967,8 +965,8 @@ do_file_permission(container_t *container, struct inode *inode, u32 access)
     file_policy_key_t key = {};
 
     key.policy_id = container->policy_id;
-    key.device_id = new_encode_dev(BPF_CORE_READ(inode, i_sb, s_dev));
-    key.inode_id = BPF_CORE_READ(inode, i_ino);
+    key.device_id = new_encode_dev(inode->i_sb->s_dev);
+    key.inode_id = inode->i_ino;
 
     file_policy_val_t *val = bpf_map_lookup_elem(&file_policy, &key);
     // Entire access must match to allow
@@ -1001,7 +999,7 @@ do_dev_permission(container_t *container, struct inode *inode, u32 access)
 
     // Look up policy by device major number and policy ID
     key.policy_id = container->policy_id;
-    key.major = MAJOR(BPF_CORE_READ(inode, i_rdev));
+    key.major = MAJOR(inode->i_rdev);
 
     // Not a device driver
     if (!key.major) {
@@ -1027,7 +1025,7 @@ do_dev_permission(container_t *container, struct inode *inode, u32 access)
     /*
      * Try with minor = i_rdev's minor second
      */
-    key.minor = MINOR(BPF_CORE_READ(inode, i_rdev));
+    key.minor = MINOR(inode->i_rdev);
 
     val = bpf_map_lookup_elem(&dev_policy, &key);
     // Entire access must match to allow
