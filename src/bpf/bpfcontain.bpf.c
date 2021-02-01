@@ -668,7 +668,7 @@ static __always_inline u64 get_current_ns_pid_tgid()
 static __always_inline bool under_init_nsproxy()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return (long)&init_nsproxy == (long)BPF_CORE_READ(task, nsproxy);
+    return (long)&init_nsproxy == (long)task->nsproxy;
 }
 
 /* Get a pointer to the path struct that contains @dentry.
@@ -1294,7 +1294,6 @@ int BPF_PROG(path_unlink, const struct path *dir, struct dentry *dentry)
     if (!container)
         return 0;
 
-    u32 mnt_ns = get_path_mnt_ns_id(dir);
     return bpfcontain_inode_perm(container, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
@@ -1310,7 +1309,6 @@ int BPF_PROG(path_rmdir, const struct path *dir, struct dentry *dentry)
     if (!container)
         return 0;
 
-    u32 mnt_ns = get_path_mnt_ns_id(dir);
     return bpfcontain_inode_perm(container, dentry->d_inode, BPFCON_MAY_DELETE);
 }
 
