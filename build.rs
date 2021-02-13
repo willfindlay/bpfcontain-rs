@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
@@ -9,13 +9,15 @@ use std::process::Command;
 
 fn main() {
     // Re-run build if our header file(s) has changed
+    println!("cargo:rerun-if-changed=bindings.h");
     println!("cargo:rerun-if-changed=src/include/libbpfcontain.h");
     println!("cargo:rerun-if-changed=src/include/structs.h");
     println!("cargo:rerun-if-changed=src/bpf/bpfcontain.bpf.c");
     println!("cargo:rerun-if-changed=src/bpf/bpfcontain.h");
     println!("cargo:rerun-if-changed=src/bpf/kernel_defs.h");
     println!("cargo:rerun-if-changed=src/bpf/maps.h");
-    println!("cargo:rerun-if-changed=src/bpf/vmlinux.h");
+
+    // TODO: test for libbpfcontain
 
     // Generate bindings
     let bindings = bindgen::builder()
@@ -24,16 +26,25 @@ fn main() {
         .derive_eq(true)
         .derive_partialeq(true)
         .default_enum_style(bindgen::EnumVariation::ModuleConsts)
-        .blacklist_item("MINOR_WILDCARD") // This is wrong, define it manually
-        .rustified_enum("EventType")
-        .rustified_enum("EventAction")
+        .rustified_enum("event_type_t")
+        .rustified_enum("event_action_t")
+        .rustified_enum("audit_msg_t")
         .generate()
         .expect("Failed to generate bindings");
 
     // Save bindings
     bindings
-        .write_to_file("src/libbpfcontain/bindings.rs")
+        .write_to_file("src/bindings/generated/generated.rs")
         .expect("Failed to save bindings");
+
+    // Make vmlinux if we don't have a good enough version
+    // TODO: This command can be allowed to fail if we already have an existing vmlinux.h
+    let status = Command::new("make")
+        .arg("vmlinux")
+        .current_dir("src/bpf")
+        .status()
+        .expect("Failed to run make");
+    assert!(status.success(), "Failed to update vmlinux.h");
 
     // Run cargo-libbpf-build
     let status = Command::new("cargo")

@@ -1,23 +1,23 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{bail, Context, Result};
-use clap::ArgMatches;
-use glob::glob;
 use std::thread::sleep;
 use std::time::Duration;
 
-use libbpf_rs::RingBufferManager;
+use anyhow::{bail, Context, Result};
+use clap::ArgMatches;
+use glob::glob;
+use libbpf_rs::RingBufferBuilder;
 use pod::Pod;
 
+use crate::bindings;
 use crate::bpf;
-pub use crate::bpf::BpfcontainSkelBuilder;
 use crate::config::Settings;
-use crate::libbpfcontain::structs;
+use crate::ns;
 use crate::policy::Policy;
 use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
 
@@ -32,10 +32,21 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     let mut skel = load_bpf_program(&mut skel_builder, args.occurrences_of("v") >= 2)
         .context("Failed to load BPF program")?;
 
-    let mut mgr = RingBufferManager::default();
+    let mut ringbuf_builder = RingBufferBuilder::default();
 
-    mgr.add_ringbuf(skel.maps().events(), handle_event as fn(&[u8]) -> i32)
+    ringbuf_builder
+        .add(skel.maps().audit_file_buf(), audit_file)
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_cap_buf(), audit_cap)
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_net_buf(), audit_net)
+        .context("Failed to add ringbuf")?
+        .add(skel.maps().audit_ipc_buf(), audit_ipc)
         .context("Failed to add ringbuf")?;
+
+    let mgr = ringbuf_builder
+        .build()
+        .context("Failed to create ringbuf manager")?;
 
     // Load policy in `config.policy.dir`
     load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
@@ -45,7 +56,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
         if let Err(e) = mgr.poll(Duration::new(1, 0)) {
             log::warn!("Failed to poll perf buffer: {}", e);
         }
-        sleep(Duration::new(1, 0));
+        sleep(Duration::from_millis(100));
     }
 }
 
@@ -65,10 +76,21 @@ pub fn load_bpf_program(
 
     // Open eBPF objects
     log::debug!("Opening eBPF objects...");
-    let open_skel = match builder.open() {
+    let mut open_skel = match builder.open() {
         Ok(open_skel) => open_skel,
         Err(e) => bail!("Failed to open skeleton: {}", e),
     };
+
+    // Set our own PID
+    open_skel.rodata().bpfcontain_pid = std::process::id();
+
+    // Set our own mount ns
+    open_skel.rodata().host_mnt_ns_id =
+        ns::get_current_ns_id(ns::Namespace::Mnt).context("Failed to find own mnt namespace id")?;
+
+    // Set our own pid ns
+    open_skel.rodata().host_pid_ns_id =
+        ns::get_current_ns_id(ns::Namespace::Pid).context("Failed to find own pid namespace id")?;
 
     // Loading eBPF objects into kernel
     log::debug!("Loading eBPF objects into kernel...");
@@ -94,17 +116,38 @@ pub fn load_bpf_program(
     Ok(skel)
 }
 
-/// Handle perf buffer events
-fn handle_event(data: &[u8]) -> i32 {
-    let event = structs::Event::from_bytes(data).expect("Failed to copy event");
+/// File audit events
+fn audit_file(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditFile::from_bytes(data).expect("Failed to copy event");
 
-    match event.action {
-        structs::EventAction::EA_UNKNOWN => log::debug!("{}", event),
-        structs::EventAction::EA_ERROR => log::error!("{}", event),
-        structs::EventAction::EA_DENY => log::info!("{}", event),
-        structs::EventAction::EA_IMPLICIT_DENY => log::info!("{}", event),
-        structs::EventAction::EA_TAINT => log::info!("{}", event),
-    }
+    log::info!("file {}", event);
+
+    0
+}
+
+/// Capability audit events
+fn audit_cap(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditCap::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("capability {}", event);
+
+    0
+}
+
+/// Network audit events
+fn audit_net(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditNet::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("network {}", event);
+
+    0
+}
+
+/// IPC audit events
+fn audit_ipc(data: &[u8]) -> i32 {
+    let event = bindings::audit::AuditIpc::from_bytes(data).expect("Failed to copy event");
+
+    log::info!("ipc {}", event);
 
     0
 }

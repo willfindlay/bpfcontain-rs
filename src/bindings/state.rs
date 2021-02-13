@@ -5,5 +5,6 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-pub mod daemon;
-pub mod run;
+//! Structs representing process and container state.
+
+// TODO: add these when needed

@@ -19,16 +19,13 @@ harness = false
 
 [dependencies]
 anyhow = "1.0.36"
-#libbpf-rs = "0.6.1"
-# For now until my PR gets merged
-libbpf-rs = { git = "https://github.com/willfindlay/libbpf-rs", branch = "ringbuf" }
+libbpf-rs = "0.7.0"
 clap = "2.33.3"
 libc = "0.2.81"
 daemonize = "0.4.1"
 log = "0.4.11"
 simple_logger = "1.11.0"
 goblin = "0.3.0"
-plain = "0.2.3"
 bitflags = "1.2.1"
 serde_yaml = "0.8.14"
 serde = { version = "1.0.118", features = ["derive"] }
@@ -36,9 +33,10 @@ glob = "0.3.0"
 config = "0.10.1"
 nix = "0.19.1"
 pod = "0.5.0"
+regex = "1.4.3"
+lazy_static = "1.4.0"
 
 [build-dependencies]
-libbpf-cargo = "0.4.0"
 bindgen = "0.56.0"
 
 [dev-dependencies]

@@ -1,17 +1,19 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{Context, Result};
-use clap::ArgMatches;
-use std::ffi::CString;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
+use std::process::Command;
 
+use anyhow::{bail, Context, Result};
+use clap::ArgMatches;
+
+use crate::bindings::containerize;
 use crate::config::Settings;
-use crate::libbpfcontain::containerize;
 use crate::policy::Policy;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -27,7 +29,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let policy = Policy::from_path(policy_path).context("Failed to parse policy")?;
 
     // Containerize
-    containerize(policy.container_id()).context("Failed to containerize")?;
+    containerize(&policy).context("Failed to containerize")?;
 
     // Parse out command
     let command = policy
@@ -38,14 +40,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Parse out args
     let args: Vec<_> = policy.cmd.split_whitespace().skip(1).collect();
 
-    nix::unistd::execv(
-        &CString::new(command).expect("Failed to create C string"),
-        &args
-            .iter()
-            .map(|&s| CString::new(s).expect("Failed to create C string"))
-            .collect::<Vec<_>>()[..],
-    )
-    .context("Failed to execve")?;
+    let err = Command::new(command).args(args).exec();
 
-    Ok(())
+    bail!("Failed to run {}: {:?}", command, err);
 }

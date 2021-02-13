@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
@@ -7,4 +7,4 @@
 
 #include "../include/structs.h"
 
-int containerize(unsigned long container_id);
+int containerize(u64 policy_id, u8 default_taint, u8 default_deny);

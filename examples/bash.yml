@@ -15,5 +15,4 @@ restrictions:
   - fs: {path: /, access: {flags: wa}}
 
 taints:
- # Taint on any net access
   - fs: {path: /tmp, access: {flags: wa}}

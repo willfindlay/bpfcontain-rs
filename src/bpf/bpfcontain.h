@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
@@ -22,17 +22,10 @@
 
 #define lock_xadd(ptr, val) ((void)__sync_fetch_and_add(ptr, val))
 
-#ifndef BPFCON_MAX_CONTAINERS
 #define BPFCON_MAX_CONTAINERS 10240
-#endif
-
-#ifndef BPFCON_MAX_PROCESSES
+// TODO: This will no longer be necessary with task_local_storage in 5.11
 #define BPFCON_MAX_PROCESSES 10240
-#endif
-
-#ifndef BPFCON_MAX_POLICY
-#define BPFCON_MAX_POLICY 10240
-#endif
+#define BPFCON_MAX_POLICY    10240
 
 #endif /* ifndef PROGS_BPF_H */
 

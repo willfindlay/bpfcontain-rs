@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2
+// SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
@@ -32,15 +32,16 @@
  *
  */
 
-static void do_containerize(int *ret, unsigned long container_id)
+static void
+do_containerize(int *ret, u64 policy_id, u8 default_taint, u8 default_deny)
 {
 }
 
-int containerize(unsigned long container_id)
+int containerize(u64 policy_id, u8 default_taint, u8 default_deny)
 {
     int ret = -EAGAIN;
 
-    do_containerize(&ret, container_id);
+    do_containerize(&ret, policy_id, default_taint, default_deny);
 
     if (ret < 0) {
         errno = -ret;
