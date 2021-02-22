@@ -29,7 +29,7 @@ TODO
 
 To compile and run bpfcontain:
 
-* __Linux kernel version >= 5.9__ (5.8 should work, but untested)
+* __Linux kernel version >= 5.10__
     * Kernel should be compiled with __at least the following build flags__:
     ```ini
     CONFIG_BPF=y
