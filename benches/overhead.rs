@@ -7,8 +7,9 @@
 
 use std::path::Path;
 
-use bpfcontain::bpf_program::{load_bpf_program, load_policy_str, BpfcontainSkelBuilder};
-use criterion::{black_box, criterion_group, criterion_main, Criterion, PlotConfiguration};
+use bpfcontain::bpf::BpfcontainSkelBuilder;
+use bpfcontain::bpf_program::load_bpf_program;
+use criterion::{criterion_group, criterion_main, Criterion};
 use osbench_rs::{create_files, create_processes, create_threads};
 
 /// Benchmark create/delete files overhead with and without bpfcontain.
