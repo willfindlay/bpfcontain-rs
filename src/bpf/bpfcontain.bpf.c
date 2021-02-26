@@ -498,6 +498,16 @@ static __always_inline u32 get_current_pid_ns_id()
     return BPF_CORE_READ(task, thread_pid, numbers[0].ns, ns.inum);
 }
 
+/* Get the user namespace id for the current task.
+ *
+ * return: user namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_current_user_ns_id()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    return BPF_CORE_READ(task, cred, user_ns, ns.inum);
+}
+
 /* Get the uts namespace name for the current task. */
 static __always_inline void get_current_uts_name(char *dest, size_t size)
 {
@@ -861,6 +871,8 @@ start_container(policy_id_t policy_id, bool default_taint, bool default_deny)
     container->mnt_ns_id = get_current_mnt_ns_id();
     // The pid ns id of the container
     container->pid_ns_id = get_current_pid_ns_id();
+    // The user ns id of the container
+    container->user_ns_id = get_current_user_ns_id();
     // The id of the bpfcontain policy that should be associated with the
     // container
     container->policy_id = policy_id;

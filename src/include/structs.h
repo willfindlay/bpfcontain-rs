@@ -213,6 +213,8 @@ typedef struct {
     u32 mnt_ns_id;
     // the pid namespace id of this container
     u32 pid_ns_id;
+    // the user namespace id of this container
+    u32 user_ns_id;
     // reference count of the container (how many tasks are running inside it)
     // this should only be incremented and decremented atomically
     u32 refcount;
