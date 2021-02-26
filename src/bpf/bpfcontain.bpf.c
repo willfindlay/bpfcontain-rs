@@ -495,7 +495,7 @@ static __always_inline u32 get_current_mnt_ns_id()
 static __always_inline u32 get_current_pid_ns_id()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
+    return BPF_CORE_READ(task, thread_pid, numbers[0].ns, ns.inum);
 }
 
 /* Get the uts namespace name for the current task. */
