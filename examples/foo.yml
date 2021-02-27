@@ -28,7 +28,7 @@ restrictions:
 # If no taint rules are specified, the policy will start tained by default
 taints:
  # Taint on any net access
-  - net: any
+  - net: [any]
 
 # Note: If you're not tainting by default, you should always specify
 # read/execute access to the executable and read/exec-mmap access to any
