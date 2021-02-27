@@ -28,7 +28,7 @@ impl Display for AuditCommon {
             PolicyDecision::from_bits(self.decision).expect("Failed to convert policy decision");
         write!(
             f,
-            "res={{{:#?}}} comm={{{}}} pid={{{}}} tid={{{}}} policy_id={{{}}}",
+            "res={:#?} comm={} pid={} tid={} policy_id={}",
             res, comm, self.tgid, self.pid, self.policy_id
         )
     }
@@ -48,7 +48,7 @@ impl Display for AuditFile {
         let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
         write!(
             f,
-            "{} st_ino={{{}}} st_dev={{{}}} access={{{:#?}}}",
+            "{} st_ino={} st_dev={} access={:#?}",
             self.common, self.st_ino, self.st_dev, access
         )
     }
@@ -66,7 +66,7 @@ pub type AuditCap = raw::audit_cap_t;
 impl Display for AuditCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let cap = Capability::from_bits(self.cap).expect("Failed to convert capability");
-        write!(f, "{} cap={{{:#?}}}", self.common, cap)
+        write!(f, "{} cap={:#?}", self.common, cap)
     }
 }
 
@@ -83,7 +83,7 @@ impl Display for AuditNet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let operation =
             NetOperation::from_bits(self.operation).expect("Failed to convert network operation");
-        write!(f, "{} operation={{{:#?}}}", self.common, operation)
+        write!(f, "{} operation={:#?}", self.common, operation)
     }
 }
 
@@ -105,7 +105,7 @@ impl Display for AuditIpc {
 
         write!(
             f,
-            "{} operation={{{}}} other_id={{{}}}",
+            "{} operation={} other_id={}",
             self.common, operation, self.other_policy_id
         )
     }
