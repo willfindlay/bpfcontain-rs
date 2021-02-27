@@ -156,15 +156,10 @@ impl Default for FileAccess {
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 enum NetAccess {
-    ClientSend,
-    ServerSend,
-    ClientRecv,
-    ServerRecv,
     Client,
     Server,
-    ClientServerSend,
-    ClientServerRecv,
-    ClientServer,
+    Send,
+    Recv,
     Any,
 }
 
@@ -175,37 +170,19 @@ impl ToBitflags for NetAccess {
     /// eBPF map.
     fn to_bitflags(&self) -> Self::BitFlag {
         match self {
-            Self::ClientSend => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND,
-            Self::ServerSend => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND,
-            Self::ClientRecv => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_RECV,
-            Self::ServerRecv => Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_RECV,
-            Self::Client => {
-                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND | Self::BitFlag::MASK_RECV
-            }
-            Self::Server => {
-                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SEND | Self::BitFlag::MASK_RECV
-            }
-            Self::ClientServerSend => {
-                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SERVER | Self::BitFlag::MASK_SEND
-            }
-            Self::ClientServerRecv => {
-                Self::BitFlag::MASK_CLIENT | Self::BitFlag::MASK_SERVER | Self::BitFlag::MASK_RECV
-            }
-            Self::ClientServer => {
-                Self::BitFlag::MASK_CLIENT
-                    | Self::BitFlag::MASK_SERVER
-                    | Self::BitFlag::MASK_SEND
-                    | Self::BitFlag::MASK_RECV
-            }
+            Self::Client => Self::BitFlag::MASK_CLIENT,
+            Self::Server => Self::BitFlag::MASK_SERVER,
+            Self::Send => Self::BitFlag::MASK_SEND,
+            Self::Recv => Self::BitFlag::MASK_RECV,
             Self::Any => Self::BitFlag::all(),
         }
     }
 }
 
 impl Default for NetAccess {
-    /// NetAccess defaults to ClientServer (with send and receive)
+    /// NetAccess defaults to Any
     fn default() -> Self {
-        Self::ClientServer
+        Self::Any
     }
 }
 
@@ -272,7 +249,7 @@ enum Rule {
     ///
     /// TODO
     #[serde(alias = "net")]
-    Network(NetAccess),
+    Network(Vec<NetAccess>),
 
     /// An IPC rule, specifying IPC access to another container.
     ///
@@ -283,6 +260,7 @@ enum Rule {
 
     // High-level policy starts here
     /// Grants read, write, and append access to /dev/pts/* devices
+    #[serde(alias = "tty")]
     Terminal,
 
     /// Grants read access to /dev/[u]random
@@ -304,6 +282,7 @@ pub struct Policy {
     /// The command associated with the policy. This will be run when the user
     /// invokes `bpfcontain-rs run </path/to/policy.yml>`.
     /// A policy _must_ specify a command.
+    #[serde(alias = "entry")]
     pub cmd: String,
     /// Whether the policy is default-allow or default-deny. If this is not
     /// provided, we automatically assume default-deny.
@@ -424,7 +403,7 @@ impl Policy {
             Rule::Capability(capability) => self.load_capability_rule(skel, capability, &action)?,
 
             // Handle network rule
-            Rule::Network(access) => self.load_net_rule(skel, access, &action)?,
+            Rule::Network(accesses) => self.load_net_rule(skel, accesses, &action)?,
 
             // Handle IPC rule
             Rule::Ipc(other) => self.load_ipc_rule(skel, other, &action)?,
@@ -578,7 +557,7 @@ impl Policy {
     fn load_net_rule(
         &self,
         skel: &mut Skel,
-        access: &NetAccess,
+        accesses: &Vec<NetAccess>,
         action: &PolicyDecision,
     ) -> Result<()> {
         // Look up the correct map
@@ -590,12 +569,17 @@ impl Policy {
         key.policy_id = self.policy_id();
         let key = key.as_bytes();
 
+        let mut access = policy::NetOperation::empty();
+        for a in accesses {
+            access |= a.to_bitflags();
+        }
+
         // Update old value with new value
         let mut value = policy::NetPolicyVal::default();
         match action {
-            PolicyDecision::Allow => value.allow = access.to_bitflags().bits(),
-            PolicyDecision::Taint => value.taint = access.to_bitflags().bits(),
-            PolicyDecision::Deny => value.deny = access.to_bitflags().bits(),
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
         }
         if let Some(old_value) = map
             .lookup(key, MapFlags::ANY)
@@ -859,7 +843,7 @@ mod tests {
                 access: readWrite
             - fs:
                 path: /dev
-            - net: client
+            - net: [client]
             - capability: netBindService
 
             restrictions:
@@ -1123,21 +1107,21 @@ mod tests {
     #[test]
     fn net_rule_deserialize_test() -> Result<()> {
         let rule_str = "
-            network: clientSend
+            network: [client, send]
             ";
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Network(NetAccess::ClientSend)
+            Rule::Network([NetAccess::Client, NetAccess::Send].into())
         );
 
         let rule_str = "
-            net: server
+            net: [server]
             ";
 
         assert_eq!(
             serde_yaml::from_str::<Rule>(rule_str)?,
-            Rule::Network(NetAccess::Server)
+            Rule::Network([NetAccess::Server].into())
         );
 
         Ok(())
