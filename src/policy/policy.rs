@@ -93,7 +93,7 @@ impl Policy {
         Self::policy_id_for_name(&self.name)
     }
 
-    fn policy_id_for_name(name: &str) -> u64 {
+    pub fn policy_id_for_name(name: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
 
@@ -656,8 +656,9 @@ mod tests {
             .expect("Failed to glob")
             .filter_map(Result::ok)
         {
-            Policy::from_path(&path)
+            let p = Policy::from_path(&path)
                 .context(format!("Failed to parse policy from path {:?}", path))?;
+            println!("{:#?}", p);
         }
 
         Ok(())
