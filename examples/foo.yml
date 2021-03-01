@@ -23,12 +23,13 @@ rights:
 restrictions:
   # Explicitly denies write/append access to /**
   - fs: {path: /, access: wa}
+  - net: [client, server]
 
 # A set of taint rules (which trigger BPFContain to start enforcing), OPTIONAL
 # If no taint rules are specified, the policy will start tained by default
-#taints:
-#  # Taint on any net access
-#  - net: [any]
+taints:
+  # Taint on any net access
+  - net: any
 
 # Note: If you're not tainting by default, you should always specify
 # read/execute access to the executable and read/exec-mmap access to any
