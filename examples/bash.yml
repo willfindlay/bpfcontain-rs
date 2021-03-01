@@ -7,12 +7,12 @@ default: deny
 
 # A set of rights to grant, OPTIONAL
 rights:
-  - terminal
-  - fs: {path: /}
+  - terminal:
+  - fs: {pathname: /, access: rwx}
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
-  - fs: {path: /, access: {flags: wa}}
+  - fs: {path: /, access: wa}
 
 taints:
-  - fs: {path: /tmp, access: {flags: wa}}
+  - fs: {path: /tmp, access: wa}

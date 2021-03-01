@@ -100,59 +100,8 @@ bitflags! {
         const RO_MASK = Self::MAY_READ.bits | Self::MAY_CHDIR.bits;
         const RA_MASK = Self::RO_MASK.bits | Self::MAY_APPEND.bits | Self::MAY_CREATE.bits;
         const RW_MASK = Self::RA_MASK.bits | Self::MAY_WRITE.bits;
-    }
-}
-
-impl FileAccess {
-    /// Create a file access mask from string flags.
-    ///
-    /// This function will ignore invalid flags, logging a warning when it
-    /// does to.
-    ///
-    /// Mappings are as follows:
-    /// ```yaml
-    /// 'x' -> MAY_EXEC
-    /// 'w' -> MAY_WRITE
-    /// 'r' -> MAY_READ
-    /// 'a' -> MAY_APPEND
-    /// 'c' -> MAY_CREATE
-    /// 'd' -> MAY_DELETE
-    /// 'n' -> MAY_RENAME
-    /// 's' -> MAY_SETATTR
-    /// 'p' -> MAY_CHMOD
-    /// 'o' -> MAY_CHOWN
-    /// 'l' -> MAY_LINK
-    /// 'm' -> MAY_EXEC_MMAP
-    /// 't' -> MAY_CHDIR
-    /// ```
-    pub fn from_flags(flags: &str) -> Self {
-        let mut access = Self::default();
-        // Iterate through the characters in our access flags, creating the
-        // bitmask as we go.
-        for c in flags.chars() {
-            // Because of weird Rust-isms, to_lowercase returns a string. We
-            // only care about ASCII chars, so we will match on length-1
-            // strings.
-            let c_lo = &c.to_lowercase().to_string()[..];
-            match c_lo {
-                "x" => access |= Self::MAY_EXEC,
-                "w" => access |= Self::MAY_WRITE,
-                "r" => access |= Self::MAY_READ,
-                "a" => access |= Self::MAY_APPEND,
-                "c" => access |= Self::MAY_CREATE,
-                "d" => access |= Self::MAY_DELETE,
-                "n" => access |= Self::MAY_RENAME,
-                "s" => access |= Self::MAY_SETATTR,
-                "p" => access |= Self::MAY_CHMOD,
-                "o" => access |= Self::MAY_CHOWN,
-                "l" => access |= Self::MAY_LINK,
-                "m" => access |= Self::MAY_EXEC_MMAP,
-                "t" => access |= Self::MAY_CHDIR,
-                _ => log::warn!("Unknown access flag {}", c),
-            };
-        }
-
-        access
+        const LIB_MASK = Self::MAY_EXEC_MMAP.bits | Self::MAY_READ.bits;
+        const EXEC_MASK = Self::MAY_EXEC.bits | Self::MAY_READ.bits;
     }
 }
 
