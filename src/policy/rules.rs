@@ -493,7 +493,7 @@ impl RuleControl for Ipc {
 
         // Get correct map
         let mut maps = skel.maps();
-        let map = maps.cap_policy();
+        let map = maps.ipc_policy();
 
         // Set key
         let mut key = Key::zeroed();
@@ -531,13 +531,73 @@ pub enum NetAccess {
     Any,
 }
 
+impl From<NetAccess> for bindings::policy::NetOperation {
+    fn from(value: NetAccess) -> Self {
+        match value {
+            NetAccess::Client => Self::MASK_CLIENT,
+            NetAccess::Server => Self::MASK_SERVER,
+            NetAccess::Send => Self::MASK_SEND,
+            NetAccess::Recv => Self::MASK_RECV,
+            NetAccess::Any => Self::all(),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Net(SingleOrVec<NetAccess>);
 
 impl RuleControl for Net {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        todo!()
+        // Set correct types for rule
+        type Key = bindings::policy::NetPolicyKey;
+        type Value = bindings::policy::NetPolicyVal;
+        type Access = bindings::policy::NetOperation;
+
+        // Get correct map
+        let mut maps = skel.maps();
+        let map = maps.net_policy();
+
+        // Convert access into bitmask
+        let vec: Vec<NetAccess> = self.0.clone().into();
+        let access: Access = vec
+            .iter()
+            .fold(Access::default(), |v1, v2| v1 | Access::from(v2.clone()));
+
+        // Set key
+        let mut key = Key::zeroed();
+        key.policy_id = policy.policy_id();
+        let key = key.as_bytes();
+
+        // Value should be old | new
+        let value = {
+            let mut value = Value::default();
+            match decision {
+                PolicyDecision::Allow => value.allow = access.bits(),
+                PolicyDecision::Taint => value.taint = access.bits(),
+                PolicyDecision::Deny => value.deny = access.bits(),
+            }
+            if let Some(old_value) = map
+                .lookup(key, MapFlags::ANY)
+                .context(format!("Exception during map lookup with key {:?}", key))?
+            {
+                let old_value =
+                    Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
+                value.allow |= old_value.allow;
+                value.taint |= old_value.taint;
+                value.deny |= old_value.deny;
+            }
+            value
+        };
+
+        // Update old value with new value
+        map.update(key, value.as_bytes(), MapFlags::ANY)
+            .context(format!(
+                "Failed to update map key={:?} value={:?}",
+                key, value
+            ))?;
+
+        Ok(())
     }
 }
 
