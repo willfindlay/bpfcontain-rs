@@ -648,6 +648,7 @@ mod tests {
         assert!(matches!(rule, Rule::Filesystem(_)));
     }
 
+    /// A smoke test for deserializing file rules
     #[test]
     fn test_file_deserialize_smoke() {
         let s = "file: {pathname: /foo/bar, access: readWrite}";
@@ -655,6 +656,7 @@ mod tests {
         assert!(matches!(rule, Rule::File(_)))
     }
 
+    /// A smoke test for deserializing device rules
     #[test]
     fn test_dev_deserialize_smoke() {
         let s = "device: {major: 136, minor: 2, access: readOnly}";
@@ -662,6 +664,7 @@ mod tests {
         assert!(matches!(rule, Rule::Device(_)))
     }
 
+    /// A smoke test for deserializing terminal rules
     #[test]
     fn test_terminal_deserialize_smoke() {
         let s = "terminal:";
@@ -669,6 +672,7 @@ mod tests {
         assert!(matches!(rule, Rule::Terminal(_)))
     }
 
+    /// A smoke test for deserializing devrandom rules
     #[test]
     fn test_devrandom_deserialize_smoke() {
         let s = "devRandom:";
@@ -676,6 +680,7 @@ mod tests {
         assert!(matches!(rule, Rule::DevRandom(_)))
     }
 
+    /// A smoke test for deserializing devfake rules
     #[test]
     fn test_devfake_deserialize_smoke() {
         let s = "devFake:";
@@ -683,6 +688,7 @@ mod tests {
         assert!(matches!(rule, Rule::DevFake(_)))
     }
 
+    /// A smoke test for deserializing capability rules
     #[test]
     fn test_capability_deserialize_smoke() {
         let s = "capability: dacOverride";
@@ -690,6 +696,7 @@ mod tests {
         assert!(matches!(rule, Rule::Capability(_)))
     }
 
+    /// A smoke test for deserializing ipc rules
     #[test]
     fn test_ipc_deserialize_smoke() {
         let s = "ipc: foobar";
@@ -697,6 +704,7 @@ mod tests {
         assert!(matches!(rule, Rule::Ipc(_)))
     }
 
+    /// A smoke test for deserializing net rules
     #[test]
     fn test_net_deserialize_smoke() {
         let s = "net: [client, send]";
