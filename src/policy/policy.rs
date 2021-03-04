@@ -72,10 +72,12 @@ impl Policy {
         serde_yaml::from_str(string).context("Failed to parse policy string")
     }
 
+    /// Compute the policy id for self
     pub fn policy_id(&self) -> u64 {
         Self::policy_id_for_name(&self.name)
     }
 
+    /// Compute the policy id for a given policy name
     pub fn policy_id_for_name(name: &str) -> u64 {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
@@ -86,34 +88,37 @@ impl Policy {
         hasher.finish()
     }
 
+    /// Is this policy default_taint?
     pub fn default_taint(&self) -> bool {
         self.taints.len() == 0
     }
 
+    /// Is this policy default_deny?
     pub fn default_deny(&self) -> bool {
         self.default == DefaultEnforcement::Deny
     }
 
+    /// Load the policy into the kernel
     pub fn load(&self, skel: &mut Skel) -> Result<()> {
         // Load rights
         for rule in self.rights.iter() {
-            // TODO: Handle errors gracefully
-            rule.load(self, skel, PolicyDecision::Allow)
-                .context("Failed to load rule")?;
+            if let Err(e) = rule.load(self, skel, PolicyDecision::Allow) {
+                log::warn!("Failed to load allow rule: {:?}", e);
+            }
         }
 
         // Load restrictions
         for rule in self.restrictions.iter() {
-            // TODO: Handle errors gracefully
-            rule.load(self, skel, PolicyDecision::Deny)
-                .context("Failed to load rule")?;
+            if let Err(e) = rule.load(self, skel, PolicyDecision::Deny) {
+                log::warn!("Failed to load deny rule: {:?}", e);
+            }
         }
 
         // Load taints
         for rule in self.taints.iter() {
-            // TODO: Handle errors gracefully
-            rule.load(self, skel, PolicyDecision::Taint)
-                .context("Failed to load rule")?;
+            if let Err(e) = rule.load(self, skel, PolicyDecision::Taint) {
+                log::warn!("Failed to load taint rule: {:?}", e);
+            }
         }
 
         Ok(())
@@ -139,7 +144,7 @@ mod tests {
             .expect("Failed to glob")
             .filter_map(Result::ok)
         {
-            let p = Policy::from_path(&path)
+            Policy::from_path(&path)
                 .context(format!("Failed to parse policy from path {:?}", path))?;
         }
 
