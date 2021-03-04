@@ -11,26 +11,34 @@ default: deny
 # A set of rights to grant, OPTIONAL
 rights:
   # Grants read/write/append access to /dev/pts/* devices
-  - terminal:
+  - terminal: # colon is unfortunately necessary for now (future versions will not require it)
   # Grants read access to /dev/[u]random
-  - devRandom:
+  - devRandom: # colon is unfortunately necessary for now (future versions will not require it)
   # Grants read-only access to /dev/**
   - fs: {path: /dev, access: readOnly}
   # Grants read-only access to /**
   - fs: {path: /, access: readOnly}
-  - capability: dacOverride
+  # Grants access to CAP_DAC_OVERRIDE and CAP_DAC_READ_SEARCH
+  - capability: [dacOverride, dacReadSearch]
+  # Grants ipc access with the policy named bar (this must be mutually granted by bar)
+  - ipc: bar
+  # Grants client send/recv access
+  - net: [client, send, recv]
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
   # Explicitly denies write/append access to /**
   - fs: {path: /, access: wa}
-  - net: [client, server]
+  # Explicitly deny server network operations
+  - net: server
 
 # A set of taint rules (which trigger BPFContain to start enforcing), OPTIONAL
 # If no taint rules are specified, the policy will start tained by default
 taints:
   # Taint on any net access
   - net: any
+  # Taint on ipc access with bar
+  - ipc: bar
 
 # Note: If you're not tainting by default, you should always specify
 # read/execute access to the executable and read/exec-mmap access to any
