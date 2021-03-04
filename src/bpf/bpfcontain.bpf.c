@@ -495,7 +495,17 @@ static __always_inline u32 get_current_mnt_ns_id()
 static __always_inline u32 get_current_pid_ns_id()
 {
     struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return BPF_CORE_READ(task, nsproxy, pid_ns_for_children, ns.inum);
+    return BPF_CORE_READ(task, thread_pid, numbers[0].ns, ns.inum);
+}
+
+/* Get the user namespace id for the current task.
+ *
+ * return: user namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_current_user_ns_id()
+{
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    return BPF_CORE_READ(task, cred, user_ns, ns.inum);
 }
 
 /* Get the uts namespace name for the current task. */
@@ -861,6 +871,8 @@ start_container(policy_id_t policy_id, bool default_taint, bool default_deny)
     container->mnt_ns_id = get_current_mnt_ns_id();
     // The pid ns id of the container
     container->pid_ns_id = get_current_pid_ns_id();
+    // The user ns id of the container
+    container->user_ns_id = get_current_user_ns_id();
     // The id of the bpfcontain policy that should be associated with the
     // container
     container->policy_id = policy_id;
@@ -1093,8 +1105,6 @@ do_procfs_permission(container_t *container, struct inode *inode, u32 access)
 static __always_inline int
 do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
 {
-    int decision = BPFCON_NO_DECISION;
-
     if (!inode)
         return BPFCON_NO_DECISION;
 
@@ -1102,12 +1112,14 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
     if (!filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC))
         return BPFCON_NO_DECISION;
 
-    // Are we in a lower namespace?
-    if (under_init_nsproxy())
-        return BPFCON_NO_DECISION;
+    u32 overlayfs_user_ns_id = BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum);
 
-    // TODO: Are we in _our_ overlayfs?
-    return decision;
+    // TODO: check if we are in root user namespace (should be NO_DECISION)
+
+    if (overlayfs_user_ns_id == container->user_ns_id)
+        return BPFCON_ALLOW;
+
+    return BPFCON_NO_DECISION;
 }
 
 /* Make an implicit policy decision about a file or directory belonging to
@@ -1258,11 +1270,6 @@ SEC("lsm/bprm_check_security")
 int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 {
     int ret = 0;
-
-    // FIXME: temporary
-    // if (get_current_ns_pid() == 1) {
-    //    start_container(3069983010007500772UL, 0);
-    //}
 
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
@@ -2275,7 +2282,6 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
  *
  * return: Converted access mask.
  */
-// FIXME: need to add default_taint to libbpfcontain containerize
 SEC("uprobe/do_containerize")
 int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id, u8 default_taint,
                u8 default_deny)
