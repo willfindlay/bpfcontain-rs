@@ -141,7 +141,6 @@ mod tests {
         {
             let p = Policy::from_path(&path)
                 .context(format!("Failed to parse policy from path {:?}", path))?;
-            println!("{:#?}", p);
         }
 
         Ok(())
