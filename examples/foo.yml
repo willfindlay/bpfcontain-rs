@@ -14,6 +14,8 @@ rights:
   - terminal: # colon is unfortunately necessary for now (future versions will not require it)
   # Grants read access to /dev/[u]random
   - devRandom: # colon is unfortunately necessary for now (future versions will not require it)
+  # Grants readonly access to devices with major number 12
+  - device: {major: 12, access: readOnly}
   # Grants read-only access to /dev/**
   - fs: {path: /dev, access: readOnly}
   # Grants read-only access to /**
