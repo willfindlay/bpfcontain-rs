@@ -643,20 +643,64 @@ mod tests {
     /// A smoke test for deserializing filesystem rules
     #[test]
     fn test_fs_deserialize_smoke() {
-        let s = "filesystem: {pathname: ez, access: pz}";
+        let s = "filesystem: {pathname: /tmp, access: readOnly}";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(
-            rule,
-            Rule::Filesystem(FilesystemRule {
-                pathname: _,
-                access: _,
-            })
-        ));
+        assert!(matches!(rule, Rule::Filesystem(_)));
+    }
+
+    #[test]
+    fn test_file_deserialize_smoke() {
+        let s = "file: {pathname: /foo/bar, access: readWrite}";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::File(_)))
+    }
+
+    #[test]
+    fn test_dev_deserialize_smoke() {
+        let s = "device: {major: 136, minor: 2, access: readOnly}";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Device(_)))
     }
 
     #[test]
     fn test_terminal_deserialize_smoke() {
         let s = "terminal:";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Terminal(_)))
+    }
+
+    #[test]
+    fn test_devrandom_deserialize_smoke() {
+        let s = "devRandom:";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::DevRandom(_)))
+    }
+
+    #[test]
+    fn test_devfake_deserialize_smoke() {
+        let s = "devFake:";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::DevFake(_)))
+    }
+
+    #[test]
+    fn test_capability_deserialize_smoke() {
+        let s = "capability: dacOverride";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Capability(_)))
+    }
+
+    #[test]
+    fn test_ipc_deserialize_smoke() {
+        let s = "ipc: foobar";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Ipc(_)))
+    }
+
+    #[test]
+    fn test_net_deserialize_smoke() {
+        let s = "net: [client, send]";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Net(_)))
     }
 }
