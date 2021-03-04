@@ -59,10 +59,7 @@ pub fn load_bpf_program<'a>(
 
     // Open eBPF objects
     log::debug!("Opening eBPF objects...");
-    let mut open_skel = match builder.open() {
-        Ok(open_skel) => open_skel,
-        Err(e) => bail!("Failed to open skeleton: {}", e),
-    };
+    let mut open_skel = builder.open().context("Failed to open skeleton")?;
 
     // Set our own PID
     open_skel.rodata().bpfcontain_pid = std::process::id();
@@ -77,10 +74,7 @@ pub fn load_bpf_program<'a>(
 
     // Loading eBPF objects into kernel
     log::debug!("Loading eBPF objects into kernel...");
-    let mut skel = match open_skel.load() {
-        Ok(skel) => skel,
-        Err(e) => bail!("Failed to load skeleton: {}", e),
-    };
+    let mut skel = open_skel.load().context("Failed to load skeleton")?;
 
     log::debug!("Attaching BPF objects to events...");
     // Auto attach non-uprobe programs
