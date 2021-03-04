@@ -38,22 +38,22 @@ pub trait RuleControl {
 pub enum Rule {
     // File policies
     #[serde(alias = "fs")]
-    Filesystem,
-    File,
+    Filesystem(FilesystemRule),
+    File(FileRule),
     // Device policies
-    Device,
-    Terminal,
-    DevRandom,
-    DevFake,
+    Device(DeviceRule),
+    Terminal(TerminalRule),
+    DevRandom(DevRandomRule),
+    DevFake(DevFakeRule),
     // Capability policy
     #[serde(alias = "cap")]
-    Capability,
+    Capability(CapabilityRule),
     // Ipc policy
     #[serde(alias = "IPC")]
-    Ipc,
+    Ipc(IpcRule),
     // Net policy
     #[serde(alias = "net")]
-    Net,
+    Net(NetRule),
 }
 
 // ============================================================================
@@ -114,13 +114,13 @@ impl TryFrom<FileAccess> for bindings::policy::FileAccess {
 /// Represents a filesystem rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Filesystem {
+pub struct FilesystemRule {
     #[serde(alias = "path")]
     pathname: String,
     access: FileAccess,
 }
 
-impl RuleControl for Filesystem {
+impl RuleControl for FilesystemRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::FsPolicyKey;
@@ -179,13 +179,13 @@ impl RuleControl for Filesystem {
 /// Represents a file rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct File {
+pub struct FileRule {
     #[serde(alias = "path")]
     pathname: String,
     access: FileAccess,
 }
 
-impl RuleControl for File {
+impl RuleControl for FileRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::FilePolicyKey;
@@ -307,13 +307,13 @@ fn load_device_rule(
 /// Represents a generic device access rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Device {
+pub struct DeviceRule {
     major: u32,
     minor: Option<u32>,
     access: FileAccess,
 }
 
-impl RuleControl for Device {
+impl RuleControl for DeviceRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         load_device_rule(
             self.major,
@@ -330,9 +330,9 @@ impl RuleControl for Device {
 
 /// Represents a terminal access rule.
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct Terminal;
+pub struct TerminalRule;
 
-impl RuleControl for Terminal {
+impl RuleControl for TerminalRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(136, None), (4, None)] {
             // urandom
@@ -353,9 +353,9 @@ impl RuleControl for Terminal {
 /// Represents a /dev/*random access rule.
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct DevRandom;
+pub struct DevRandomRule;
 
-impl RuleControl for DevRandom {
+impl RuleControl for DevRandomRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(1, Some(8)), (1, Some(9))] {
             // urandom
@@ -376,9 +376,9 @@ impl RuleControl for DevRandom {
 /// Represents a /dev/null, /dev/full/, /dev/zero access rule.
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct DevFake;
+pub struct DevFakeRule;
 
-impl RuleControl for DevFake {
+impl RuleControl for DevFakeRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(1, Some(3)), (1, Some(5)), (1, Some(7))] {
             // urandom
@@ -400,7 +400,7 @@ impl RuleControl for DevFake {
 // Capability Rules
 // ============================================================================
 
-/// Represents a capability rule.
+/// Represents a capability.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Capability {
@@ -412,7 +412,24 @@ pub enum Capability {
     // TODO: Others here
 }
 
-impl RuleControl for Capability {
+impl From<Capability> for bindings::policy::Capability {
+    fn from(value: Capability) -> Self {
+        match value {
+            Capability::NetBindService => Self::NET_BIND_SERVICE,
+            Capability::NetRaw => Self::NET_RAW,
+            Capability::NetBroadcast => Self::NET_BROADCAST,
+            Capability::DacOverride => Self::DAC_OVERRIDE,
+            Capability::DacReadSearch => Self::DAC_READ_SEARCH,
+        }
+    }
+}
+
+/// Represents a capability rule.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct CapabilityRule(SingleOrVec<Capability>);
+
+impl RuleControl for CapabilityRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::CapPolicyKey;
@@ -424,7 +441,10 @@ impl RuleControl for Capability {
         let map = maps.cap_policy();
 
         // Convert access into bitmask
-        let access: Access = self.clone().into();
+        let vec: Vec<Capability> = self.0.clone().into();
+        let access: Access = vec
+            .iter()
+            .fold(Access::default(), |v1, v2| v1 | Access::from(v2.clone()));
 
         // Set key
         let mut key = Key::zeroed();
@@ -463,18 +483,6 @@ impl RuleControl for Capability {
     }
 }
 
-impl From<Capability> for bindings::policy::Capability {
-    fn from(value: Capability) -> Self {
-        match value {
-            Capability::NetBindService => Self::NET_BIND_SERVICE,
-            Capability::NetRaw => Self::NET_RAW,
-            Capability::NetBroadcast => Self::NET_BROADCAST,
-            Capability::DacOverride => Self::DAC_OVERRIDE,
-            Capability::DacReadSearch => Self::DAC_READ_SEARCH,
-        }
-    }
-}
-
 // ============================================================================
 // IPC Rules
 // ============================================================================
@@ -483,9 +491,9 @@ impl From<Capability> for bindings::policy::Capability {
 /// mututally grant each other access
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Ipc(String);
+pub struct IpcRule(String);
 
-impl RuleControl for Ipc {
+impl RuleControl for IpcRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::IPCPolicyKey;
@@ -545,9 +553,9 @@ impl From<NetAccess> for bindings::policy::NetOperation {
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct Net(SingleOrVec<NetAccess>);
+pub struct NetRule(SingleOrVec<NetAccess>);
 
-impl RuleControl for Net {
+impl RuleControl for NetRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::NetPolicyKey;
@@ -639,7 +647,7 @@ mod tests {
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
         assert!(matches!(
             rule,
-            Rule::Filesystem(Filesystem {
+            Rule::Filesystem(FilesystemRule {
                 pathname: _,
                 access: _,
             })

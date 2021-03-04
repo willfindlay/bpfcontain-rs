@@ -18,6 +18,7 @@ rights:
   - fs: {path: /dev, access: readOnly}
   # Grants read-only access to /**
   - fs: {path: /, access: readOnly}
+  - capability: dacOverride
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
