@@ -8,7 +8,7 @@
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::ArgMatches;
 use glob::glob;
 use libbpf_rs::RingBufferBuilder;
