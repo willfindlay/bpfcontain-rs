@@ -109,12 +109,6 @@ pub fn get_project_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .expect("Failed to canonicalize path")
 }
 
-/// Converts an enum into its bitflags representation
-pub trait ToBitflags {
-    type BitFlag;
-    fn to_bitflags(&self) -> Result<Self::BitFlag>;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

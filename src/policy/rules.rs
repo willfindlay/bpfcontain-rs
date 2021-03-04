@@ -6,7 +6,7 @@
 // Dec. 29, 2020  William Findlay  Created this.
 
 use std::convert::{From, Into, TryFrom, TryInto};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use enum_dispatch::enum_dispatch;
@@ -18,7 +18,7 @@ use crate::bindings;
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::policy::helpers::*;
 use crate::policy::Policy;
-use crate::utils::{path_to_dev_ino, ToBitflags};
+use crate::utils::path_to_dev_ino;
 
 // ============================================================================
 // Rule Type and RuleControl Interface
@@ -503,7 +503,7 @@ impl RuleControl for Ipc {
 
         // Value should be the policy decision
         let mut value = Value::default();
-        value.decision = decision.to_bitflags()?.bits();
+        value.decision = bindings::policy::PolicyDecision::from(decision).bits();
 
         // Update old value with new value
         map.update(key, value.as_bytes(), MapFlags::ANY)
@@ -614,17 +614,13 @@ pub enum PolicyDecision {
     Taint,
 }
 
-impl ToBitflags for PolicyDecision {
-    type BitFlag = bindings::policy::PolicyDecision;
-
-    /// Convert a [`PolicyDecision`] into a bitflag representation
-    /// for loading into an eBPF map.
-    fn to_bitflags(&self) -> Result<Self::BitFlag> {
-        Ok(match self {
-            Self::Deny => Self::BitFlag::DENY,
-            Self::Allow => Self::BitFlag::ALLOW,
-            Self::Taint => Self::BitFlag::TAINT,
-        })
+impl From<PolicyDecision> for bindings::policy::PolicyDecision {
+    fn from(value: PolicyDecision) -> Self {
+        match value {
+            PolicyDecision::Deny => Self::DENY,
+            PolicyDecision::Allow => Self::ALLOW,
+            PolicyDecision::Taint => Self::TAINT,
+        }
     }
 }
 
