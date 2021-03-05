@@ -14,3 +14,4 @@ pub mod utils;
 
 mod bindings;
 mod ns;
+mod uprobes;

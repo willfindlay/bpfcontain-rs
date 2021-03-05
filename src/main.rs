@@ -72,6 +72,12 @@ fn main() -> Result<()> {
                     Arg::with_name("policy")
                         .required(true)
                         .help("The policy to run"),
+                )
+                .arg(
+                    Arg::with_name("command")
+                        .multiple(true)
+                        .last(true)
+                        .help("Override policy command"),
                 ),
         );
 

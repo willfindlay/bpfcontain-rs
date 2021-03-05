@@ -21,7 +21,7 @@ fn main() {
 
     // Generate bindings
     let bindings = bindgen::builder()
-        .header("src/include/libbpfcontain.h")
+        .header("bindings.h")
         .derive_default(true)
         .derive_eq(true)
         .derive_partialeq(true)

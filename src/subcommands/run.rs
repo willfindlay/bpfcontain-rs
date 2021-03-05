@@ -31,14 +31,23 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Containerize
     containerize(&policy).context("Failed to containerize")?;
 
+    // Get entrypoint as a vector of strings
+    let cmd_vec = {
+        if let Some(cmd) = args
+            .values_of("command")
+            .map(|vals| vals.collect::<Vec<_>>())
+        {
+            cmd
+        } else {
+            policy.cmd.split_whitespace().collect::<Vec<_>>()
+        }
+    };
+
     // Parse out command
-    let command = policy
-        .cmd
-        .split_whitespace()
-        .nth(0)
-        .context("Failed to get command")?;
+    let command = cmd_vec.iter().nth(0).context("Failed to get command")?;
+
     // Parse out args
-    let args: Vec<_> = policy.cmd.split_whitespace().skip(1).collect();
+    let args: Vec<_> = cmd_vec.iter().skip(1).collect();
 
     let err = Command::new(command).args(args).exec();
 
