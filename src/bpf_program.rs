@@ -5,6 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -19,7 +20,8 @@ use crate::bpf;
 use crate::config::Settings;
 use crate::ns;
 use crate::policy::Policy;
-use crate::utils::{bump_memlock_rlimit, get_symbol_offset};
+use crate::uprobes::FindSymbolUprobeExt;
+use crate::utils::bump_memlock_rlimit;
 
 /// Main BPF program work loop.
 pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -84,7 +86,7 @@ pub fn load_bpf_program<'a>(
     let link = skel.progs().do_containerize().attach_uprobe_symbol(
         false,
         -1,
-        "/usr/lib/libbpfcontain.so",
+        Path::new("/usr/lib/libbpfcontain.so"),
         "do_containerize",
     )?;
     // Keep a reference count
@@ -168,54 +170,4 @@ pub fn load_policy_recursive(skel: &mut bpf::BpfcontainSkel, policy_dir: &str) -
     log::info!("Done loading policy!");
 
     Ok(())
-}
-
-/// Extends [`libbpf_rs::Program`] with a method to attach a uprobe to a given
-/// `symbol_name` within the ELF binary located at `binary_path`.
-trait SymbolUprobeExt {
-    /// Attach a uprobe to a given `symbol_name` within the ELF binary located
-    /// at `binary_path`.
-    fn attach_uprobe_symbol(
-        &mut self,
-        retprobe: bool,
-        pid: i32,
-        binary_path: &str,
-        symbol_name: &str,
-    ) -> Result<libbpf_rs::Link>;
-}
-
-/// Extend [`libbpf_rs::Program`] with the [`SymbolUprobeExt`] trait.
-impl SymbolUprobeExt for libbpf_rs::Program {
-    fn attach_uprobe_symbol(
-        &mut self,
-        retprobe: bool,
-        pid: i32,
-        binary_path: &str,
-        symbol_name: &str,
-    ) -> Result<libbpf_rs::Link> {
-        // Grab the symbol offset, if we can find it
-        let func_offset = get_symbol_offset(binary_path, symbol_name)?;
-
-        log::debug!(
-            "Attaching uprobe: retprobe={} pid={} binary_path={} symbol_name={}",
-            retprobe,
-            pid,
-            binary_path,
-            symbol_name
-        );
-
-        // Null terminate binary_path
-        let mut binary_path = binary_path.to_string();
-        binary_path.push_str("\0");
-
-        // Use the offset we found to attach the uprobe or uretprobe
-        let result = self
-            .attach_uprobe(retprobe, pid, &binary_path[..], func_offset)
-            .context(format!(
-                "Failed to attach uprobe binary_path=`{}` symbol_name=`{}`",
-                binary_path, symbol_name
-            ))?;
-
-        Ok(result)
-    }
 }
