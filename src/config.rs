@@ -1,5 +1,5 @@
 use anyhow::Result;
-use config::{Config, ConfigError, Environment, File};
+use config::{Config, ConfigError, Environment, File, FileFormat};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -46,13 +46,10 @@ impl Settings {
     }
 
     fn set_defaults(s: &mut Config) -> Result<(), ConfigError> {
-        // Daemon defaults
-        s.set_default("daemon.logfile", "/var/log/bpfcontain.log")?;
-        s.set_default("daemon.pidfile", "/run/bpfcontain.pid")?;
-        s.set_default("daemon.workdir", "/var/lib/bpfcontain")?;
-
-        // Policy defaults
-        s.set_default("policy.dir", "/var/lib/bpfcontain/policy")?;
+        s.merge(File::from_str(
+            include_str!("../config/default.yml"),
+            FileFormat::Yaml,
+        ))?;
 
         Ok(())
     }
