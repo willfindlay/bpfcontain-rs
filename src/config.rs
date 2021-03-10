@@ -1,5 +1,6 @@
 use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
+use glob::glob;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -43,7 +44,12 @@ impl Settings {
             // User-supplied config file
             Some(path) => s.merge(File::with_name(path)),
             // Global config file
-            None => s.merge(File::with_name("/etc/bpfcontain").required(false)),
+            None => s.merge(
+                glob("/etc/bpfcontain/**")
+                    .context("Failed to glob")?
+                    .map(|path| File::from(path.unwrap()))
+                    .collect::<Vec<_>>(),
+            ),
         }
         .context("Error reading config file")?;
 
