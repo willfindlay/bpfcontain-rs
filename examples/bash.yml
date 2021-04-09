@@ -8,7 +8,7 @@ default: deny
 # A set of rights to grant, OPTIONAL
 rights:
   - terminal:
-  - fs: {pathname: /, access: rwx}
+  - fs: {pathname: /, access: rwxm}
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
