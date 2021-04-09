@@ -3,6 +3,10 @@
 BPFContain is a container security daemon for GNU/Linux leveraging the power and
 safety of eBPF and Rust.
 
+## DISCLAIMER
+
+BPFContain is still in active development and is not yet feature-complete.
+
 <!--
 ## About
 
