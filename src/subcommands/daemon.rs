@@ -5,16 +5,17 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{bail, Context, Result};
-use clap::ArgMatches;
-use daemonize::Daemonize;
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
 use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::thread::sleep;
 use std::time::Duration;
+
+use anyhow::{bail, Context, Result};
+use clap::ArgMatches;
+use daemonize::Daemonize;
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 
 use crate::bpf_program::work_loop;
 use crate::config::Settings;
