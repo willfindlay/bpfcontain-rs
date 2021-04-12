@@ -852,7 +852,7 @@ remove_process_from_container(container_t *container, u32 host_pid)
  *    Otherwise, NULL
  */
 static __always_inline container_t *
-start_container(policy_id_t policy_id, bool default_taint, bool default_deny)
+start_container(policy_id_t policy_id, bool tainted)
 {
     // Allocate a new container
     container_t *container = new_container_t();
@@ -880,9 +880,7 @@ start_container(policy_id_t policy_id, bool default_taint, bool default_deny)
     // This value is _only_ modified atomically
     container->refcount = 0;
     // Is the container tainted?
-    container->tainted = default_taint;
-    // Is the container default deny?
-    container->default_deny = default_deny;
+    container->tainted = tainted;
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id.
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
@@ -2283,14 +2281,13 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
  * return: Converted access mask.
  */
 SEC("uprobe/do_containerize")
-int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id, u8 default_taint,
-               u8 default_deny)
+int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id, u8 tainted)
 {
     int ret = 0;
 
     // Try to add a process to `processes` with `pid`/`tgid`, associated with
     // `policy_id`
-    if (!start_container(policy_id, default_taint, default_deny)) {
+    if (!start_container(policy_id, tainted)) {
         ret = -EINVAL;
         goto out;
     }

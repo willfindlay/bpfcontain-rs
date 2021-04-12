@@ -220,7 +220,6 @@ typedef struct {
     u32 refcount;
     // Is the container in a tainted state?
     u8 tainted : 1;
-    u8 default_deny : 1;
     // often corresponds with container id on the docker side
     char uts_name[16];
 } container_t;
