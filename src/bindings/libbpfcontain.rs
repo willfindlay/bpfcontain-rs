@@ -14,13 +14,7 @@ use crate::policy::Policy;
 
 /// Place the current process into a container with ID `policy_id`.
 pub fn containerize(policy: &Policy) -> Result<()> {
-    let result = unsafe {
-        raw::containerize(
-            policy.policy_id(),
-            policy.default_taint() as u8,
-            policy.default_deny() as u8,
-        )
-    };
+    let result = unsafe { raw::containerize(policy.policy_id()) };
 
     match result {
         0 => Ok(()),

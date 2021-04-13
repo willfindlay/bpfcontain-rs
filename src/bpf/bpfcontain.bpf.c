@@ -86,6 +86,9 @@ BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0);
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, container_id_t, 0);
 
+/* Common policy */
+BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY, 0);
+
 /* Filesystem policy */
 BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0);
 
@@ -459,8 +462,8 @@ do_policy_decision(container_t *container, policy_decision_t decision,
         return 0;
     }
 
-    // If tainted and default-deny with no policy decision, deny
-    if (tainted && container->default_deny) {
+    // If tainted with no policy decision, deny
+    if (tainted) {
         return -EACCES;
     }
 
@@ -2281,13 +2284,20 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
  * return: Converted access mask.
  */
 SEC("uprobe/do_containerize")
-int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id, u8 tainted)
+int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
 {
     int ret = 0;
 
+    // Look up common policy information from policy_common map
+    policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
+    if (!common) {
+        ret = -ENOENT;
+        goto out;
+    }
+
     // Try to add a process to `processes` with `pid`/`tgid`, associated with
     // `policy_id`
-    if (!start_container(policy_id, tainted)) {
+    if (!start_container(policy_id, common->default_taint)) {
         ret = -EINVAL;
         goto out;
     }

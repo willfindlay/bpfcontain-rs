@@ -7,4 +7,4 @@
 
 #include "../include/structs.h"
 
-int containerize(u64 policy_id, u8 tainted);
+int containerize(u64 policy_id);

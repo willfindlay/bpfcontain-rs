@@ -2,11 +2,8 @@
 name: foo
 # The command to run, REQUIRED
 cmd: /bin/foo
-
-# Default enforcement, OPTIONAL
-# This is "deny" by default, so it's not strictly required, but if we wanted
-# default-allow we would need to be explicit.
-default: deny
+# Should the container spawn tainted, regardless of taint rules?
+defaultTaint: false
 
 # A set of rights to grant, OPTIONAL
 rights:

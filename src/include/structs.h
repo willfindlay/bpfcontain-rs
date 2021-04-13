@@ -269,6 +269,10 @@ typedef struct {
  * ========================================================================= */
 
 typedef struct {
+    u8 default_taint : 1;
+} __attribute__((__packed__)) policy_common_t;
+
+typedef struct {
     file_permission_t allow;
     file_permission_t taint;
     file_permission_t deny;

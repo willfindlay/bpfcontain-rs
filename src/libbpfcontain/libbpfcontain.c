@@ -32,15 +32,15 @@
  *
  */
 
-static void do_containerize(int *ret, u64 policy_id, u8 tainted)
+static void do_containerize(int *ret, u64 policy_id)
 {
 }
 
-int containerize(u64 policy_id, u8 tainted)
+int containerize(u64 policy_id)
 {
     int ret = -EAGAIN;
 
-    do_containerize(&ret, policy_id, tainted);
+    do_containerize(&ret, policy_id);
 
     if (ret < 0) {
         errno = -ret;

@@ -12,6 +12,11 @@ use pod::Pod;
 
 use super::raw;
 
+// Map keys below this line ----------------------------------------------------
+
+/// Represents a raw policy key on the BPF side.
+pub type PolicyId = raw::policy_id_t;
+
 /// Represents a per-filesystem policy key on the BPF side.
 pub type FsPolicyKey = raw::fs_policy_key_t;
 unsafe impl Pod for FsPolicyKey {}
@@ -41,6 +46,12 @@ unsafe impl Pod for NetPolicyKey {}
 /// Represents a IPC policy key on the BPF side.
 pub type IPCPolicyKey = raw::ipc_policy_key_t;
 unsafe impl Pod for IPCPolicyKey {}
+
+// Map values below this line --------------------------------------------------
+
+/// Represents a common policy type on the BPF side
+pub type PolicyCommon = raw::policy_common_t;
+unsafe impl Pod for PolicyCommon {}
 
 /// Represents a file policy value on the BPF side.
 pub type FilePolicyVal = raw::file_policy_val_t;

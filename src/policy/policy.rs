@@ -8,30 +8,18 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use libbpf_rs::MapFlags;
+use pod::Pod as _;
 use serde::Deserialize;
 
+use crate::bindings;
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::policy::rules::*;
-
-/// Represents a default enforcement type
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-enum DefaultEnforcement {
-    Deny,
-    Allow,
-}
-
-impl Default for DefaultEnforcement {
-    /// Policy should default to default-deny if not specified.
-    fn default() -> Self {
-        DefaultEnforcement::Deny
-    }
-}
 
 /// A high-level representation of a BPFContain policy that has been loaded
 /// from a YAML file.
 #[derive(Debug, Clone, Deserialize, Default)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
     /// The policy's name. Should be unique.
@@ -40,12 +28,11 @@ pub struct Policy {
     /// The command associated with the policy. This will be run when the user
     /// invokes `bpfcontain-rs run </path/to/policy.yml>`.
     /// A policy _must_ specify a command.
-    #[serde(alias = "entry")]
     pub cmd: String,
-    /// Whether the policy is default-allow or default-deny. If this is not
-    /// provided, we automatically assume default-deny.
-    #[serde(default)]
-    default: DefaultEnforcement,
+    /// Whether the container should spawn in a tainted state. Otherwise, taint rules will
+    /// specify when the container should become tainted.
+    //#[serde(default)]
+    default_taint: bool,
     /// The rights (allow-rules) associated with the policy.
     #[serde(default)]
     rights: Vec<Rule>,
@@ -88,38 +75,63 @@ impl Policy {
         hasher.finish()
     }
 
-    /// Is this policy default_taint?
-    pub fn default_taint(&self) -> bool {
-        self.taints.len() == 0
-    }
-
-    /// Is this policy default_deny?
-    pub fn default_deny(&self) -> bool {
-        self.default == DefaultEnforcement::Deny
-    }
-
     /// Load the policy into the kernel
     pub fn load(&self, skel: &mut Skel) -> Result<()> {
+        // Load common policy info
+        self.load_common(skel)?;
+
         // Load rights
         for rule in self.rights.iter() {
             if let Err(e) = rule.load(self, skel, PolicyDecision::Allow) {
-                log::warn!("Failed to load allow rule: {:?}", e);
+                log::warn!(
+                    "Failed to load allow rule for policy \"{}\": {:?}",
+                    self.name,
+                    e
+                );
             }
         }
 
         // Load restrictions
         for rule in self.restrictions.iter() {
             if let Err(e) = rule.load(self, skel, PolicyDecision::Deny) {
-                log::warn!("Failed to load deny rule: {:?}", e);
+                log::warn!(
+                    "Failed to load deny rule for policy \"{}\": {:?}",
+                    self.name,
+                    e
+                );
             }
         }
 
         // Load taints
         for rule in self.taints.iter() {
             if let Err(e) = rule.load(self, skel, PolicyDecision::Taint) {
-                log::warn!("Failed to load taint rule: {:?}", e);
+                log::warn!(
+                    "Failed to load taint rule for policy \"{}\": {:?}",
+                    self.name,
+                    e
+                );
             }
         }
+
+        Ok(())
+    }
+
+    /// Load the common part of the policy into the kernel
+    fn load_common(&self, skel: &mut Skel) -> Result<()> {
+        type Key = bindings::policy::PolicyId;
+        type Value = bindings::policy::PolicyCommon;
+
+        // Get correct map
+        let mut maps = skel.maps();
+        let map = maps.policy_common();
+
+        let key: Key = self.policy_id();
+
+        let mut value = Value::default();
+        value.set_default_taint(self.default_taint as u8);
+
+        map.update(key.as_bytes(), value.as_bytes(), MapFlags::ANY)
+            .context("Failed to update policy map")?;
 
         Ok(())
     }

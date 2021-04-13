@@ -2,8 +2,8 @@
 name: bash
 # The command to run, REQUIRED
 cmd: /bin/bash
-
-default: deny
+# Should the container spawn tainted, regardless of taint rules?
+defaultTaint: false
 
 # A set of rights to grant, OPTIONAL
 rights:
