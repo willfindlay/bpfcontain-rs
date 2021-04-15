@@ -7,7 +7,9 @@
 
 use anyhow::{anyhow, Context, Result};
 use clap::{App, AppSettings, Arg, SubCommand};
-use simple_logger::SimpleLogger;
+use log::LevelFilter;
+use stderrlog::StdErrLog;
+use syslog::{BasicLogger, Facility, Formatter3164};
 
 use bpfcontain::*;
 
@@ -95,11 +97,16 @@ fn main() -> Result<()> {
     };
 
     // Initialize the logger
-    SimpleLogger::new().with_level(log_level).init()?;
+    let foreground = match args.subcommand() {
+        ("daemon", Some(args)) => args.subcommand_name() == Some("foreground"),
+        _ => true,
+    };
+    println!("running in foreground: {:?}", foreground);
+    configure_logging(log_level, foreground).expect("Failed to configure logging");
 
     // Initialize config
     let config_path = args.value_of("cfg");
-    let config = config::Settings::new(config_path).context("Failed to load configuration")?;
+    let config = config::Settings::new(config_path).expect("Failed to load configuration");
 
     // Pretty print current config to debug logs
     log::debug!("{:#?}", config);
@@ -123,16 +130,42 @@ fn main() -> Result<()> {
 }
 
 /// Argument validator that ensures a path `arg` exists.
-///
-/// # Errors
-///
-/// Returns an error if the path does not exist.
 fn path_validator(arg: String) -> Result<(), String> {
     let path = std::path::PathBuf::from(&arg);
 
     if !path.exists() {
         return Err(format!("Path `{}` does not exist", &arg));
     }
+
+    Ok(())
+}
+
+/// Configure logging to either log to syslog or standard error
+fn configure_logging(log_level: LevelFilter, stderr: bool) -> Result<()> {
+    if stderr {
+        let verbosity = match log_level {
+            LevelFilter::Error => 0,
+            LevelFilter::Warn => 1,
+            LevelFilter::Info => 2,
+            LevelFilter::Debug => 3,
+            _ => 4,
+        };
+
+        stderrlog::new().verbosity(verbosity).init()
+    } else {
+        let formatter = Formatter3164 {
+            facility: Facility::LOG_DAEMON,
+            hostname: None,
+            process: "bpfcontain".into(),
+            pid: 0,
+        };
+
+        let logger = syslog::unix(formatter).expect("Failed to connect to syslog");
+
+        log::set_boxed_logger(Box::new(BasicLogger::new(logger)))
+            .map(|()| log::set_max_level(log_level))
+    }
+    .context("Failed to initialize logger")?;
 
     Ok(())
 }

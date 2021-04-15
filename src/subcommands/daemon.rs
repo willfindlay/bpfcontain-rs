@@ -37,20 +37,7 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
 
     let workdir = &config.daemon.workdir;
-    let logfile = &config.daemon.logfile;
     let pidfile = &config.daemon.pidfile;
-
-    // Open the log file
-    let stdout = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(logfile)
-        .context("Failed opening logfile stdout")?;
-    let stderr = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(logfile)
-        .context("Failed opening logfile stderr")?;
 
     // Create workdir and set permissions to rwxr-xr-t
     create_dir_all(workdir).context("Failed creating policy directory")?;
@@ -64,8 +51,8 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     let daemonize = Daemonize::new()
         .pid_file(pidfile)
         //.user("nobody")
-        .stdout(stdout)
-        .stderr(stderr)
+        //.stdout(stdout)
+        //.stderr(stderr)
         .working_directory(workdir)
         .exit_action(|| log::info!("Started the daemon!"));
 

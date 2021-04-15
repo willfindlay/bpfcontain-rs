@@ -1965,6 +1965,8 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 out:
     ret = do_policy_decision(container, decision, 1);
     audit_cap(decision, container->policy_id, 1, access);
+    bpf_printk("capability=%d", cap);
+    bpf_printk("ret=%d opts=%u user_ns=%lu", ret, opts, ns->ns.inum);
 
     return ret;
 }
