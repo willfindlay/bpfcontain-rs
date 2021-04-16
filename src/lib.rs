@@ -8,6 +8,7 @@
 pub mod bpf;
 pub mod bpf_program;
 pub mod config;
+pub mod log;
 pub mod policy;
 pub mod subcommands;
 pub mod utils;

@@ -5,6 +5,8 @@ daemon:
   pidfile: /run/bpfcontain.pid
   # Working directory
   workdir: /var/lib/bpfcontain
+  # Log level
+  loglevel: info
 
 policy:
   # Path to policy directory

@@ -19,6 +19,8 @@ pub struct Daemon {
     pub pidfile: String,
     #[serde(alias = "work_dir")]
     pub workdir: String,
+    #[serde(alias = "log_level")]
+    pub loglevel: log::LevelFilter,
 }
 
 #[derive(Debug, Deserialize)]

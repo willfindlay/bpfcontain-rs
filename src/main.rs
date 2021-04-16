@@ -5,16 +5,12 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use anyhow::{anyhow, Context, Result};
-use clap::{App, AppSettings, Arg, SubCommand};
-use log::LevelFilter;
-use stderrlog::StdErrLog;
-use syslog::{BasicLogger, Facility, Formatter3164};
+use ::anyhow::{bail, Result};
+use ::clap::{App, AppSettings, Arg, SubCommand};
 
-use bpfcontain::*;
-
-use subcommands::daemon;
-use subcommands::run;
+use bpfcontain::config;
+use bpfcontain::subcommands::daemon;
+use bpfcontain::subcommands::run;
 
 fn main() -> Result<()> {
     let app = App::new("BPFContain")
@@ -86,45 +82,32 @@ fn main() -> Result<()> {
     // Parse arguments
     let args = app.get_matches();
 
+    // Initialize config
+    let config_path = args.value_of("cfg");
+    let mut config = config::Settings::new(config_path).expect("Failed to load configuration");
+
     // Set log level based on verbosity
     // Level 0: Info
     // Level 1: Debug
     // Level 2: Trace
-    let log_level = match args.occurrences_of("v") {
-        0 => log::LevelFilter::Info,
-        1 => log::LevelFilter::Debug,
-        2 | _ => log::LevelFilter::Trace,
+    match args.occurrences_of("v") {
+        0 => {}
+        1 => config.daemon.loglevel = log::LevelFilter::Debug,
+        2 | _ => config.daemon.loglevel = log::LevelFilter::Trace,
     };
 
-    // Initialize the logger
-    let foreground = match args.subcommand() {
-        ("daemon", Some(args)) => args.subcommand_name() == Some("foreground"),
-        _ => true,
-    };
-    println!("running in foreground: {:?}", foreground);
-    configure_logging(log_level, foreground).expect("Failed to configure logging");
-
-    // Initialize config
-    let config_path = args.value_of("cfg");
-    let config = config::Settings::new(config_path).expect("Failed to load configuration");
-
-    // Pretty print current config to debug logs
-    log::debug!("{:#?}", config);
+    if args.occurrences_of("v") >= 2 {
+        // Pretty print current config
+        println!("{:#?}", config);
+    }
 
     // Dispatch to subcommand
-    let result = match args.subcommand() {
-        ("daemon", Some(args)) => daemon::main(args, &config).context("Daemon exited with error"),
-        ("run", Some(args)) => run::main(args, &config).context("Run exited with error"),
+    match args.subcommand() {
+        ("daemon", Some(args)) => daemon::main(args, &config)?,
+        ("run", Some(args)) => run::main(args, &config)?,
         // TODO: match other subcommands
-        (unknown, _) => Err(anyhow!("Unknown subcommand {}", unknown)),
+        (unknown, _) => bail!("Unknown subcommand {}", unknown),
     };
-
-    // Log errors if they bubble up
-    // This effectively re-routes error messages to the log file
-    if let Err(e) = result {
-        log::error!("{:?}", e);
-        std::process::exit(1);
-    }
 
     Ok(())
 }
@@ -136,36 +119,6 @@ fn path_validator(arg: String) -> Result<(), String> {
     if !path.exists() {
         return Err(format!("Path `{}` does not exist", &arg));
     }
-
-    Ok(())
-}
-
-/// Configure logging to either log to syslog or standard error
-fn configure_logging(log_level: LevelFilter, stderr: bool) -> Result<()> {
-    if stderr {
-        let verbosity = match log_level {
-            LevelFilter::Error => 0,
-            LevelFilter::Warn => 1,
-            LevelFilter::Info => 2,
-            LevelFilter::Debug => 3,
-            _ => 4,
-        };
-
-        stderrlog::new().verbosity(verbosity).init()
-    } else {
-        let formatter = Formatter3164 {
-            facility: Facility::LOG_DAEMON,
-            hostname: None,
-            process: "bpfcontain".into(),
-            pid: 0,
-        };
-
-        let logger = syslog::unix(formatter).expect("Failed to connect to syslog");
-
-        log::set_boxed_logger(Box::new(BasicLogger::new(logger)))
-            .map(|()| log::set_max_level(log_level))
-    }
-    .context("Failed to initialize logger")?;
 
     Ok(())
 }

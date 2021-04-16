@@ -5,7 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
+use std::fs::{create_dir_all, metadata, set_permissions, File};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::thread::sleep;
@@ -21,12 +21,15 @@ use crate::bpf_program::work_loop;
 use crate::config::Settings;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
+    // Initialize the logger
+    crate::log::configure(config.daemon.loglevel, config.daemon.logfile.as_str())?;
+
     let result = match args.subcommand() {
         ("start", Some(args)) => start_daemon(args, config),
         ("restart", Some(args)) => restart_daemon(args, config),
         ("stop", Some(_)) => stop_daemon(config),
         ("foreground", Some(args)) => work_loop(args, config),
-        _ => bail!("Bad subcommand name"),
+        (unknown, _) => bail!("Unknown subcommand {}", unknown),
     };
 
     result
@@ -109,7 +112,7 @@ fn stop_daemon(config: &Settings) -> Result<()> {
 ///
 /// FIXME: This is racy because we need to wait for the pidfile to be unlocked
 /// before we can start the daemon. As a crude workaround, we currently
-/// sleep for 1 second after a successful call to [`stop_daemon`].
+/// sleep for a few seconds after a successful call to [`stop_daemon`].
 ///
 /// This behaviour should be changed in future versions to wait for the file to
 /// be unlocked.
@@ -120,7 +123,7 @@ fn restart_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     match stop_daemon(config) {
         Ok(_) => {
             // FIXME: Should poll to see if the process has actually stopped
-            sleep(Duration::new(1, 0));
+            sleep(Duration::new(3, 0));
         }
         Err(e) => {
             log::warn!(
