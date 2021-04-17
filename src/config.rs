@@ -5,22 +5,19 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
-    #[serde(alias = "policydir")]
+    #[serde(alias = "policyDir")]
     #[serde(alias = "policy_dir")]
     pub dir: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Daemon {
-    #[serde(alias = "log_file")]
-    pub logfile: String,
-    #[serde(alias = "pid_file")]
-    pub pidfile: String,
-    #[serde(alias = "work_dir")]
-    pub workdir: String,
-    #[serde(alias = "log_level")]
-    pub loglevel: log::LevelFilter,
+    pub log_file: String,
+    pub pid_file: String,
+    pub work_dir: String,
+    pub verbosity: log::LevelFilter,
 }
 
 #[derive(Debug, Deserialize)]

@@ -22,25 +22,39 @@ use crate::config::Settings;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Initialize the logger
-    crate::log::configure(config.daemon.loglevel, config.daemon.logfile.as_str())?;
+    crate::log::configure(config.daemon.verbosity, config.daemon.log_file.as_str())?;
 
+    // Run the correct subcommand
     let result = match args.subcommand() {
         ("start", Some(args)) => start_daemon(args, config),
         ("restart", Some(args)) => restart_daemon(args, config),
         ("stop", Some(_)) => stop_daemon(config),
-        ("foreground", Some(args)) => work_loop(args, config),
+        ("foreground", Some(args)) => run_in_foreground(args, config),
         (unknown, _) => bail!("Unknown subcommand {}", unknown),
     };
 
-    result
+    // Log results and exit with error code
+    if let Err(e) = result {
+        log::error!("{:?}", e);
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+/// Run in the foreground.
+fn run_in_foreground(args: &ArgMatches, config: &Settings) -> Result<()> {
+    log::info!("Running in the foreground...");
+
+    work_loop(args, config)
 }
 
 /// Starts the daemon.
 fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
 
-    let workdir = &config.daemon.workdir;
-    let pidfile = &config.daemon.pidfile;
+    let workdir = &config.daemon.work_dir;
+    let pidfile = &config.daemon.pid_file;
 
     // Create workdir and set permissions to rwxr-xr-t
     create_dir_all(workdir).context("Failed creating policy directory")?;
@@ -53,9 +67,6 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Set up the daemon
     let daemonize = Daemonize::new()
         .pid_file(pidfile)
-        //.user("nobody")
-        //.stdout(stdout)
-        //.stderr(stderr)
         .working_directory(workdir)
         .exit_action(|| log::info!("Started the daemon!"));
 
@@ -75,7 +86,7 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
 fn stop_daemon(config: &Settings) -> Result<()> {
     log::info!("Stopping daemon...");
 
-    let pidfile = &config.daemon.pidfile;
+    let pidfile = &config.daemon.pid_file;
 
     // Parse pid from pidfile
     let pid: i32 = {

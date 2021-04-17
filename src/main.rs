@@ -5,7 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use ::anyhow::{bail, Result};
+use ::anyhow::{bail, Context as _, Result};
 use ::clap::{App, AppSettings, Arg, SubCommand};
 
 use bpfcontain::config;
@@ -27,6 +27,13 @@ fn main() -> Result<()> {
                 .multiple(true)
                 .global(true)
                 .help("Sets verbosity. Possible values are -v or -vv"),
+        )
+        .arg(
+            Arg::with_name("q")
+                .short("q")
+                .global(true)
+                .conflicts_with("v")
+                .help("Run in quiet mode, only logging warning and errors."),
         )
         .arg(
             Arg::with_name("cfg")
@@ -83,23 +90,30 @@ fn main() -> Result<()> {
     let args = app.get_matches();
 
     // Initialize config
-    let config_path = args.value_of("cfg");
-    let mut config = config::Settings::new(config_path).expect("Failed to load configuration");
+    let config = {
+        let mut config =
+            config::Settings::new(args.value_of("cfg")).context("Failed to load configuration")?;
 
-    // Set log level based on verbosity
-    // Level 0: Info
-    // Level 1: Debug
-    // Level 2: Trace
-    match args.occurrences_of("v") {
-        0 => {}
-        1 => config.daemon.loglevel = log::LevelFilter::Debug,
-        2 | _ => config.daemon.loglevel = log::LevelFilter::Trace,
+        // Set verbosity based on -v, -vv arguments
+        // Level 0: Use config default
+        // Level 1: Debug
+        // Level 2: Trace
+        match args.occurrences_of("v") {
+            0 => {}
+            1 => config.daemon.verbosity = log::LevelFilter::Debug,
+            2 | _ => config.daemon.verbosity = log::LevelFilter::Trace,
+        };
+
+        // Set quiet mode
+        if args.is_present("q") {
+            config.daemon.verbosity = log::LevelFilter::Warn;
+        }
+
+        config
     };
 
-    if args.occurrences_of("v") >= 2 {
-        // Pretty print current config
-        println!("{:#?}", config);
-    }
+    // Pretty print current config
+    log::debug!("{:#?}", config);
 
     // Dispatch to subcommand
     match args.subcommand() {

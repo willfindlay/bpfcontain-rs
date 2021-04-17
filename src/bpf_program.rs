@@ -45,7 +45,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 pub fn load_bpf_program<'a>(
     debug: bool,
 ) -> Result<(bpf::BpfcontainSkel<'a>, libbpf_rs::RingBuffer)> {
-    log::info!("Initializing BPF objects...");
+    log::debug!("Initializing BPF objects...");
 
     // Initialize the skeleton builder
     log::debug!("Initializing skeleton builder...");
