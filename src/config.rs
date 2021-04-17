@@ -2,6 +2,7 @@ use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
 
+/// Configuration related to policy language
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Policy {
@@ -10,6 +11,7 @@ pub struct Policy {
     pub dir: String,
 }
 
+/// Configuration related to the daemon
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
@@ -17,9 +19,10 @@ pub struct Daemon {
     pub log_file: String,
     pub pid_file: String,
     pub work_dir: String,
-    pub verbosity: log::LevelFilter,
+    pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
 }
 
+/// Configuration struct
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Settings {
@@ -53,6 +56,7 @@ impl Settings {
                 .context("Error reading settings from environment")?;
         }
 
+        // Lock the configuration
         Ok(s.try_into()?)
     }
 }
