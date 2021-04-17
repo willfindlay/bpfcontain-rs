@@ -25,8 +25,9 @@ use crate::utils::bump_memlock_rlimit;
 
 /// Main BPF program work loop.
 pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
+    // Load BPF programs into the kernel
     let (mut skel, ringbuf) =
-        load_bpf_program(args.occurrences_of("v") >= 2).context("Failed to load BPF program")?;
+        load_bpf_program(args.occurrences_of("v") >= 2).context("Failed to load BPF programs")?;
 
     // Load policy in `config.policy.dir`
     load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
@@ -34,7 +35,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Loop forever
     loop {
         if let Err(e) = ringbuf.poll(Duration::new(1, 0)) {
-            log::warn!("Failed to poll perf buffer: {}", e);
+            log::warn!("Failed to poll ring buffer: {}", e);
         }
         sleep(Duration::from_millis(100));
     }
@@ -45,7 +46,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 pub fn load_bpf_program<'a>(
     debug: bool,
 ) -> Result<(bpf::BpfcontainSkel<'a>, libbpf_rs::RingBuffer)> {
-    log::info!("Initializing BPF objects...");
+    log::debug!("Initializing BPF objects...");
 
     // Initialize the skeleton builder
     log::debug!("Initializing skeleton builder...");
@@ -94,6 +95,7 @@ pub fn load_bpf_program<'a>(
 
     let mut ringbuf_builder = RingBufferBuilder::default();
 
+    // Configure the ringbuf
     ringbuf_builder
         .add(skel.maps().audit_file_buf(), audit_file)
         .context("Failed to add ringbuf")?
@@ -104,9 +106,10 @@ pub fn load_bpf_program<'a>(
         .add(skel.maps().audit_ipc_buf(), audit_ipc)
         .context("Failed to add ringbuf")?;
 
+    // Build the ringbuf
     let ringbuf = ringbuf_builder
         .build()
-        .context("Failed to create ringbuf manager")?;
+        .context("Failed to create ringbuf")?;
 
     Ok((skel, ringbuf))
 }

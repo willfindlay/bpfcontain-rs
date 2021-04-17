@@ -1,10 +1,12 @@
 daemon:
   # Path to logfile
-  logfile: /var/log/bpfcontain.log
+  logFile: /var/log/bpfcontain.log
   # Path to pidfile
-  pidfile: /run/bpfcontain.pid
+  pidFile: /run/bpfcontain.pid
   # Working directory
-  workdir: /var/lib/bpfcontain
+  workDir: /var/lib/bpfcontain
+  # Log level
+  verbosity: INFO
 
 policy:
   # Path to policy directory

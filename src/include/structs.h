@@ -220,7 +220,6 @@ typedef struct {
     u32 refcount;
     // Is the container in a tainted state?
     u8 tainted : 1;
-    u8 default_deny : 1;
     // often corresponds with container id on the docker side
     char uts_name[16];
 } container_t;
@@ -268,6 +267,10 @@ typedef struct {
 /* ========================================================================= *
  * Values for Policy Maps                                                    *
  * ========================================================================= */
+
+typedef struct {
+    u8 default_taint : 1;
+} __attribute__((__packed__)) policy_common_t;
 
 typedef struct {
     file_permission_t allow;

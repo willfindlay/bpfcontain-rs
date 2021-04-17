@@ -9,7 +9,7 @@ use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Context as _, Result};
 use clap::ArgMatches;
 
 use crate::bindings::containerize;
@@ -17,6 +17,9 @@ use crate::config::Settings;
 use crate::policy::Policy;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
+    // Initialize the logger
+    crate::log::configure(config.daemon.verbosity, None)?;
+
     // Configure policy path
     let policy_dir = Path::new(&config.policy.dir);
     let policy_file = Path::new(
