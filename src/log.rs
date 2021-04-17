@@ -7,51 +7,52 @@
 
 use anyhow::{Context as _, Result};
 use log::LevelFilter;
-use log4rs::append::console::ConsoleAppender;
-use log4rs::append::rolling_file::policy::compound::roll::fixed_window::FixedWindowRoller;
-use log4rs::append::rolling_file::policy::compound::trigger::size::SizeTrigger;
-use log4rs::append::rolling_file::policy::compound::CompoundPolicy;
-use log4rs::append::rolling_file::RollingFileAppender;
+use log4rs::append::console::{ConsoleAppender, Target};
+use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
 /// Configure logging
-pub fn configure(log_level: LevelFilter, log_file: &str) -> Result<()> {
+pub fn configure(log_level: LevelFilter, log_file: Option<&str>) -> Result<()> {
+    let config_builder = Config::builder();
+
+    // Log to stderr
     let stderr = ConsoleAppender::builder()
         .encoder(Box::new(PatternEncoder::new(
             "[{d(%Y-%m-%d %H:%M:%S)}] {h([{l}])}: {m}\n",
         )))
+        .target(Target::Stderr)
         .build();
+    let config_builder =
+        config_builder.appender(Appender::builder().build("stderr", Box::new(stderr)));
 
-    let filename_fmt = {
-        let mut s = log_file.to_string();
-        s.push_str(".{}");
-        s
+    // Log to file
+    let config_builder = match log_file {
+        Some(log_file) => {
+            let file = FileAppender::builder()
+                .encoder(Box::new(PatternEncoder::new(
+                    "[{d(%Y-%m-%d %H:%M:%S)}] [{l}]: {m}\n",
+                )))
+                .build(log_file)
+                .context("Failed to configure logging to file")?;
+            config_builder.appender(Appender::builder().build("file", Box::new(file)))
+        }
+        None => config_builder,
     };
 
-    let policy = CompoundPolicy::new(
-        Box::new(SizeTrigger::new(100 * u64::pow(1024, 2))),
-        Box::new(FixedWindowRoller::builder().build(filename_fmt.as_str(), 10)?),
-    );
+    // Configure root logger
+    let root_builder = Root::builder().appender("stderr");
+    let root_builder = match log_file {
+        Some(_) => root_builder.appender("file"),
+        None => root_builder,
+    };
 
-    let file = RollingFileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(
-            "[{d(%Y-%m-%d %H:%M:%S)}] [{l}]: {m}\n",
-        )))
-        .build(log_file, Box::new(policy))
-        .context("Failed to configure logging to file")?;
-
-    let config = Config::builder()
-        .appender(Appender::builder().build("stderr", Box::new(stderr)))
-        .appender(Appender::builder().build("file", Box::new(file)))
-        .build(
-            Root::builder()
-                .appender("stderr")
-                .appender("file")
-                .build(log_level),
-        )
+    // Build final config
+    let config = config_builder
+        .build(root_builder.build(log_level))
         .context("Failed to create logging configuration object")?;
 
+    // Configure the logger
     log4rs::init_config(config).context("Failed to configure logging")?;
 
     Ok(())

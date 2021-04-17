@@ -22,7 +22,10 @@ use crate::config::Settings;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Initialize the logger
-    crate::log::configure(config.daemon.verbosity, config.daemon.log_file.as_str())?;
+    crate::log::configure(
+        config.daemon.verbosity,
+        Some(config.daemon.log_file.as_str()),
+    )?;
 
     // Run the correct subcommand
     let result = match args.subcommand() {
