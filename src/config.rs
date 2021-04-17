@@ -5,6 +5,7 @@ use serde::Deserialize;
 /// Configuration related to policy language
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Policy {
     #[serde(alias = "policyDir")]
     #[serde(alias = "policy_dir")]
@@ -25,6 +26,7 @@ pub struct Daemon {
 /// Configuration struct
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub daemon: Daemon,
     pub policy: Policy,
