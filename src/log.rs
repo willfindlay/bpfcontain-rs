@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Logger configuration logic.
+
 use anyhow::{Context as _, Result};
 use log::LevelFilter;
 use log4rs::append::console::{ConsoleAppender, Target};

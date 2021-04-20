@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Main entrypoint for BPFContain, uses the multiple subcommands pattern.
+
 use ::anyhow::{bail, Context as _, Result};
 use ::clap::{App, AppSettings, Arg, SubCommand};
 
