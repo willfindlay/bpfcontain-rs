@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! The `daemon` subcommand.
+
 use std::fs::{create_dir_all, metadata, set_permissions, File};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -20,6 +22,7 @@ use nix::unistd::Pid;
 use crate::bpf_program::work_loop;
 use crate::config::Settings;
 
+/// Main entrypoint into the daemon.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Initialize the logger
     crate::log::configure(

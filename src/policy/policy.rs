@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Defines the contents of policy files.
+
 use std::path::Path;
 
 use anyhow::{Context, Result};

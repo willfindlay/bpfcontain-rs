@@ -5,5 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Defines subcommands to be run from `main`.
+
 pub mod daemon;
 pub mod run;

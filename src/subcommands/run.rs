@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! The `run` subcommand.
+
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
@@ -16,8 +18,10 @@ use crate::config::Settings;
 use crate::policy::Policy;
 use crate::uprobes::containerize;
 
+/// Main entrypoint into launching a container.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Initialize the logger
+    // We don't want to log to any file, just stderr
     crate::log::configure(config.daemon.verbosity, None)?;
 
     // Configure policy path
