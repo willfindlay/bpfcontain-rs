@@ -1,8 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// BPFContain - Container security with eBPF
+// Copyright (C) 2020  William Findlay
+//
+// Dec. 29, 2020  William Findlay  Created this.
+
+//! Configuration settings.
+
 use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
-
-//! Configuration settings.
 
 /// Configuration related to policy language
 #[derive(Debug, Deserialize)]
