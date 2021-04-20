@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Bindings for BPF data structures.
+
 pub mod audit;
 pub mod policy;
 pub mod state;
