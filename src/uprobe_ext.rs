@@ -5,6 +5,10 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Extensions for libbpf-rs uprobe functionality. Specifically, we add a higher level
+//! interface for resolving symbols from ELF binaries for uprobe attachment as well as
+//! attaching uprobes to a function address in our current address space.
+
 use std::fs::read;
 use std::path::Path;
 

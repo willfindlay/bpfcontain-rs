@@ -5,13 +5,16 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Various uprobes that we can use to interact with BPFContain's BPF programs.
+
 use anyhow::{bail, Result};
 
 use crate::policy::Policy;
 
+/// Uprobe attachment point for `containerize`.
 pub extern "C" fn do_containerize(_retp: *const i32, _policy_id: u64) {}
 
-/// Place the current process into a container with ID `policy_id`.
+/// Place the current process into a container specified by `policy`.
 pub fn containerize(policy: &Policy) -> Result<()> {
     let ret: i32 = -libc::EAGAIN;
 

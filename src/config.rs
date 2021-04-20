@@ -2,6 +2,8 @@ use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
 
+//! Configuration settings.
+
 /// Configuration related to policy language
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

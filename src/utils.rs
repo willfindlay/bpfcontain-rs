@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Various utility functions.
+
 use anyhow::{bail, Context, Result};
 use std::fs;
 use std::os::linux::fs::MetadataExt;
@@ -60,21 +62,4 @@ pub fn get_project_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .join(path)
         .canonicalize()
         .expect("Failed to canonicalize path")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "TODO"]
-    fn get_symbol_test() -> Result<()> {
-        todo!()
-    }
-
-    #[test]
-    #[ignore = "TODO"]
-    fn get_symbol_offset_test() -> Result<()> {
-        todo!()
-    }
 }

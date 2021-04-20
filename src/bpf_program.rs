@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Functionality related to BPF programs and maps.
+
 use std::thread::sleep;
 use std::time::Duration;
 

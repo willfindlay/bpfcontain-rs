@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Library functions for BPFContain.
+
 pub mod bpf;
 pub mod bpf_program;
 pub mod config;
