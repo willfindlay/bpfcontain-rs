@@ -5,6 +5,8 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Rust side of BPFContain policy.
+
 mod helpers;
 mod policy;
 mod rules;

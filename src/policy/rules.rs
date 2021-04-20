@@ -5,6 +5,9 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+//! Definitions for policy rules and their translations into eBPF maps. Uses the
+//! `enum_dispatch` crate.
+
 use std::convert::{From, Into, TryFrom, TryInto};
 use std::path::PathBuf;
 
