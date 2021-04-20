@@ -9,7 +9,4 @@ pub mod audit;
 pub mod policy;
 pub mod state;
 
-mod libbpfcontain;
 mod raw;
-
-pub use libbpfcontain::containerize;

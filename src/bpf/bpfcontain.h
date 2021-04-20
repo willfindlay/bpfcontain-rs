@@ -16,7 +16,7 @@
 #include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
 #include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
 
-#include "../include/structs.h"
+#include "structs.h"
 #include "kernel_defs.h"
 #include "maps.h"
 

@@ -5,7 +5,6 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -20,7 +19,8 @@ use crate::bpf;
 use crate::config::Settings;
 use crate::ns;
 use crate::policy::Policy;
-use crate::uprobes::FindSymbolUprobeExt;
+use crate::uprobe_ext::FindSymbolUprobeExt;
+use crate::uprobes::do_containerize;
 use crate::utils::bump_memlock_rlimit;
 
 /// Main BPF program work loop.
@@ -83,12 +83,11 @@ pub fn load_bpf_program<'a>(
     // Auto attach non-uprobe programs
     skel.attach()?;
 
-    // Attach to do_containerize from /usr/lib/libbpfcontain.so
-    let link = skel.progs().do_containerize().attach_uprobe_symbol(
+    // Attach to do_containerize
+    let link = skel.progs().do_containerize().attach_uprobe_addr(
         false,
         -1,
-        Path::new("/usr/lib/libbpfcontain.so"),
-        "do_containerize",
+        do_containerize as *const () as usize,
     )?;
     // Keep a reference count
     skel.links.do_containerize = Some(link);

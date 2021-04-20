@@ -2290,6 +2290,8 @@ int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
 {
     int ret = 0;
 
+    bpf_printk("Hello there");
+
     // Look up common policy information from policy_common map
     policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
     if (!common) {

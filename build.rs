@@ -10,8 +10,7 @@ use std::process::Command;
 fn main() {
     // Re-run build if our header file(s) has changed
     println!("cargo:rerun-if-changed=bindings.h");
-    println!("cargo:rerun-if-changed=src/include/libbpfcontain.h");
-    println!("cargo:rerun-if-changed=src/include/structs.h");
+    println!("cargo:rerun-if-changed=src/bpf/structs.h");
     println!("cargo:rerun-if-changed=src/bpf/bpfcontain.bpf.c");
     println!("cargo:rerun-if-changed=src/bpf/bpfcontain.h");
     println!("cargo:rerun-if-changed=src/bpf/kernel_defs.h");
