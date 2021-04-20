@@ -15,4 +15,5 @@ pub mod utils;
 
 mod bindings;
 mod ns;
+mod uprobe_ext;
 mod uprobes;

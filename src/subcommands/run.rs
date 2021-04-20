@@ -12,9 +12,9 @@ use std::process::Command;
 use anyhow::{bail, Context as _, Result};
 use clap::ArgMatches;
 
-use crate::bindings::containerize;
 use crate::config::Settings;
 use crate::policy::Policy;
+use crate::uprobes::containerize;
 
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Initialize the logger
