@@ -24,18 +24,18 @@ use crate::policy::Policy;
 use crate::utils::path_to_dev_ino;
 
 // ============================================================================
-// Rule Type and RuleControl Interface
+// Rule Type and LoadRule Interface
 // ============================================================================
 
 /// A dispatch interface for [`Rule`]s.
 #[enum_dispatch]
-pub trait RuleControl {
+pub trait LoadRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()>;
 }
 
-/// Canonical rule type, dispatches to structs which implement [`RuleControl`]
+/// Canonical rule type, dispatches to structs which implement [`LoadRule`]
 /// using the `enum_dispatch` crate. Deserializable using `serde`.
-#[enum_dispatch(RuleControl)]
+#[enum_dispatch(LoadRule)]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Rule {
@@ -118,7 +118,7 @@ pub struct FilesystemRule {
     access: FileAccess,
 }
 
-impl RuleControl for FilesystemRule {
+impl LoadRule for FilesystemRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::FsPolicyKey;
@@ -183,7 +183,7 @@ pub struct FileRule {
     access: FileAccess,
 }
 
-impl RuleControl for FileRule {
+impl LoadRule for FileRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::FilePolicyKey;
@@ -311,7 +311,7 @@ pub struct DeviceRule {
     access: FileAccess,
 }
 
-impl RuleControl for DeviceRule {
+impl LoadRule for DeviceRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         load_device_rule(
             self.major,
@@ -330,7 +330,7 @@ impl RuleControl for DeviceRule {
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct TerminalRule;
 
-impl RuleControl for TerminalRule {
+impl LoadRule for TerminalRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(136, None), (4, None)] {
             // urandom
@@ -353,7 +353,7 @@ impl RuleControl for TerminalRule {
 #[serde(rename_all = "camelCase")]
 pub struct DevRandomRule;
 
-impl RuleControl for DevRandomRule {
+impl LoadRule for DevRandomRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(1, Some(8)), (1, Some(9))] {
             // urandom
@@ -376,7 +376,7 @@ impl RuleControl for DevRandomRule {
 #[serde(rename_all = "camelCase")]
 pub struct DevFakeRule;
 
-impl RuleControl for DevFakeRule {
+impl LoadRule for DevFakeRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         for (major, minor) in &[(1, Some(3)), (1, Some(5)), (1, Some(7))] {
             // urandom
@@ -427,7 +427,7 @@ impl From<Capability> for bindings::policy::Capability {
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRule(SingleOrVec<Capability>);
 
-impl RuleControl for CapabilityRule {
+impl LoadRule for CapabilityRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::CapPolicyKey;
@@ -491,7 +491,7 @@ impl RuleControl for CapabilityRule {
 #[serde(rename_all = "camelCase")]
 pub struct IpcRule(String);
 
-impl RuleControl for IpcRule {
+impl LoadRule for IpcRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::IPCPolicyKey;
@@ -554,7 +554,7 @@ impl From<NetAccess> for bindings::policy::NetOperation {
 #[serde(rename_all = "camelCase")]
 pub struct NetRule(SingleOrVec<NetAccess>);
 
-impl RuleControl for NetRule {
+impl LoadRule for NetRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
         type Key = bindings::policy::NetPolicyKey;
