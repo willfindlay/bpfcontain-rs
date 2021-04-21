@@ -95,24 +95,14 @@ bitflags! {
     /// Keep this in sync with [structs.h](src/include/structs.h)
     #[derive(Default)]
     pub struct FileAccess :raw::file_permission_t::Type {
-        const MAY_EXEC      = raw::file_permission_t::BPFCON_MAY_EXEC;
-        const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE;
         const MAY_READ      = raw::file_permission_t::BPFCON_MAY_READ;
+        const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE;
+        const MAY_EXEC      = raw::file_permission_t::BPFCON_MAY_EXEC;
         const MAY_APPEND    = raw::file_permission_t::BPFCON_MAY_APPEND;
-        const MAY_CREATE    = raw::file_permission_t::BPFCON_MAY_CREATE;
         const MAY_DELETE    = raw::file_permission_t::BPFCON_MAY_DELETE;
-        const MAY_RENAME    = raw::file_permission_t::BPFCON_MAY_RENAME;
-        const MAY_SETATTR   = raw::file_permission_t::BPFCON_MAY_SETATTR;
         const MAY_CHMOD     = raw::file_permission_t::BPFCON_MAY_CHMOD;
-        const MAY_CHOWN     = raw::file_permission_t::BPFCON_MAY_CHOWN;
-        const MAY_LINK      = raw::file_permission_t::BPFCON_MAY_LINK;
         const MAY_EXEC_MMAP = raw::file_permission_t::BPFCON_MAY_EXEC_MMAP;
-        const MAY_CHDIR     = raw::file_permission_t::BPFCON_MAY_CHDIR;
-        const RO_MASK = Self::MAY_READ.bits | Self::MAY_CHDIR.bits;
-        const RA_MASK = Self::RO_MASK.bits | Self::MAY_APPEND.bits | Self::MAY_CREATE.bits;
-        const RW_MASK = Self::RA_MASK.bits | Self::MAY_WRITE.bits;
-        const LIB_MASK = Self::MAY_EXEC_MMAP.bits | Self::MAY_READ.bits;
-        const EXEC_MASK = Self::MAY_EXEC.bits | Self::MAY_READ.bits;
+        const MAY_LINK      = raw::file_permission_t::BPFCON_MAY_LINK;
     }
 }
 

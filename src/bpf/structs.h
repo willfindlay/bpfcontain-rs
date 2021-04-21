@@ -43,26 +43,29 @@ typedef enum {
 
 /* Permissions, partly based on AppArmor */
 typedef enum {
-    BPFCON_MAY_EXEC      = 0x00000001,
-    BPFCON_MAY_WRITE     = 0x00000002,
-    BPFCON_MAY_READ      = 0x00000004,
-    BPFCON_MAY_APPEND    = 0x00000008,
-    BPFCON_MAY_CREATE    = 0x00000010,
-    BPFCON_MAY_DELETE    = 0x00000020,
-    BPFCON_MAY_RENAME    = 0x00000040,
-    BPFCON_MAY_SETATTR   = 0x00000080,
-    BPFCON_MAY_CHMOD     = 0x00000100,
-    BPFCON_MAY_CHOWN     = 0x00000200,
-    BPFCON_MAY_LINK      = 0x00000400,
-    BPFCON_MAY_EXEC_MMAP = 0x00000800,
-    BPFCON_MAY_CHDIR     = 0x00001000,
+    BPFCON_MAY_EXEC      = 0x01,
+    BPFCON_MAY_WRITE     = 0x02,
+    BPFCON_MAY_READ      = 0x04,
+    BPFCON_MAY_APPEND    = 0x08,
+    BPFCON_MAY_CHMOD     = 0x10,
+    BPFCON_MAY_DELETE    = 0x20,
+    BPFCON_MAY_EXEC_MMAP = 0x40,
+    BPFCON_MAY_LINK      = 0x80,
 } file_permission_t;
 
-/* Tunable capabilities
- * Note: Fow now, we only support these capabilities. Most of the other
- * capabilities don't really make sense in the context of a container, but may
- * be required later for compatibility with other container implementations.
- */
+#define BPFCON_ALL_FS_PERM_MASK (BPFCON_MAY_EXEC | BPFCON_MAY_WRITE | BPFCON_MAY_READ | \
+                        BPFCON_MAY_APPEND | BPFCON_MAY_CHMOD | BPFCON_MAY_DELETE | \
+                        BPFCON_MAY_EXEC_MMAP)
+
+
+#define TASK_INODE_PERM_MASK (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND | \
+                              BPFCON_MAY_DELETE | BPFCON_MAY_CHMOD)
+
+#define PROC_INODE_PERM_MASK (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND)
+
+#define OVERLAYFS_PERM_MASK BPFCON_ALL_FS_PERM_MASK
+
+/* Tunable capabilities */
 typedef enum {
     BPFCON_CAP_CHOWN              = 0x0000000000000001,
     BPFCON_CAP_DAC_OVERRIDE       = 0x0000000000000002,
@@ -115,32 +118,17 @@ typedef enum {
 
 /* Network operations */
 typedef enum {
-    BPFCON_NET_CONNECT  = 0x00000001,
-    BPFCON_NET_BIND     = 0x00000002,
-    BPFCON_NET_ACCEPT   = 0x00000004,
-    BPFCON_NET_LISTEN   = 0x00000008,
-    BPFCON_NET_SEND     = 0x00000010,
-    BPFCON_NET_RECV     = 0x00000020,
-    BPFCON_NET_CREATE   = 0x00000040,
-    BPFCON_NET_SHUTDOWN = 0x00000080,
+    BPFCON_NET_CONNECT  = 0x01,
+    BPFCON_NET_BIND     = 0x02,
+    BPFCON_NET_ACCEPT   = 0x04,
+    BPFCON_NET_LISTEN   = 0x08,
+    BPFCON_NET_SEND     = 0x10,
+    BPFCON_NET_RECV     = 0x20,
+    BPFCON_NET_CREATE   = 0x40,
+    BPFCON_NET_SHUTDOWN = 0x80,
 } net_operation_t;
 
 // clang-format on
-
-#define TASK_INODE_PERM_MASK                                     \
-    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND |    \
-     BPFCON_MAY_CREATE | BPFCON_MAY_DELETE | BPFCON_MAY_RENAME | \
-     BPFCON_MAY_SETATTR | BPFCON_MAY_CHOWN | BPFCON_MAY_CHMOD |  \
-     BPFCON_MAY_LINK | BPFCON_MAY_CHDIR)
-
-#define PROC_INODE_PERM_MASK \
-    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND | BPFCON_MAY_CHDIR)
-
-#define OVERLAYFS_PERM_MASK                                       \
-    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND |     \
-     BPFCON_MAY_EXEC | BPFCON_MAY_EXEC_MMAP BPFCON_MAY_CREATE |   \
-     BPFCON_MAY_DELETE | BPFCON_MAY_RENAME | BPFCON_MAY_SETATTR | \
-     BPFCON_MAY_CHOWN | BPFCON_MAY_CHMOD | BPFCON_MAY_LINK | BPFCON_MAY_CHDIR)
 
 /* ========================================================================= *
  * Per-Event Logging                                                         *
