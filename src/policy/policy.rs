@@ -82,40 +82,26 @@ impl Policy {
         // Load common policy info
         self.load_common(skel)?;
 
-        // Load rights
-        for rule in self.rights.iter() {
-            if let Err(e) = rule.load(self, skel, PolicyDecision::Allow) {
-                log::warn!(
-                    "Failed to load allow rule for policy \"{}\": {:?}",
-                    self.name,
-                    e
-                );
-            }
-        }
-
-        // Load restrictions
-        for rule in self.restrictions.iter() {
-            if let Err(e) = rule.load(self, skel, PolicyDecision::Deny) {
-                log::warn!(
-                    "Failed to load deny rule for policy \"{}\": {:?}",
-                    self.name,
-                    e
-                );
-            }
-        }
-
-        // Load taints
-        for rule in self.taints.iter() {
-            if let Err(e) = rule.load(self, skel, PolicyDecision::Taint) {
-                log::warn!(
-                    "Failed to load taint rule for policy \"{}\": {:?}",
-                    self.name,
-                    e
-                );
-            }
-        }
+        // Load rules
+        self.load_rules(&self.rights, PolicyDecision::Allow, skel);
+        self.load_rules(&self.restrictions, PolicyDecision::Deny, skel);
+        self.load_rules(&self.taints, PolicyDecision::Taint, skel);
 
         Ok(())
+    }
+
+    /// Load a set of rules into the kernel
+    fn load_rules(&self, rules: &Vec<Rule>, decision: PolicyDecision, skel: &mut Skel) {
+        for rule in rules.iter() {
+            if let Err(e) = rule.load(self, skel, decision.clone()) {
+                log::warn!(
+                    "Failed to load {:?} rule for policy \"{}\": {:?}",
+                    decision,
+                    self.name,
+                    e
+                );
+            }
+        }
     }
 
     /// Load the common part of the policy into the kernel
