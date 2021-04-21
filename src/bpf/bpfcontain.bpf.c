@@ -309,7 +309,7 @@ static __always_inline u32 mask_to_access(struct inode *inode, int mask)
     }
 
     if (S_ISDIR(inode->i_mode) && (mask & MAY_CHDIR)) {
-        access |= BPFCON_MAY_CHDIR;
+        access |= BPFCON_MAY_READ;
     }
 
     // Ignore execute permissions on directories, since we already caught
@@ -1334,7 +1334,7 @@ int BPF_PROG(path_mknod, const struct path *dir, struct dentry *dentry,
         return 0;
 
     int ret = bpfcontain_inode_perm(container, dir->dentry->d_inode,
-                                    BPFCON_MAY_CREATE);
+                                    BPFCON_MAY_APPEND);
     if (ret)
         return ret;
 
@@ -1357,7 +1357,7 @@ int BPF_PROG(path_mkdir, const struct path *dir, struct dentry *dentry)
         return 0;
 
     return bpfcontain_inode_perm(container, dir->dentry->d_inode,
-                                 BPFCON_MAY_CREATE);
+                                 BPFCON_MAY_APPEND);
 }
 
 /* Mediate access to make a symlink. */
@@ -1374,7 +1374,7 @@ int BPF_PROG(path_symlink, const struct path *dir, struct dentry *dentry,
         return 0;
 
     return bpfcontain_inode_perm(container, dir->dentry->d_inode,
-                                 BPFCON_MAY_CREATE);
+                                 BPFCON_MAY_APPEND);
 }
 
 /* Mediate access to make a hard link. */
@@ -1393,7 +1393,7 @@ int BPF_PROG(path_link, struct dentry *old_dentry, const struct path *new_dir,
         return 0;
 
     ret = bpfcontain_inode_perm(container, new_dir->dentry->d_inode,
-                                BPFCON_MAY_CREATE);
+                                BPFCON_MAY_APPEND);
     if (ret)
         return ret;
 
@@ -1421,11 +1421,11 @@ int BPF_PROG(path_rename, const struct path *old_dir, struct dentry *old_dentry,
     struct inode *new_dir_inode = new_dir->dentry->d_inode;
     struct inode *new_inode = new_dentry->d_inode;
 
-    ret = bpfcontain_inode_perm(container, old_inode, BPFCON_MAY_RENAME);
+    ret = bpfcontain_inode_perm(container, old_inode, BPFCON_MAY_DELETE);
     if (ret)
         return ret;
 
-    ret = bpfcontain_inode_perm(container, new_dir_inode, BPFCON_MAY_CREATE);
+    ret = bpfcontain_inode_perm(container, new_dir_inode, BPFCON_MAY_APPEND);
     if (ret)
         return ret;
 
@@ -1445,7 +1445,7 @@ int BPF_PROG(path_truncate, const struct path *path)
         return 0;
 
     return bpfcontain_inode_perm(container, path->dentry->d_inode,
-                                 BPFCON_MAY_WRITE | BPFCON_MAY_SETATTR);
+                                 BPFCON_MAY_WRITE);
 }
 
 /* Mediate access to chmod a file. */

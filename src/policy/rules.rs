@@ -75,11 +75,11 @@ impl TryFrom<FileAccess> for bindings::policy::FileAccess {
     fn try_from(value: FileAccess) -> Result<Self, Self::Error> {
         // Try convenience aliases first
         match value.0.as_str() {
-            "readOnly" => return Ok(Self::RO_MASK),
-            "readWrite" => return Ok(Self::RW_MASK),
-            "readAppend" => return Ok(Self::RA_MASK),
-            "library" => return Ok(Self::LIB_MASK),
-            "exec" => return Ok(Self::EXEC_MASK),
+            "readOnly" => return Ok(Self::MAY_READ),
+            "readWrite" => return Ok(Self::MAY_READ | Self::MAY_WRITE | Self::MAY_APPEND),
+            "readAppend" => return Ok(Self::MAY_READ | Self::MAY_APPEND),
+            "library" => return Ok(Self::MAY_READ | Self::MAY_EXEC_MMAP),
+            "exec" => return Ok(Self::MAY_READ | Self::MAY_EXEC),
             _ => {}
         };
 
@@ -93,19 +93,14 @@ impl TryFrom<FileAccess> for bindings::policy::FileAccess {
             // strings.
             let c_lo = &c.to_lowercase().to_string()[..];
             match c_lo {
-                "x" => access |= Self::MAY_EXEC,
-                "w" => access |= Self::MAY_WRITE,
                 "r" => access |= Self::MAY_READ,
+                "w" => access |= Self::MAY_WRITE,
+                "x" => access |= Self::MAY_EXEC,
                 "a" => access |= Self::MAY_APPEND,
-                "c" => access |= Self::MAY_CREATE,
                 "d" => access |= Self::MAY_DELETE,
-                "n" => access |= Self::MAY_RENAME,
-                "s" => access |= Self::MAY_SETATTR,
-                "p" => access |= Self::MAY_CHMOD,
-                "o" => access |= Self::MAY_CHOWN,
+                "c" => access |= Self::MAY_CHMOD,
                 "l" => access |= Self::MAY_LINK,
                 "m" => access |= Self::MAY_EXEC_MMAP,
-                "t" => access |= Self::MAY_CHDIR,
                 _ => bail!("Unknown access flag {}", c),
             };
         }
