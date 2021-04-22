@@ -11,4 +11,5 @@ mod helpers;
 mod policy;
 mod rules;
 
+pub use policy::load_policy_recursive;
 pub use policy::Policy;
