@@ -12,15 +12,12 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use clap::ArgMatches;
-use glob::glob;
 use libbpf_rs::RingBufferBuilder;
-use pod::Pod;
 
-use crate::bindings;
 use crate::bpf;
 use crate::config::Settings;
 use crate::ns;
-use crate::policy::Policy;
+use crate::policy::load_policy_recursive;
 use crate::uprobe_ext::FindSymbolUprobeExt;
 use crate::uprobes::do_containerize;
 use crate::utils::bump_memlock_rlimit;
@@ -98,13 +95,13 @@ pub fn load_bpf_program<'a>(
 
     // Configure the ringbuf
     ringbuf_builder
-        .add(skel.maps().audit_file_buf(), audit_file)
+        .add(skel.maps().audit_file_buf(), ringbuf::audit_file)
         .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_cap_buf(), audit_cap)
+        .add(skel.maps().audit_cap_buf(), ringbuf::audit_cap)
         .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_net_buf(), audit_net)
+        .add(skel.maps().audit_net_buf(), ringbuf::audit_net)
         .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_ipc_buf(), audit_ipc)
+        .add(skel.maps().audit_ipc_buf(), ringbuf::audit_ipc)
         .context("Failed to add ringbuf")?;
 
     // Build the ringbuf
@@ -115,63 +112,44 @@ pub fn load_bpf_program<'a>(
     Ok((skel, ringbuf))
 }
 
-/// File audit events
-fn audit_file(data: &[u8]) -> i32 {
-    let event = bindings::audit::AuditFile::from_bytes(data).expect("Failed to copy event");
+mod ringbuf {
+    use pod::Pod as _;
 
-    log::info!("file {}", event);
+    use crate::bindings::audit::*;
 
-    0
-}
+    /// File audit events
+    pub fn audit_file(data: &[u8]) -> i32 {
+        let event = AuditFile::from_bytes(data).expect("Failed to copy event");
 
-/// Capability audit events
-fn audit_cap(data: &[u8]) -> i32 {
-    let event = bindings::audit::AuditCap::from_bytes(data).expect("Failed to copy event");
+        log::info!("file {}", event);
 
-    log::info!("capability {}", event);
-
-    0
-}
-
-/// Network audit events
-fn audit_net(data: &[u8]) -> i32 {
-    let event = bindings::audit::AuditNet::from_bytes(data).expect("Failed to copy event");
-
-    log::info!("network {}", event);
-
-    0
-}
-
-/// IPC audit events
-fn audit_ipc(data: &[u8]) -> i32 {
-    let event = bindings::audit::AuditIpc::from_bytes(data).expect("Failed to copy event");
-
-    log::info!("ipc {}", event);
-
-    0
-}
-
-/// Recursively load YAML policy into the kernel from `policy_dir`.
-pub fn load_policy_recursive(skel: &mut bpf::BpfcontainSkel, policy_dir: &str) -> Result<()> {
-    log::info!("Loading policy from {}...", policy_dir);
-
-    // Use glob to match all YAML files in the directory tree
-    for path in glob(&format!("{}/**/*.yml", policy_dir))
-        .context("Failed to glob policy directory")?
-        .filter_map(Result::ok)
-    {
-        if let Err(e) = || -> Result<()> {
-            let policy = Policy::from_path(&path).context("Failed to parse policy")?;
-            policy
-                .load(skel)
-                .context("Failed to load policy into kernel")?;
-            Ok(())
-        }() {
-            log::warn!("Error loading policy {}: {}", path.display(), e);
-        }
+        0
     }
 
-    log::info!("Done loading policy!");
+    /// Capability audit events
+    pub fn audit_cap(data: &[u8]) -> i32 {
+        let event = AuditCap::from_bytes(data).expect("Failed to copy event");
 
-    Ok(())
+        log::info!("capability {}", event);
+
+        0
+    }
+
+    /// Network audit events
+    pub fn audit_net(data: &[u8]) -> i32 {
+        let event = AuditNet::from_bytes(data).expect("Failed to copy event");
+
+        log::info!("network {}", event);
+
+        0
+    }
+
+    /// IPC audit events
+    pub fn audit_ipc(data: &[u8]) -> i32 {
+        let event = AuditIpc::from_bytes(data).expect("Failed to copy event");
+
+        log::info!("ipc {}", event);
+
+        0
+    }
 }

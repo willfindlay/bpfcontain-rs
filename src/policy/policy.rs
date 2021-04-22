@@ -10,6 +10,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use glob::glob;
 use libbpf_rs::MapFlags;
 use pod::Pod as _;
 use serde::Deserialize;
@@ -123,6 +124,32 @@ impl Policy {
 
         Ok(())
     }
+}
+
+/// Recursively load YAML policy into the kernel from `policy_dir`.
+pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
+    log::info!("Loading policy from {}...", policy_dir);
+
+    // Use glob to match all YAML files in the directory tree
+    // TODO: This entire block is code smell, refactor it
+    for path in glob(&format!("{}/**/*.yml", policy_dir))
+        .context("Failed to glob policy directory")?
+        .filter_map(Result::ok)
+    {
+        if let Err(e) = || -> Result<()> {
+            let policy = Policy::from_path(&path).context("Failed to parse policy")?;
+            policy
+                .load(skel)
+                .context("Failed to load policy into kernel")?;
+            Ok(())
+        }() {
+            log::warn!("Error loading policy {}: {}", path.display(), e);
+        }
+    }
+
+    log::info!("Done loading policy!");
+
+    Ok(())
 }
 
 #[cfg(test)]
