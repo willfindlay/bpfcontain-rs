@@ -26,7 +26,7 @@ use crate::utils::bump_memlock_rlimit;
 pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
     // Load BPF programs into the kernel
     let (mut skel, ringbuf) =
-        load_bpf_program(args.occurrences_of("v") >= 2).context("Failed to load BPF programs")?;
+        initialize_bpf(args.occurrences_of("v") >= 2).context("Failed to load BPF programs")?;
 
     // Load policy in `config.policy.dir`
     load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
@@ -42,9 +42,7 @@ pub fn work_loop(args: &ArgMatches, config: &Settings) -> Result<()> {
 
 /// Open, load, and attach BPF programs and maps using the `builder` provided by
 /// libbpf-rs.
-pub fn load_bpf_program<'a>(
-    debug: bool,
-) -> Result<(bpf::BpfcontainSkel<'a>, libbpf_rs::RingBuffer)> {
+pub fn initialize_bpf<'a>(debug: bool) -> Result<(bpf::BpfcontainSkel<'a>, libbpf_rs::RingBuffer)> {
     log::debug!("Initializing BPF objects...");
 
     // Initialize the skeleton builder
