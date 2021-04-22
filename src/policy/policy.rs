@@ -130,20 +130,32 @@ impl Policy {
 pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
     log::info!("Loading policy from {}...", policy_dir);
 
-    // Use glob to match all YAML files in the directory tree
-    // TODO: This entire block is code smell, refactor it
+    // Use glob to match all YAML files in the policy directory tree
     for path in glob(&format!("{}/**/*.yml", policy_dir))
         .context("Failed to glob policy directory")?
         .filter_map(Result::ok)
     {
-        if let Err(e) = || -> Result<()> {
-            let policy = Policy::from_path(&path).context("Failed to parse policy")?;
-            policy
-                .load(skel)
-                .context("Failed to load policy into kernel")?;
-            Ok(())
-        }() {
-            log::warn!("Error loading policy {}: {}", path.display(), e);
+        // Parse the policy
+        let policy = match Policy::from_path(&path)
+            .context(format!("Failed to parse policy for {}", path.display()))
+        {
+            Ok(policy) => policy,
+            Err(e) => {
+                log::warn!("{}", e);
+                continue;
+            }
+        };
+
+        // Load the policy
+        match policy.load(skel).context(format!(
+            "Failed to load policy {} into the kernel",
+            path.display()
+        )) {
+            Ok(_) => {}
+            Err(e) => {
+                log::warn!("{}", e);
+                continue;
+            }
         }
     }
 
