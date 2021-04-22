@@ -112,6 +112,7 @@ pub fn load_bpf_program<'a>(
     Ok((skel, ringbuf))
 }
 
+/// Callbacks for ring buffer events.
 mod ringbuf {
     use pod::Pod as _;
 
