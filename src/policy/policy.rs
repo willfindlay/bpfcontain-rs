@@ -95,7 +95,7 @@ impl Policy {
         for rule in rules.iter() {
             if let Err(e) = rule.load(self, skel, decision.clone()) {
                 log::warn!(
-                    "Failed to load {:?} rule for policy \"{}\": {:?}",
+                    "Failed to load {:?} rule for policy {}: {:?}",
                     decision,
                     self.name,
                     e
@@ -148,7 +148,7 @@ pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
         // Load the policy
         match policy.load(skel).context(format!(
             "Failed to load policy {} into the kernel",
-            path.display()
+            policy.name
         )) {
             Ok(_) => {}
             Err(e) => {
