@@ -34,7 +34,6 @@ pub struct Policy {
     pub cmd: String,
     /// Whether the container should spawn in a tainted state. Otherwise, taint rules will
     /// specify when the container should become tainted.
-    //#[serde(default)]
     default_taint: bool,
     /// The rights (allow-rules) associated with the policy.
     #[serde(default)]
