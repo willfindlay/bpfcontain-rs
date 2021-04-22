@@ -32,10 +32,10 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     // Run the correct subcommand
     let result = match args.subcommand() {
-        ("start", Some(args)) => start_daemon(args, config),
-        ("restart", Some(args)) => restart_daemon(args, config),
-        ("stop", Some(_)) => stop_daemon(config),
-        ("foreground", Some(args)) => run_in_foreground(args, config),
+        ("start", _) => start_daemon(config),
+        ("restart", _) => restart_daemon(config),
+        ("stop", _) => stop_daemon(config),
+        ("foreground", _) => run_in_foreground(config),
         (unknown, _) => bail!("Unknown subcommand {}", unknown),
     };
 
@@ -49,14 +49,14 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 }
 
 /// Run in the foreground.
-fn run_in_foreground(args: &ArgMatches, config: &Settings) -> Result<()> {
+fn run_in_foreground(config: &Settings) -> Result<()> {
     log::info!("Running in the foreground...");
 
-    work_loop(args, config)
+    work_loop(config)
 }
 
 /// Starts the daemon.
-fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
+fn start_daemon(config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
 
     let workdir = &config.daemon.work_dir;
@@ -84,7 +84,7 @@ fn start_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
         }
     }
 
-    work_loop(args, config)
+    work_loop(config)
 }
 
 /// Stops the daemon by parsing the daemon's [`PIDFILE`] and sending a `SIGTERM`
@@ -133,7 +133,7 @@ fn stop_daemon(config: &Settings) -> Result<()> {
 ///
 /// This behaviour should be changed in future versions to wait for the file to
 /// be unlocked.
-fn restart_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
+fn restart_daemon(config: &Settings) -> Result<()> {
     log::info!("Restarting daemon...");
 
     // Try to stop the daemon
@@ -151,5 +151,5 @@ fn restart_daemon(args: &ArgMatches, config: &Settings) -> Result<()> {
     }
 
     // Start the daemon
-    start_daemon(args, config)
+    start_daemon(config)
 }
