@@ -7,15 +7,14 @@
 
 //! The `daemon` subcommand.
 
-use std::fs::{create_dir_all, metadata, set_permissions, File};
+use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
-use std::thread::sleep;
-use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use daemonize::Daemonize;
+use fs2::FileExt as _;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
@@ -57,8 +56,6 @@ fn run_in_foreground(config: &Settings) -> Result<()> {
 
 /// Starts the daemon.
 fn start_daemon(config: &Settings) -> Result<()> {
-    log::info!("Starting daemon...");
-
     let workdir = &config.daemon.work_dir;
     let pidfile = &config.daemon.pid_file;
 
@@ -70,6 +67,17 @@ fn start_daemon(config: &Settings) -> Result<()> {
     perms.set_mode(0o1755);
     set_permissions(workdir, perms).context("Failed setting policy directory permissions")?;
 
+    // Make sure the file is unlocked
+    log::info!("Waiting for lock on {}...", pidfile);
+    let f = OpenOptions::new()
+        .write(true)
+        .read(true)
+        .create(true)
+        .open(pidfile)
+        .context("Failed to open pid file")?;
+    f.lock_exclusive().context("Failed to acquire file lock")?;
+    f.unlock().context("Failed to release lock")?;
+
     // Set up the daemon
     let daemonize = Daemonize::new()
         .pid_file(pidfile)
@@ -77,12 +85,8 @@ fn start_daemon(config: &Settings) -> Result<()> {
         .exit_action(|| log::info!("Started the daemon!"));
 
     // Try to start the daemon
-    match daemonize.start() {
-        Ok(_) => log::info!("Started the daemon!"),
-        Err(e) => {
-            bail!("Failed to start the daemon: {}", e);
-        }
-    }
+    log::info!("Starting daemon...");
+    daemonize.start().context("Failed to start the daemon")?;
 
     work_loop(config)
 }
@@ -117,37 +121,22 @@ fn stop_daemon(config: &Settings) -> Result<()> {
     };
 
     // Invoke kill(2) to send a SIGTERM to the process running under pid
-    if let Err(e) = kill(Pid::from_raw(pid), Signal::SIGINT) {
-        bail!("Failed to kill daemon: {}", e);
-    }
+    kill(Pid::from_raw(pid), Signal::SIGINT).context("Failed to kill the daemon")?;
 
     Ok(())
 }
 
 /// Restarts the daemon by invoking [`stop_daemon`] followed by
 /// [`start_daemon`]. [`stop_daemon`] is allowed to fail with a warning.
-///
-/// FIXME: This is racy because we need to wait for the pidfile to be unlocked
-/// before we can start the daemon. As a crude workaround, we currently
-/// sleep for a few seconds after a successful call to [`stop_daemon`].
-///
-/// This behaviour should be changed in future versions to wait for the file to
-/// be unlocked.
 fn restart_daemon(config: &Settings) -> Result<()> {
     log::info!("Restarting daemon...");
 
     // Try to stop the daemon
-    match stop_daemon(config) {
-        Ok(_) => {
-            // FIXME: Should poll to see if the process has actually stopped
-            sleep(Duration::new(3, 0));
-        }
-        Err(e) => {
-            log::warn!(
-                "Unable to stop the daemon while restarting (daemon may not be running): {}",
-                e
-            );
-        }
+    if let Err(e) = stop_daemon(config) {
+        log::warn!(
+            "Unable to stop the daemon while restarting (daemon may not be running): {}",
+            e
+        );
     }
 
     // Start the daemon
