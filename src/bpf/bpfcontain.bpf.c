@@ -8,27 +8,6 @@
 #include "bpfcontain.h"
 
 /* ========================================================================= *
- * Structs Not Included in vmlinux.h                                         *
- * ========================================================================= */
-
-/* Needed for overlayfs support, TODO: sync with Linux version */
-struct ovl_inode {
-    union {
-        struct ovl_dir_cache *cache; /* directory */
-        struct inode *lowerdata;     /* regular file */
-    };
-    const char *redirect;
-    u64 version;
-    unsigned long flags;
-    struct inode vfs_inode;
-    struct dentry *__upperdentry;
-    struct inode *lower;
-
-    /* synchronize copy up and more */
-    struct mutex lock;
-};
-
-/* ========================================================================= *
  * BPF CO-RE Globals                                                         *
  * ========================================================================= */
 
