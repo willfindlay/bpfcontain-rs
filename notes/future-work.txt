@@ -1,0 +1,4 @@
+Use something like the following until bpf_d_path works for all file* and path* lsm hooks: https://github.com/torvalds/linux/blob/d635a69dd4981cc51f90293f5f64268620ed1565/tools/testing/selftests/bpf/progs/profiler.inc.h#L480
+
+This crate provides bindings for some namespace operations + seccomp-bpf: https://doc.servo.org/gaol/index.html
+Probably won't use this directly, but it will be nice for a comparison down the road.
