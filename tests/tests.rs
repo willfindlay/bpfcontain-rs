@@ -1,16 +1,6 @@
-use anyhow::Result;
-use init::init;
+#![cfg(test)]
 
-mod init;
+//! Integration tests for BPFContain.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_todo() -> Result<()> {
-        init()?;
-
-        Ok(())
-    }
-}
+#[test]
+fn test_todo() {}
