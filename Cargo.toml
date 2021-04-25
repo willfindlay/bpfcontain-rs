@@ -12,11 +12,6 @@ name = "bpfcontain"
 [lib]
 name = "bpfcontain"
 
-# Criterion benchmark
-[[bench]]
-name = "overhead"
-harness = false
-
 [dependencies]
 anyhow = "1.0.36"
 libbpf-rs = "0.7.0"
@@ -41,7 +36,3 @@ fs2 = "0.4.3"
 
 [build-dependencies]
 bindgen = "0.56.0"
-
-[dev-dependencies]
-criterion = "0.3.3"
-osbench-rs = {git = "https://github.com/willfindlay/osbench-rs"}
