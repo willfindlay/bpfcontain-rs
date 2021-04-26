@@ -1,0 +1,20 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+       - name: Checkout Repository
+         uses: actions/checkout@v2
+       - name: Clippy Lints
+         uses: actions-rs/clippy-check@v1.0.7
+       - name: Install Nix
+         uses: cachix/install-nix-action@v13
+
