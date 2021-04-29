@@ -37,3 +37,7 @@ jobs:
           EOF
           vagrant halt
           vagrant up
+
+      - name: build
+        run: |
+          vagrant ssh -c "cd /vagrant && cargo build"
