@@ -11,13 +11,13 @@ Vagrant.configure("2") do |config|
 
   # Set up the environment
   config.vm.provision "shell" do |s|
+    # Do a system upgrade and install required tooling
     s.inline = "
       sudo pacman --noconfirm -Syu
       sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
       cargo install libbpf-cargo
     "
+    # Reload to boot into a fresh kernel
+    s.reboot = true
   end
-
-  # Reload to boot into a fresh kernel
-  config.vm.provision :reload
 end
