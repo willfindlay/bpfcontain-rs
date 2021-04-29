@@ -114,9 +114,6 @@ fn main() -> Result<()> {
         config
     };
 
-    // Pretty print current config
-    log::debug!("{:#?}", config);
-
     // Dispatch to subcommand
     match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args, &config)?,

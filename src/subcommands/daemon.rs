@@ -29,6 +29,9 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
         Some(config.daemon.log_file.as_str()),
     )?;
 
+    // Pretty print current config
+    log::debug!("{:#?}", config);
+
     // Run the correct subcommand
     let result = match args.subcommand() {
         ("start", _) => start_daemon(config),
