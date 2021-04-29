@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  vagrant:
+  continuous-integration:
     runs-on: macos-latest
 
     steps:
