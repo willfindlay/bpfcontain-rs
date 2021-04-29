@@ -16,8 +16,6 @@ fn main() {
     println!("cargo:rerun-if-changed=src/bpf/kernel_defs.h");
     println!("cargo:rerun-if-changed=src/bpf/maps.h");
 
-    // TODO: test for libbpfcontain
-
     // Generate bindings
     let bindings = bindgen::builder()
         .header("bindings.h")
@@ -57,7 +55,4 @@ fn main() {
         .status()
         .expect("Failed to run cargo libbpf gen");
     assert!(status.success());
-
-    // Include bpfcontain as a C library
-    println!("cargo:rustc-link-lib=dylib=bpfcontain");
 }
