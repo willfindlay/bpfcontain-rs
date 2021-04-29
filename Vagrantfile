@@ -6,18 +6,19 @@ Vagrant.configure("2") do |config|
   # Sync the project to /vagrant
   config.vm.synced_folder ".", "/vagrant"
 
-  # Start ssh sessions in /vagrant
-  config.ssh.extra_args = ["-t", "cd /vagrant; bash --login"]
-
   # Set up the environment
   config.vm.provision "shell" do |s|
     # Do a system upgrade and install required tooling
     s.inline = "
+      if ! grep -q \"cd /vagrant\" /etc/profile ; then
+          echo \"cd /vagrant\" >> /etc/profile
+      fi
+
       sudo pacman --noconfirm -Syu
       sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
-      cargo install libbpf-cargo
+
+      cargo install libbpf-cargo --root /home/vagrant/.cargo
+      chown -R vagrant:vagrant /home/vagrant/.cargo
     "
-    # Reload to boot into a fresh kernel
-    s.reboot = true
   end
 end
