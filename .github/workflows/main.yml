@@ -1,4 +1,4 @@
-name: vagrant-up
+name: Continuous Integration
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  vagrant-up:
+  vagrant:
     runs-on: macos-latest
 
     steps:
