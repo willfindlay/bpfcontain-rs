@@ -44,8 +44,8 @@ pub type NetPolicyKey = raw::net_policy_key_t;
 unsafe impl Pod for NetPolicyKey {}
 
 /// Represents a IPC policy key on the BPF side.
-pub type IPCPolicyKey = raw::ipc_policy_key_t;
-unsafe impl Pod for IPCPolicyKey {}
+pub type IpcPolicyKey = raw::ipc_policy_key_t;
+unsafe impl Pod for IpcPolicyKey {}
 
 // Map values below this line --------------------------------------------------
 

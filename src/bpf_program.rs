@@ -106,9 +106,7 @@ fn configure_ringbuf(skel: &mut BpfcontainSkel) -> Result<RingBuffer> {
         .add(skel.maps().audit_ipc_buf(), ringbuf::audit_ipc)
         .context("Failed to add ringbuf")?;
 
-    Ok(ringbuf_builder
-        .build()
-        .context("Failed to create ringbuf")?)
+    ringbuf_builder.build().context("Failed to create ringbuf")
 }
 
 /// Callbacks for ring buffer events.
