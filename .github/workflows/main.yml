@@ -28,5 +28,12 @@ jobs:
       - name: run vagrant up
         run: vagrant up
 
-      - name: ssh into box after boot
-        run: vagrant ssh -c "echo 'hello world!'"
+      - name: prepare environment
+        run: |
+          vagrant ssh << EOF
+            sudo pacman --noconfirm -Syu
+            sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
+            cargo install libbpf-cargo
+          EOF
+          vagrant halt
+          vagrant up
