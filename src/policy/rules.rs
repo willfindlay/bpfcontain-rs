@@ -494,7 +494,7 @@ pub struct IpcRule(String);
 impl LoadRule for IpcRule {
     fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
         // Set correct types for rule
-        type Key = bindings::policy::IPCPolicyKey;
+        type Key = bindings::policy::IpcPolicyKey;
         type Value = bindings::policy::IpcPolicyVal;
 
         // Get correct map
