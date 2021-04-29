@@ -51,8 +51,7 @@ impl<'a> SymbolResolver<'a> {
 
     /// Find the offset of a symbol in the ELF file
     pub fn find_offset(&self, symbol: &str) -> Option<usize> {
-        self.resolve_sym(symbol)
-            .and_then(|sym| Some(sym.st_value as usize))
+        self.resolve_sym(symbol).map(|sym| sym.st_value as usize)
     }
 }
 

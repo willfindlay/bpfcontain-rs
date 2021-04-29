@@ -8,6 +8,7 @@
 //! Rust side of BPFContain policy.
 
 mod helpers;
+#[allow(clippy::module_inception)]
 mod policy;
 mod rules;
 

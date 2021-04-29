@@ -103,7 +103,7 @@ fn main() -> Result<()> {
         match args.occurrences_of("v") {
             0 => {}
             1 => config.daemon.verbosity = log::LevelFilter::Debug,
-            2 | _ => config.daemon.verbosity = log::LevelFilter::Trace,
+            _ => config.daemon.verbosity = log::LevelFilter::Trace,
         };
 
         // Set quiet mode
