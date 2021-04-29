@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  vagrant:
+  continuous-integration:
     runs-on: macos-latest
 
     steps:
@@ -36,6 +36,26 @@ jobs:
           vagrant halt
           vagrant up
 
+      - name: rustfmt
+        run: |
+          vagrant ssh << EOF
+            rustfmt --check
+          EOF
+
       - name: build
         run: |
-          vagrant ssh -c "cd /vagrant && cargo build"
+          vagrant ssh << EOF
+            cargo build
+          EOF
+
+      - name: clippy lints
+        run: |
+          vagrant ssh << EOF
+            cargo clippy
+          EOF
+
+      - name: run tests
+        run: |
+          vagrant ssh << EOF
+            cargo test
+          EOF
