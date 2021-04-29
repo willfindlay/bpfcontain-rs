@@ -319,7 +319,7 @@ impl LoadRule for DeviceRule {
             self.access.clone(),
             policy,
             skel,
-            decision.clone(),
+            decision,
         )?;
 
         Ok(())

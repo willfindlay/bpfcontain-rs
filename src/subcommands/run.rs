@@ -51,7 +51,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     };
 
     // Parse out command
-    let command = cmd_vec.iter().nth(0).context("Failed to get command")?;
+    let command = cmd_vec.get(0).context("Failed to get command")?;
 
     // Parse out args
     let args: Vec<_> = cmd_vec.iter().skip(1).collect();

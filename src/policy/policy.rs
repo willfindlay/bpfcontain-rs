@@ -8,8 +8,9 @@
 //! Defines the contents of policy files.
 
 use std::path::Path;
+use std::str::FromStr;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use glob::glob;
 use libbpf_rs::MapFlags;
 use pod::Pod as _;
@@ -56,11 +57,6 @@ impl Policy {
         serde_yaml::from_reader(reader).context("Failed to parse policy file")
     }
 
-    /// Construct a new policy by parsing a YAML `string`.
-    pub fn from_str(string: &str) -> Result<Self> {
-        serde_yaml::from_str(string).context("Failed to parse policy string")
-    }
-
     /// Compute the policy id for self
     pub fn policy_id(&self) -> u64 {
         Self::policy_id_for_name(&self.name)
@@ -91,7 +87,7 @@ impl Policy {
     }
 
     /// Load a set of rules into the kernel
-    fn load_rules(&self, rules: &Vec<Rule>, decision: PolicyDecision, skel: &mut Skel) {
+    fn load_rules(&self, rules: &[Rule], decision: PolicyDecision, skel: &mut Skel) {
         for rule in rules.iter() {
             if let Err(e) = rule.load(self, skel, decision.clone()) {
                 log::warn!(
@@ -122,6 +118,15 @@ impl Policy {
             .context("Failed to update policy map")?;
 
         Ok(())
+    }
+}
+
+impl FromStr for Policy {
+    type Err = Error;
+
+    /// Construct a new policy by parsing a YAML `string`.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_yaml::from_str(s).context("Failed to parse policy string")
     }
 }
 
