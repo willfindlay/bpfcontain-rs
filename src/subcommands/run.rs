@@ -24,6 +24,9 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     // We don't want to log to any file, just stderr
     crate::log::configure(config.daemon.verbosity, None)?;
 
+    // Pretty print current config
+    log::debug!("{:#?}", config);
+
     // Configure policy path
     let policy_dir = Path::new(&config.policy.dir);
     let policy_file = Path::new(
