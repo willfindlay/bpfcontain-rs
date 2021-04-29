@@ -30,10 +30,10 @@ jobs:
         run: vagrant ssh -c "uname -a"
 
       - name: build
-        run: vargrant ssh -c "cargo build"
+        run: vagrant ssh -c "cargo build"
 
       - name: clippy lints
-        run: vargrant ssh -c "cargo clippy"
+        run: vagrant ssh -c "cargo clippy"
 
       - name: run tests
-        run: vargrant ssh -c "cargo test"
+        run: vagrant ssh -c "cargo test"
