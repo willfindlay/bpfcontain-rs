@@ -29,6 +29,10 @@ TODO
 TODO
 -->
 
+## Quick Start
+
+You can try out BPFContain using [Vagrant](https://www.vagrantup.com/) along with the provided [Vagrantfile](Vagrantfile). All you need to do is install Vagrant (along with a virtualization provider like VirtualBox or KVM) and run `vagrant up && vagrant ssh`. You can run tests with `vagrant ssh -c "cargo test"`.
+
 ## How to Install
 
 ### Requirements
