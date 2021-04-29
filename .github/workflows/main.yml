@@ -26,30 +26,14 @@ jobs:
       - name: run vagrant up
         run: vagrant up
 
-      - name: prepare environment
-        run: |
-          vagrant ssh << EOF
-            sudo pacman --noconfirm -Syu
-            sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
-            cargo install libbpf-cargo
-          EOF
-          vagrant halt
-          vagrant up
+      - name: print uname
+        run: vagrant ssh -c "uname -a"
 
       - name: build
-        run: |
-          vagrant ssh << EOF
-            cargo build
-          EOF
+        run: vargrant ssh -c "cargo build"
 
       - name: clippy lints
-        run: |
-          vagrant ssh << EOF
-            cargo clippy
-          EOF
+        run: vargrant ssh -c "cargo clippy"
 
       - name: run tests
-        run: |
-          vagrant ssh << EOF
-            cargo test
-          EOF
+        run: vargrant ssh -c "cargo test"
