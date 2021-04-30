@@ -33,33 +33,40 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
         args.value_of("policy")
             .context("Failed to get path to policy file")?,
     );
-    let policy_path = policy_dir.join(policy_file);
+    let path = policy_dir.join(policy_file);
+
+    // Get the command from args if it was provided
+    let cmd = match args.values_of("command") {
+        None => None,
+        Some(cmd) => Some(cmd.collect::<Vec<&str>>().join(" ")),
+    };
 
     // Parse policy
-    let policy = Policy::from_path(policy_path).context("Failed to parse policy")?;
+    let policy = Policy::from_path(path).context("Failed to parse policy")?;
 
+    run_container_by_policy(&policy, cmd.as_deref())
+}
+
+/// Run a container according to the corresponding `policy`, overriding cmd if `cmd` is
+/// provided.
+pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()> {
     // Containerize
     containerize(&policy).context("Failed to containerize")?;
 
-    // Get entrypoint as a vector of strings
-    let cmd_vec = {
-        if let Some(cmd) = args
-            .values_of("command")
-            .map(|vals| vals.collect::<Vec<_>>())
-        {
-            cmd
+    // Use provided command or command specified in policy
+    let cmd = {
+        if let Some(cmd) = cmd {
+            cmd.split_whitespace().collect::<Vec<_>>()
         } else {
             policy.cmd.split_whitespace().collect::<Vec<_>>()
         }
     };
 
-    // Parse out command
-    let command = cmd_vec.get(0).context("Failed to get command")?;
-
     // Parse out args
-    let args: Vec<_> = cmd_vec.iter().skip(1).collect();
+    let args: Vec<_> = cmd.iter().skip(1).collect();
+    let err = Command::new(cmd.get(0).context("Failed to get command")?)
+        .args(args)
+        .exec();
 
-    let err = Command::new(command).args(args).exec();
-
-    bail!("Failed to run {}: {:?}", command, err);
+    bail!("Failed to run {}: {:?}", cmd.get(0).unwrap(), err);
 }
