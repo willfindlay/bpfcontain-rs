@@ -36,3 +36,6 @@ fs2 = "0.4.3"
 
 [build-dependencies]
 bindgen = "0.56.0"
+
+[dev-dependencies]
+ctor = "0.1.20"

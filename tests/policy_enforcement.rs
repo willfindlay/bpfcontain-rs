@@ -36,7 +36,20 @@ fn init<'a>() -> BpfWrapper {
 }
 
 #[test]
-fn test_foo() {}
+#[ignore = "TODO"]
+fn test_untainted() {
+    todo!()
+}
 
 #[test]
-fn test_bar() {}
+#[ctor::ctor]
+/// Build driver for integration tests
+fn build_driver() {
+    use std::process::Command;
+
+    let status = Command::new("make")
+        .current_dir("tests/driver")
+        .status()
+        .expect("Failed to run make");
+    assert!(status.success());
+}
