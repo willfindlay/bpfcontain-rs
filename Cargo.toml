@@ -3,11 +3,23 @@ name = "bpfcontain"
 version = "0.0.5"
 authors = ["William Findlay <william@williamfindlay.com>"]
 edition = "2018"
+autotests = false
+default-run = "bpfcontain"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[bin]]
 name = "bpfcontain"
+
+[[test]]
+name = "integration"
+path = "tests/lib.rs"
+
+# Driver program for integration tests
+[[bin]]
+name = "driver"
+path = "tests/driver/main.rs"
+test = false
 
 [lib]
 name = "bpfcontain"
