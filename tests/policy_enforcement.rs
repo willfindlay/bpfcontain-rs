@@ -3,53 +3,65 @@
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
 //
-// Dec. 29, 2020  William Findlay  Created this.
+// May 3, 2020  William Findlay  Created this.
 
-#![cfg(test)]
+use std::io::{BufRead, BufReader};
+use std::process::{Child, Command, Stdio};
 
-use std::sync::Mutex;
+static mut BPFCONTAIN_PROCESS: Option<Child> = None;
 
-use lazy_static::lazy_static;
-use libbpf_rs::RingBuffer;
-
-use bpfcontain::bpf::BpfcontainSkel;
-use bpfcontain::bpf_program::initialize_bpf;
-use bpfcontain::policy::load_policy_recursive;
-use bpfcontain::utils::get_project_path;
-
-lazy_static! {
-    static ref BPF: Mutex<BpfWrapper> = Mutex::new(init());
+/// Set up test files
+#[ctor::ctor]
+fn setup_files() {
+    println!("setup files: TODO")
 }
 
-struct BpfWrapper(BpfcontainSkel<'static>, RingBuffer);
+/// Run BPFContain
+#[ctor::ctor]
+fn setup_bpfcontain() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bpfcontain"))
+        .arg("daemon")
+        .arg("fg")
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("Failed to run BPFContain");
 
-unsafe impl Send for BpfWrapper {}
-unsafe impl Sync for BpfWrapper {}
+    let pipe = child.stderr.as_mut().expect("Failed to take child stderr");
+    let reader = BufReader::new(pipe);
 
-fn init<'a>() -> BpfWrapper {
-    let (mut skel, ringbuf) = initialize_bpf().expect("Failed to load BPF program");
+    // Wait for policy to be loaded by reading the daemon's log output
+    // TODO: add a mechanism for this time time out?
+    for line in reader.lines() {
+        let line = line.expect("Failed to read stderr");
+        if line.contains("Done loading policy!") {
+            break;
+        }
+    }
 
-    load_policy_recursive(&mut skel, get_project_path("examples").to_str().unwrap())
-        .expect("Failed to load policy");
+    // SAFETY: Our module destructor simply grabs a handle to the child, tries to kill it,
+    // and waits for its exit status. We assert that no other parts of the code will
+    // attempt to access BPFCONTAIN_PROCESS.
+    unsafe { BPFCONTAIN_PROCESS = Some(child) };
+}
 
-    BpfWrapper(skel, ringbuf)
+/// Wait for BPFContain
+#[ctor::dtor]
+fn teardown_bpfcontain() {
+    // SAFETY: Our module destructor simply grabs a handle to the child, tries to kill it,
+    // and waits for its exit status. We assert that no other parts of the code will
+    // attempt to access BPFCONTAIN_PROCESS.
+    let child = unsafe {
+        BPFCONTAIN_PROCESS
+            .as_mut()
+            .expect("No value for BPFCONTAIN_PROCESS")
+    };
+
+    child.kill().expect("Failed to kill BPFContain");
+    child.wait().expect("Failed to wait for BPFContain");
 }
 
 #[test]
 #[ignore = "TODO"]
 fn test_untainted() {
     todo!()
-}
-
-#[test]
-#[ctor::ctor]
-/// Build driver for integration tests
-fn build_driver() {
-    use std::process::Command;
-
-    let status = Command::new("make")
-        .current_dir("tests/driver")
-        .status()
-        .expect("Failed to run make");
-    assert!(status.success());
 }
