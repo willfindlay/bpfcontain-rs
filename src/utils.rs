@@ -7,10 +7,12 @@
 
 //! Various utility functions.
 
-use anyhow::{bail, Context, Result};
 use std::fs;
 use std::os::linux::fs::MetadataExt;
 use std::path::{Path, PathBuf};
+
+use anyhow::{bail, Context, Result};
+use glob::glob;
 
 /// Bump the rlimit for memlock up to full capacity.
 /// This is required to load even reasonably sized eBPF maps.
@@ -39,15 +41,15 @@ pub fn path_to_dev_ino(path: &Path) -> Result<(u64, u64)> {
 
 /// Returns a vector of (st_dev, st_ino) pairs for the glob `pattern`.
 pub fn glob_to_dev_ino(pattern: &str) -> Result<Vec<(u64, u64)>> {
-    use glob::glob;
     let mut results = vec![];
 
-    for entry in glob(pattern).context(format!("Failed to glob {}", pattern))? {
-        if let Ok(path) = entry {
-            match path_to_dev_ino(&path) {
-                Ok(res) => results.push(res),
-                Err(e) => log::warn!("Unable to get information for {:?}: {}", path, e),
-            }
+    for path in glob(pattern)
+        .context(format!("Failed to glob {}", pattern))?
+        .flatten()
+    {
+        match path_to_dev_ino(&path) {
+            Ok(res) => results.push(res),
+            Err(e) => log::warn!("Unable to get information for {:?}: {}", path, e),
         }
     }
 

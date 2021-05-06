@@ -15,6 +15,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 /// Represents all types of namespace available under Linux as of 5.9
+#[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum Namespace {
     Cgroup,
