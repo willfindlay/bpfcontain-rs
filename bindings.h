@@ -1,1 +1,1 @@
-#include "src/bpf/structs.h"
+#include "src/bpf/include/structs.h"
