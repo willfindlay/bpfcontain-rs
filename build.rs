@@ -8,13 +8,16 @@
 use std::process::Command;
 
 fn main() {
-    // Re-run build if our header file(s) has changed
-    println!("cargo:rerun-if-changed=bindings.h");
-    println!("cargo:rerun-if-changed=src/bpf/structs.h");
+    // Re-run build if bpfcontain.bpf.c has changed
     println!("cargo:rerun-if-changed=src/bpf/bpfcontain.bpf.c");
-    println!("cargo:rerun-if-changed=src/bpf/bpfcontain.h");
-    println!("cargo:rerun-if-changed=src/bpf/kernel_defs.h");
-    println!("cargo:rerun-if-changed=src/bpf/maps.h");
+    // Re-run build if our header files have changed
+    println!("cargo:rerun-if-changed=bindings.h");
+    for path in glob::glob("src/bpf/include/*.h")
+        .expect("Failed to glob headers")
+        .filter_map(Result::ok)
+    {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
 
     // Generate bindings
     let bindings = bindgen::builder()

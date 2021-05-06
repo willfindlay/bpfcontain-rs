@@ -5,7 +5,18 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-#include "bpfcontain.h"
+// This must be first
+#include "include/vmlinux.h"
+
+// These must be below vmlinux.h
+#include <bpf/bpf_core_read.h> /* for BPF CO-RE helpers */
+#include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
+#include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
+
+#include "include/kernel_defs.h"
+#include "include/defs.h"
+#include "include/map_defs.h"
+#include "include/allocator.h"
 
 /* ========================================================================= *
  * BPF CO-RE Globals                                                         *
@@ -23,77 +34,6 @@ const volatile u32 host_pid_ns_id;
 
 extern const void init_nsproxy __ksym;
 extern const void init_user_ns __ksym;
-
-/* ========================================================================= *
- * Allocator Maps                                                            *
- * ========================================================================= */
-
-#define ALLOCATOR(TYPE)                                              \
-    BPF_PERCPU_ARRAY(__##TYPE##__alloc, TYPE, 1, 0,                  \
-                     BPF_F_RDONLY | BPF_F_RDONLY_PROG);              \
-    BPF_PERCPU_ARRAY(__##TYPE##__temp, TYPE, 1, 0, BPF_F_RDONLY);    \
-                                                                     \
-    static __always_inline TYPE *new_##TYPE()                        \
-    {                                                                \
-        int zero = 0;                                                \
-                                                                     \
-        TYPE *temp = bpf_map_lookup_elem(&__##TYPE##__alloc, &zero); \
-        if (!temp)                                                   \
-            return NULL;                                             \
-                                                                     \
-        bpf_map_update_elem(&__##TYPE##__temp, &zero, temp, 0);      \
-        return bpf_map_lookup_elem(&__##TYPE##__temp, &zero);        \
-    }
-
-ALLOCATOR(container_t);
-ALLOCATOR(process_t);
-
-/* =========================================================================
- * BPF Maps
- * ========================================================================= */
-
-/* Ring buffer for passing logging events to userspace */
-BPF_RINGBUF(audit_file_buf, 4, LIBBPF_PIN_BY_NAME);
-BPF_RINGBUF(audit_cap_buf, 4, LIBBPF_PIN_BY_NAME);
-BPF_RINGBUF(audit_net_buf, 4, LIBBPF_PIN_BY_NAME);
-BPF_RINGBUF(audit_ipc_buf, 4, LIBBPF_PIN_BY_NAME);
-
-/* Active (containerized) processes */
-BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, LIBBPF_PIN_BY_NAME,
-         0);
-BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* Files and directories which have been created by a containerized process */
-BPF_INODE_STORAGE(task_inodes, container_id_t, LIBBPF_PIN_BY_NAME, 0);
-
-/* Common policy */
-BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* Filesystem policy */
-BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* File policy */
-BPF_HASH(file_policy, file_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* Device policy */
-BPF_HASH(dev_policy, dev_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* Capability policy */
-BPF_HASH(cap_policy, cap_policy_key_t, cap_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* Network policy */
-BPF_HASH(net_policy, net_policy_key_t, net_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
-
-/* IPC policy */
-BPF_HASH(ipc_policy, ipc_policy_key_t, ipc_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
 
 /* ========================================================================= *
  * Audit Helpers                                                             *
