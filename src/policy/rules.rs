@@ -508,8 +508,9 @@ impl LoadRule for IpcRule {
         let key = key.as_bytes();
 
         // Value should be the policy decision
-        let mut value = Value::default();
-        value.decision = bindings::policy::PolicyDecision::from(decision).bits();
+        let value = Value {
+            decision: bindings::policy::PolicyDecision::from(decision).bits(),
+        };
 
         // Update old value with new value
         map.update(key, value.as_bytes(), MapFlags::ANY)

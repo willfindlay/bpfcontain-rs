@@ -36,10 +36,9 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     let path = policy_dir.join(policy_file);
 
     // Get the command from args if it was provided
-    let cmd = match args.values_of("command") {
-        None => None,
-        Some(cmd) => Some(cmd.collect::<Vec<&str>>().join(" ")),
-    };
+    let cmd = args
+        .values_of("command")
+        .map(|cmd| cmd.collect::<Vec<&str>>().join(" "));
 
     // Parse policy
     let policy = Policy::from_path(path).context("Failed to parse policy")?;

@@ -93,12 +93,11 @@ impl FindSymbolUprobeExt for libbpf_rs::Program {
                 .to_str()
                 .context("Failed to convert pathname to string")?,
         );
-        pathname.push_str("\0");
+        pathname.push('\0');
 
         // Use the offset we found to attach the probe
-        Ok(self
-            .attach_uprobe(retprobe, pid, pathname, offset)
-            .context("Failed to attach uprobe")?)
+        self.attach_uprobe(retprobe, pid, pathname, offset)
+            .context("Failed to attach uprobe")
     }
 
     /// Attach a uprobe to an address within our own address space.
@@ -115,12 +114,11 @@ impl FindSymbolUprobeExt for libbpf_rs::Program {
         // Explicitly null terminate pathname
         // TODO: file bug report in libbpf_rs
         let mut pathname = "/proc/self/exe".to_string();
-        pathname.push_str("\0");
+        pathname.push('\0');
 
         // Use the offset we found to attach the probe
-        Ok(self
-            .attach_uprobe(retprobe, pid, pathname, offset)
-            .context("Failed to attach uprobe")?)
+        self.attach_uprobe(retprobe, pid, pathname, offset)
+            .context("Failed to attach uprobe")
     }
 }
 
