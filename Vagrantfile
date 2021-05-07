@@ -4,7 +4,7 @@ Vagrant.configure("2") do |config|
   config.vm.define 'arch'
 
   # Sync the project to /vagrant
-  config.vm.synced_folder ".", "/vagrant"
+  config.vm.synced_folder ".", "/vagrant", type: "rsync", rsync__exclude: '.git/'
 
   # Set up the environment
   config.vm.provision "shell" do |s|
