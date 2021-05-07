@@ -17,6 +17,9 @@
 #include "include/defs.h"
 #include "include/map_defs.h"
 #include "include/allocator.h"
+#include "include/audit.h"
+#include "include/policy.h"
+#include "include/state.h"
 
 /* ========================================================================= *
  * BPF CO-RE Globals                                                         *

@@ -10,7 +10,8 @@
 
 #include "defs.h"
 #include "maps.h"
-#include "structs.h"
+#include "state.h"
+#include "policy.h"
 
 /* Ring buffer for passing logging events to userspace */
 BPF_RINGBUF(audit_file_buf, 4, LIBBPF_PIN_BY_NAME);
