@@ -9,7 +9,7 @@
 #define ALLOCATOR_H
 
 #include "maps.h"
-#include "structs.h"
+#include "state.h"
 
 #define ALLOCATOR(TYPE)                                              \
     BPF_PERCPU_ARRAY(__##TYPE##__alloc, TYPE, 1, 0,                  \
