@@ -33,7 +33,7 @@ jobs:
         run: vagrant ssh -c "cargo build"
 
       - name: clippy lints
-        run: vagrant ssh -c "cargo clippy"
+        run: vagrant ssh -c "cargo clippy -- -D warnings"
 
       - name: run tests
         run: vagrant ssh -c "cargo test"
