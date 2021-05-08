@@ -5,7 +5,14 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::process::Command;
+use uname::uname;
+
+use std::fs::File;
+use std::io::ErrorKind::AlreadyExists;
+use std::io::{BufWriter, Write};
+use std::os::unix::fs::symlink;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
 
 fn main() {
     // Re-run build if bpfcontain.bpf.c has changed
@@ -36,12 +43,39 @@ fn main() {
 
     // Make vmlinux if we don't have a good enough version
     // TODO: This command can be allowed to fail if we already have an existing vmlinux.h
-    let status = Command::new("make")
-        .arg("vmlinux")
-        .current_dir("src/bpf")
-        .status()
-        .expect("Failed to run make");
-    assert!(status.success(), "Failed to update vmlinux.h");
+    let kernel_release = uname().expect("Failed to fetch system information").release;
+    let vmlinux_path = PathBuf::from(format!("src/bpf/include/vmlinux_{}.h", kernel_release));
+
+    if !vmlinux_path.exists() {
+        let mut vmlinux_writer = BufWriter::new(File::create(vmlinux_path.clone()).expect(
+            &format!("Failed to open {} for writing", vmlinux_path.display()),
+        ));
+
+        let output = Command::new("bpftool")
+            .arg("btf")
+            .arg("dump")
+            .arg("file")
+            .arg("/sys/kernel/btf/vmlinux")
+            .arg("format")
+            .arg("c")
+            .stdout(Stdio::piped())
+            .output()
+            .expect("Failed to run make");
+
+        assert!(output.status.success());
+
+        vmlinux_writer
+            .write_all(&output.stdout)
+            .expect("Failed to write to vmlinux.h");
+    }
+
+    match symlink(
+        vmlinux_path.file_name().unwrap(),
+        "src/bpf/include/vmlinux.h",
+    ) {
+        Err(ref e) if e.kind() == AlreadyExists => {}
+        other => other.expect("Failed to symlink vmlinux.h"),
+    };
 
     // Run cargo-libbpf-build
     let status = Command::new("cargo")
