@@ -7,8 +7,7 @@
 
 use uname::uname;
 
-use std::fs::File;
-use std::io::ErrorKind::AlreadyExists;
+use std::fs::{remove_file, File};
 use std::io::{BufWriter, Write};
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
@@ -41,15 +40,17 @@ fn main() {
         .write_to_file("src/bindings/generated/generated.rs")
         .expect("Failed to save bindings");
 
-    // Make vmlinux if we don't have a good enough version
-    // TODO: This command can be allowed to fail if we already have an existing vmlinux.h
+    // Determine pathname for vmlinux header
     let kernel_release = uname().expect("Failed to fetch system information").release;
     let vmlinux_path = PathBuf::from(format!("src/bpf/include/vmlinux_{}.h", kernel_release));
+    let vmlinux_link_path = PathBuf::from("src/bpf/include/vmlinux.h");
 
+    // Populate vmlinux_{kernel_release}.h with BTF info
     if !vmlinux_path.exists() {
-        let mut vmlinux_writer = BufWriter::new(File::create(vmlinux_path.clone()).expect(
-            &format!("Failed to open {} for writing", vmlinux_path.display()),
-        ));
+        let mut vmlinux_writer = BufWriter::new(
+            File::create(vmlinux_path.clone())
+                .expect("Failed to open vmlinux destination for writing"),
+        );
 
         let output = Command::new("bpftool")
             .arg("btf")
@@ -69,13 +70,14 @@ fn main() {
             .expect("Failed to write to vmlinux.h");
     }
 
-    match symlink(
-        vmlinux_path.file_name().unwrap(),
-        "src/bpf/include/vmlinux.h",
-    ) {
-        Err(ref e) if e.kind() == AlreadyExists => {}
-        other => other.expect("Failed to symlink vmlinux.h"),
-    };
+    // Remove existing link if it exists
+    if vmlinux_link_path.exists() {
+        remove_file(vmlinux_link_path.clone()).expect("Failed to unlink vmlinux.h");
+    }
+
+    // Create a new symlink
+    symlink(vmlinux_path.file_name().unwrap(), vmlinux_link_path)
+        .expect("Failed to symlink vmlinux.h");
 
     // Run cargo-libbpf-build
     let status = Command::new("cargo")
