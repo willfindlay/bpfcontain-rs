@@ -7,6 +7,10 @@ on:
 
 jobs:
   continuous-integration:
+    # We need to run on macos-latest since it's the only runner that supports nested
+    # virtualization. The actual CI workflow will run on an archlinux VM that we spin up
+    # using Vagrant. The reason behind this is that we need bleeding edge kernels to test
+    # BPFContain, since it uses the latest eBPF features.
     runs-on: macos-latest
 
     steps:
