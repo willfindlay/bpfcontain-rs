@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 
-# Run CI workflow locally using vagrant.
-# Depends on vagrant.
-
 set -eo pipefail
 
-vagrant up
-vagrant ssh -c "uname -a"
-vagrant ssh -c "cargo build"
-vagrant ssh -c "cargo clippy -- -D warnings"
-vagrant ssh -c "cargo test"
+echo "Building..."
+cargo build
+
+echo "Running clippy lints..."
+cargo clippy -- -D warnings
+
+echo "Running rustfmt..."
+cargo fmt -- --check
+
+echo "Running tests..."
+cargo test
