@@ -39,5 +39,8 @@ jobs:
       - name: clippy lints
         run: vagrant ssh -c "cargo clippy -- -D warnings"
 
+      - name: run rustfmt
+        run: vagrant ssh -c "cargo fmt -- --check"
+
       - name: run tests
         run: vagrant ssh -c "cargo test"
