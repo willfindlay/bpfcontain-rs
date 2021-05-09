@@ -7,65 +7,109 @@
 
 //! Functionality related to BPF programs and maps.
 
+use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
-use crate::config::Settings;
 use crate::ns;
-use crate::policy::load_policy_recursive;
+use crate::policy::Policy;
 use crate::uprobe_ext::FindSymbolUprobeExt;
 use crate::uprobes::do_containerize;
 use crate::utils::bump_memlock_rlimit;
 
-/// Main BPF program work loop.
-pub fn work_loop(config: &Settings) -> Result<()> {
-    // Load BPF programs into the kernel
-    let (mut skel, ringbuf) = initialize_bpf().context("Failed to load BPF programs")?;
-
-    // Load policy in `config.policy.dir`
-    load_policy_recursive(&mut skel, &config.policy.dir).context("Failed to load policy")?;
-
-    // Loop forever
-    loop {
-        if let Err(e) = ringbuf.poll(Duration::new(1, 0)) {
-            log::warn!("Failed to poll ring buffer: {}", e);
-        }
-        sleep(Duration::from_millis(100));
-    }
+pub struct BpfcontainContext<'a> {
+    skel: BpfcontainSkel<'a>,
+    ringbuf: RingBuffer,
 }
 
-/// Open, load, and attach BPF programs and maps using the `builder` provided by
-/// libbpf-rs.
-pub fn initialize_bpf<'a>() -> Result<(BpfcontainSkel<'a>, RingBuffer)> {
-    log::debug!("Initializing BPF objects...");
+impl<'a> BpfcontainContext<'a> {
+    /// Open, load, and attach BPF objects, then return a new `BpfcontainContext`.
+    pub fn new() -> Result<Self> {
+        log::debug!("Initializing BPF objects...");
 
-    let mut builder = BpfcontainSkelBuilder::default();
-    if log::log_enabled!(log::Level::Trace) {
-        builder.obj_builder.debug(true);
+        let mut builder = BpfcontainSkelBuilder::default();
+        if log::log_enabled!(log::Level::Trace) {
+            builder.obj_builder.debug(true);
+        }
+
+        log::debug!("Bumping memlock...");
+        bump_memlock_rlimit().context("Failed bumping memlock limit")?;
+
+        log::debug!("Opening eBPF objects...");
+        let mut open_skel = builder.open().context("Failed to open skeleton")?;
+
+        initialize_bpf_globals(&mut open_skel).context("Failed to initialize BPF globals")?;
+
+        log::debug!("Loading eBPF objects into kernel...");
+        let mut skel = open_skel.load().context("Failed to load skeleton")?;
+
+        log::debug!("Attaching BPF objects to events...");
+        skel.attach().context("Failed to attach BPF programs")?;
+        attach_uprobes(&mut skel).context("Failed to attach uprobes")?;
+
+        let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
+
+        Ok(BpfcontainContext { skel, ringbuf })
     }
 
-    log::debug!("Bumping memlock...");
-    bump_memlock_rlimit().context("Failed bumping memlock limit")?;
+    /// Main BPFContain work loop
+    pub fn work_loop(&self) {
+        loop {
+            if let Err(e) = self.ringbuf.poll(Duration::new(1, 0)) {
+                log::warn!("Failed to poll ring buffer: {}", e);
+            }
+            sleep(Duration::from_millis(100));
+        }
+    }
 
-    log::debug!("Opening eBPF objects...");
-    let mut open_skel = builder.open().context("Failed to open skeleton")?;
+    /// Load a policy object into the kernel
+    pub fn load_policy(&mut self, policy: &Policy) -> Result<()> {
+        log::debug!("Loading policy {}...", policy.name);
 
-    initialize_bpf_globals(&mut open_skel).context("Failed to initialize BPF globals")?;
+        policy
+            .load(&mut self.skel)
+            .context(format!("Failed to load policy {}", policy.name))
+    }
 
-    log::debug!("Loading eBPF objects into kernel...");
-    let mut skel = open_skel.load().context("Failed to load skeleton")?;
+    /// Load policy from a file
+    pub fn load_policy_from_file<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<()> {
+        log::debug!(
+            "Loading policy from file {}...",
+            policy_path.as_ref().display()
+        );
 
-    log::debug!("Attaching BPF objects to events...");
-    skel.attach().context("Failed to attach BPF programs")?;
-    attach_uprobes(&mut skel).context("Failed to attach uprobes")?;
+        let policy = Policy::from_path(&policy_path)?;
+        self.load_policy(&policy)?;
 
-    let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
+        Ok(())
+    }
 
-    Ok((skel, ringbuf))
+    /// Load policy recursively from a directory
+    pub fn load_policy_from_dir<P: AsRef<Path>>(&mut self, policy_dir: P) -> Result<()> {
+        log::info!(
+            "Loading policy recursively from {}...",
+            policy_dir.as_ref().display()
+        );
+
+        // Use glob to match all YAML files in the policy directory tree
+        for path in glob(&format!("{}/**/*.yml", policy_dir.as_ref().display()))
+            .context("Failed to glob policy directory")?
+            .filter_map(Result::ok)
+        {
+            if let Err(e) = self.load_policy_from_file(path) {
+                log::warn!("{}", e);
+            }
+        }
+
+        log::info!("Done loading policy!");
+
+        Ok(())
+    }
 }
 
 /// Set BPF global variables
