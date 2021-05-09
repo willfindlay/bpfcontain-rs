@@ -10,6 +10,7 @@
 use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
@@ -18,7 +19,7 @@ use fs2::FileExt as _;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
-use crate::bpf_program::work_loop;
+use crate::bpf_program::BpfcontainContext;
 use crate::config::Settings;
 
 /// Main entrypoint into the daemon.
@@ -54,7 +55,12 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 fn run_in_foreground(config: &Settings) -> Result<()> {
     log::info!("Running in the foreground...");
 
-    work_loop(config)
+    // Load BPF and policy, then start work loop
+    let mut context = BpfcontainContext::new()?;
+    context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
+    context.work_loop();
+
+    Ok(())
 }
 
 /// Starts the daemon.
@@ -91,7 +97,12 @@ fn start_daemon(config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
     daemonize.start().context("Failed to start the daemon")?;
 
-    work_loop(config)
+    // Load BPF and policy, then start work loop
+    let mut context = BpfcontainContext::new()?;
+    context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
+    context.work_loop();
+
+    Ok(())
 }
 
 /// Stops the daemon by parsing the daemon's [`PIDFILE`] and sending a `SIGTERM`
