@@ -3,9 +3,8 @@
 // BPFContain - Container security with eBPF
 // Copyright (C) 2020  William Findlay
 //
-// May 3, 2020  William Findlay  Created this.
+// May 9, 2020  William Findlay  Created this.
 
-#![cfg(test)]
+mod bpf_wrapper;
 
-mod helpers;
-mod policy_enforcement;
+pub use bpf_wrapper::*;
