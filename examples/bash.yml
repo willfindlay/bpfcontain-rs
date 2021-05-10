@@ -7,7 +7,7 @@ defaultTaint: false
 
 # A set of rights to grant, OPTIONAL
 rights:
-  - terminal:
+  - device: terminal
   - fs: {pathname: /, access: rxm}
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL

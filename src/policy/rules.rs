@@ -8,17 +8,24 @@
 //! Definitions for policy rules and their translations into eBPF maps. Uses the
 //! `enum_dispatch` crate.
 
+// This is unfortuantely required for now to silence compiler warnings about late bound
+// lifetime arguments resulting from the enum_dispatch crate. When this gets fixed
+// upstream, we can remove it.
+// See this issue: https://gitlab.com/antonok/enum_dispatch/-/issues/34
+#![allow(late_bound_lifetime_arguments)]
+
 use std::convert::{From, Into, TryFrom, TryInto};
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use enum_dispatch::enum_dispatch;
+use libbpf_rs::Map;
 use libbpf_rs::MapFlags;
 use pod::Pod;
 use serde::Deserialize;
 
-use crate::bindings;
-use crate::bpf::BpfcontainSkel as Skel;
+use crate::bindings::policy::{bitflags, keys, values};
+use crate::bpf::{BpfcontainMaps, BpfcontainSkel as Skel};
 use crate::policy::helpers::*;
 use crate::policy::Policy;
 use crate::utils::path_to_dev_ino;
@@ -30,7 +37,72 @@ use crate::utils::path_to_dev_ino;
 /// A dispatch interface for [`Rule`]s.
 #[enum_dispatch]
 pub trait LoadRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()>;
+    /// Get the POD representation of the map key for this rule.
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>>;
+
+    /// Get the POD representation of the map value for this rule.
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>>;
+
+    /// Get a mutable reference to the eBPF map corresponding with this rule.
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map;
+
+    /// Lookup existing value and return it as POD if it exists.
+    fn lookup_existing_value<'a: 'a>(
+        &self,
+        key: &[u8],
+        maps: &'a mut BpfcontainMaps,
+    ) -> Result<Option<Vec<u8>>> {
+        let map = self.map(maps);
+        Ok(map.lookup(key, MapFlags::ANY)?)
+    }
+
+    /// Load this rule into the kernel.
+    fn load<'a: 'a>(
+        &self,
+        policy: &Policy,
+        skel: &'a mut Skel,
+        decision: PolicyDecision,
+    ) -> Result<()> {
+        let key = &self.key(policy).context("Failed to create map key")?;
+        let value = &mut self
+            .value(&decision)
+            .context("Failed to create map value")?;
+
+        // We don't want to _replace_ the existing value. Rather, we want to _extend_ it.
+        // For BPFContain policy, this means doing a bitwise OR with the existing value
+        // and populating the map with the result. This is an ugly hack to do just that
+        // by taking the bitwise OR over each byte of the POD data.
+        //
+        // This is probably code smell, but there isn't much we can do about this for now,
+        // until we can figure out a way to support the actual Key, Value types over an
+        // enum_dispatch interface.
+        let mut maps = skel.maps();
+        if let Some(existing) = self.lookup_existing_value(key, &mut maps)? {
+            for (old, new) in existing.iter().zip(value.iter_mut()) {
+                *new |= *old;
+            }
+        }
+
+        // Update the actual map value.
+        let map = self.map(&mut maps);
+        map.update(key, value, MapFlags::ANY)
+            .context("Failed to update map value")?;
+
+        Ok(())
+    }
+
+    /// Unload this rule from the kernel.
+    fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
+        let key = &self.key(policy).context("Failed to create map key")?;
+
+        let mut maps = skel.maps();
+        let map = self.map(&mut maps);
+
+        // Remove the value corresponding with the key.
+        map.delete(key).context("Failed to delete map value")?;
+
+        Ok(())
+    }
 }
 
 /// Canonical rule type, dispatches to structs which implement [`LoadRule`]
@@ -44,10 +116,10 @@ pub enum Rule {
     Filesystem(FilesystemRule),
     File(FileRule),
     // Device policies
+    #[serde(alias = "numberedDev")]
+    NumberedDevice(NumberedDeviceRule),
+    #[serde(alias = "dev")]
     Device(DeviceRule),
-    Terminal(TerminalRule),
-    DevRandom(DevRandomRule),
-    DevFake(DevFakeRule),
     // Capability policy
     #[serde(alias = "cap")]
     Capability(CapabilityRule),
@@ -68,47 +140,6 @@ pub enum Rule {
 #[serde(rename_all = "camelCase")]
 struct FileAccess(String);
 
-/// Convert FileAccess to bitflags
-impl TryFrom<FileAccess> for bindings::policy::FileAccess {
-    type Error = anyhow::Error;
-
-    fn try_from(value: FileAccess) -> Result<Self, Self::Error> {
-        // Try convenience aliases first
-        match value.0.as_str() {
-            "readOnly" => return Ok(Self::MAY_READ),
-            "readWrite" => return Ok(Self::MAY_READ | Self::MAY_WRITE | Self::MAY_APPEND),
-            "readAppend" => return Ok(Self::MAY_READ | Self::MAY_APPEND),
-            "library" => return Ok(Self::MAY_READ | Self::MAY_EXEC_MMAP),
-            "exec" => return Ok(Self::MAY_READ | Self::MAY_EXEC),
-            _ => {}
-        };
-
-        let mut access = Self::default();
-
-        // Iterate through the characters in our access flags, creating the
-        // bitmask as we go.
-        for c in value.0.chars() {
-            // Because of weird Rust-isms, to_lowercase returns a string. We
-            // only care about ASCII chars, so we will match on length-1
-            // strings.
-            let c_lo = &c.to_lowercase().to_string()[..];
-            match c_lo {
-                "r" => access |= Self::MAY_READ,
-                "w" => access |= Self::MAY_WRITE,
-                "x" => access |= Self::MAY_EXEC,
-                "a" => access |= Self::MAY_APPEND,
-                "d" => access |= Self::MAY_DELETE,
-                "c" => access |= Self::MAY_CHMOD,
-                "l" => access |= Self::MAY_LINK,
-                "m" => access |= Self::MAY_EXEC_MMAP,
-                _ => bail!("Unknown access flag {}", c),
-            };
-        }
-
-        Ok(access)
-    }
-}
-
 /// Represents a filesystem rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -119,58 +150,34 @@ pub struct FilesystemRule {
 }
 
 impl LoadRule for FilesystemRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        // Set correct types for rule
-        type Key = bindings::policy::FsPolicyKey;
-        type Value = bindings::policy::FilePolicyVal;
-        type Access = bindings::policy::FileAccess;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.fs_policy()
+    }
 
-        // Get correct map
-        let mut maps = skel.maps();
-        let map = maps.fs_policy();
-
-        // Convert access into bitmask
-        let access: Access = self.access.clone().try_into()?;
-
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
         // Look up device ID of the filesystem
         let (st_dev, _) = path_to_dev_ino(&PathBuf::from(&self.pathname))
             .context(format!("Failed to get information for {}", &self.pathname))?;
 
-        // Set key
-        let mut key = Key::zeroed();
+        // Construct the key
+        let mut key = keys::FsPolicyKey::default();
         key.policy_id = policy.policy_id();
         key.device_id = st_dev as u32;
-        let key = key.as_bytes();
 
-        // Value should be old | new
-        let value = {
-            let mut value = Value::default();
-            match decision {
-                PolicyDecision::Allow => value.allow = access.bits(),
-                PolicyDecision::Taint => value.taint = access.bits(),
-                PolicyDecision::Deny => value.deny = access.bits(),
-            }
-            if let Some(old_value) = map
-                .lookup(key, MapFlags::ANY)
-                .context(format!("Exception during map lookup with key {:?}", key))?
-            {
-                let old_value =
-                    Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-                value.allow |= old_value.allow;
-                value.taint |= old_value.taint;
-                value.deny |= old_value.deny;
-            }
-            value
-        };
+        Ok(key.as_bytes().clone().into())
+    }
 
-        // Update old value with new value
-        map.update(key, value.as_bytes(), MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
 
-        Ok(())
+        let mut value = values::FilePolicyVal::default();
+        match decision {
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
+        }
+
+        Ok(value.as_bytes().clone().into())
     }
 }
 
@@ -184,210 +191,201 @@ pub struct FileRule {
 }
 
 impl LoadRule for FileRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        // Set correct types for rule
-        type Key = bindings::policy::FilePolicyKey;
-        type Value = bindings::policy::FilePolicyVal;
-        type Access = bindings::policy::FileAccess;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.file_policy()
+    }
 
-        // Get correct map
-        let mut maps = skel.maps();
-        let map = maps.file_policy();
-
-        // Convert access into bitmask
-        let access: Access = self.access.clone().try_into()?;
-
-        // Look up device ID and inode of the file
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        // Look up device ID of the filesystem
         let (st_dev, st_ino) = path_to_dev_ino(&PathBuf::from(&self.pathname))
             .context(format!("Failed to get information for {}", &self.pathname))?;
 
-        // Set key
-        let mut key = Key::zeroed();
+        // Construct the key
+        let mut key = keys::FilePolicyKey::default();
         key.policy_id = policy.policy_id();
         key.device_id = st_dev as u32;
         key.inode_id = st_ino;
-        let key = key.as_bytes();
 
-        // Value should be old | new
-        let value = {
-            let mut value = Value::default();
-            match decision {
-                PolicyDecision::Allow => value.allow = access.bits(),
-                PolicyDecision::Taint => value.taint = access.bits(),
-                PolicyDecision::Deny => value.deny = access.bits(),
-            }
-            if let Some(old_value) = map
-                .lookup(key, MapFlags::ANY)
-                .context(format!("Exception during map lookup with key {:?}", key))?
-            {
-                let old_value =
-                    Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-                value.allow |= old_value.allow;
-                value.taint |= old_value.taint;
-                value.deny |= old_value.deny;
-            }
-            value
-        };
-
-        // Update old value with new value
-        map.update(key, value.as_bytes(), MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
-
-        Ok(())
+        Ok(key.as_bytes().clone().into())
     }
-}
 
-/// Helper to load a device-specific rule
-fn load_device_rule(
-    major: u32,
-    minor: Option<u32>,
-    access: FileAccess,
-    policy: &Policy,
-    skel: &mut Skel,
-    decision: PolicyDecision,
-) -> Result<()> {
-    // Set correct types for rule
-    type Key = bindings::policy::DevPolicyKey;
-    type Value = bindings::policy::FilePolicyVal;
-    type Access = bindings::policy::FileAccess;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
 
-    // Get correct map
-    let mut maps = skel.maps();
-    let map = maps.dev_policy();
-
-    // Convert access into bitmask
-    let access: Access = access.try_into()?;
-
-    // Set key
-    let mut key = Key::zeroed();
-    key.policy_id = policy.policy_id();
-    key.major = major;
-    key.minor = match minor {
-        Some(n) => n as i64,
-        None => Key::wildcard(),
-    };
-    let key = key.as_bytes();
-
-    // Value should be old | new
-    let value = {
-        let mut value = Value::default();
+        let mut value = values::FilePolicyVal::default();
         match decision {
             PolicyDecision::Allow => value.allow = access.bits(),
             PolicyDecision::Taint => value.taint = access.bits(),
             PolicyDecision::Deny => value.deny = access.bits(),
         }
-        if let Some(old_value) = map
-            .lookup(key, MapFlags::ANY)
-            .context(format!("Exception during map lookup with key {:?}", key))?
-        {
-            let old_value =
-                Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-            value.allow |= old_value.allow;
-            value.taint |= old_value.taint;
-            value.deny |= old_value.deny;
-        }
-        value
-    };
 
-    // Update old value with new value
-    map.update(key, value.as_bytes(), MapFlags::ANY)
-        .context(format!(
-            "Failed to update map key={:?} value={:?}",
-            key, value
-        ))?;
-
-    Ok(())
+        Ok(value.as_bytes().clone().into())
+    }
 }
 
 /// Represents a generic device access rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct DeviceRule {
+pub struct NumberedDeviceRule {
     major: u32,
     minor: Option<u32>,
     access: FileAccess,
 }
 
+impl LoadRule for NumberedDeviceRule {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.dev_policy()
+    }
+
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        let mut key = keys::DevPolicyKey::default();
+
+        key.policy_id = policy.policy_id();
+        key.major = self.major;
+        key.minor = match self.minor {
+            Some(minor) => minor as i64,
+            None => keys::DevPolicyKey::wildcard(),
+        };
+
+        Ok(key.as_bytes().clone().into())
+    }
+
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
+
+        let mut value = values::FilePolicyVal::default();
+        match decision {
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
+        }
+
+        Ok(value.as_bytes().clone().into())
+    }
+}
+
+/// Represents a high-level device class which is converted into an access vector along
+/// with one or more keys.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum Device {
+    #[serde(alias = "tty")]
+    Terminal,
+    Null,
+    Random,
+}
+
+impl Device {
+    /// Get the access vector that should be associated with this device.
+    pub fn access(&self) -> bitflags::FileAccess {
+        match self {
+            Device::Terminal => "rwa".try_into().unwrap(),
+            Device::Null => "rwa".try_into().unwrap(),
+            Device::Random => "r".try_into().unwrap(),
+        }
+    }
+
+    /// Get the major and minor numbers associated with this device type.
+    /// A minor number of None implies a wildcard (matching all minor numbers).
+    pub fn device_numbers(&self) -> Vec<(u32, Option<u32>)> {
+        match self {
+            Device::Terminal => vec![(136, None), (4, None)],
+            Device::Null => vec![(1, Some(3)), (1, Some(5)), (1, Some(7))],
+            Device::Random => vec![(1, Some(8)), (1, Some(9))],
+        }
+    }
+}
+
+/// Represents a high-level device access rule.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceRule(Device);
+
+impl DeviceRule {}
+
 impl LoadRule for DeviceRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        load_device_rule(
-            self.major,
-            self.minor,
-            self.access.clone(),
-            policy,
-            skel,
-            decision,
-        )?;
-
-        Ok(())
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.dev_policy()
     }
-}
 
-/// Represents a terminal access rule.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct TerminalRule;
+    fn key(&self, _policy: &Policy) -> Result<Vec<u8>> {
+        panic!("`DeviceRule`s have multiple keys and thus require special handling.");
+    }
 
-impl LoadRule for TerminalRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        for (major, minor) in &[(136, None), (4, None)] {
-            // urandom
-            load_device_rule(
-                *major,
-                *minor,
-                FileAccess("rwa".into()),
-                policy,
-                skel,
-                decision.clone(),
-            )?;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let access = self.0.access();
+
+        let mut value = values::FilePolicyVal::default();
+        match decision {
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
+        }
+
+        Ok(value.as_bytes().clone().into())
+    }
+
+    fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
+        let mut maps = skel.maps();
+        let map = self.map(&mut maps);
+
+        for (major, minor) in self.0.device_numbers() {
+            let key = keys::DevPolicyKey {
+                policy_id: policy.policy_id(),
+                major,
+                minor: if let Some(minor) = minor {
+                    minor as i64
+                } else {
+                    keys::DevPolicyKey::wildcard()
+                },
+            };
+            let key = key.as_bytes();
+
+            map.delete(key).context("Failed to delete map value")?;
         }
 
         Ok(())
     }
-}
 
-/// Represents a /dev/*random access rule.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct DevRandomRule;
+    fn load<'a: 'a>(
+        &self,
+        policy: &Policy,
+        skel: &'a mut Skel,
+        decision: PolicyDecision,
+    ) -> Result<()> {
+        let mut maps = skel.maps();
 
-impl LoadRule for DevRandomRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        for (major, minor) in &[(1, Some(8)), (1, Some(9))] {
-            // urandom
-            load_device_rule(
-                *major,
-                *minor,
-                FileAccess("r".into()),
-                policy,
-                skel,
-                decision.clone(),
-            )?;
-        }
+        let value = &mut self.value(&decision)?;
 
-        Ok(())
-    }
-}
+        for (major, minor) in self.0.device_numbers() {
+            let key = keys::DevPolicyKey {
+                policy_id: policy.policy_id(),
+                major,
+                minor: if let Some(minor) = minor {
+                    minor as i64
+                } else {
+                    keys::DevPolicyKey::wildcard()
+                },
+            };
+            let key = key.as_bytes();
 
-/// Represents a /dev/null, /dev/full/, /dev/zero access rule.
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct DevFakeRule;
+            // We don't want to _replace_ the existing value. Rather, we want to _extend_ it.
+            // For BPFContain policy, this means doing a bitwise OR with the existing value
+            // and populating the map with the result. This is an ugly hack to do just that
+            // by taking the bitwise OR over each byte of the POD data.
+            //
+            // This is probably code smell, but there isn't much we can do about this for now,
+            // until we can figure out a way to support the actual Key, Value types over an
+            // enum_dispatch interface.
+            if let Some(existing) = self.lookup_existing_value(key, &mut maps)? {
+                for (old, new) in existing.iter().zip(value.iter_mut()) {
+                    *new |= *old;
+                }
+            }
 
-impl LoadRule for DevFakeRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        for (major, minor) in &[(1, Some(3)), (1, Some(5)), (1, Some(7))] {
-            // urandom
-            load_device_rule(
-                *major,
-                *minor,
-                FileAccess("rwa".into()),
-                policy,
-                skel,
-                decision.clone(),
-            )?;
+            let map = self.map(&mut maps);
+            map.update(key, value, MapFlags::ANY)
+                .context("Failed to update map value")?;
         }
 
         Ok(())
@@ -410,7 +408,7 @@ pub enum Capability {
     // TODO: Others here
 }
 
-impl From<Capability> for bindings::policy::Capability {
+impl From<Capability> for bitflags::Capability {
     fn from(value: Capability) -> Self {
         match value {
             Capability::NetBindService => Self::NET_BIND_SERVICE,
@@ -428,56 +426,33 @@ impl From<Capability> for bindings::policy::Capability {
 pub struct CapabilityRule(SingleOrVec<Capability>);
 
 impl LoadRule for CapabilityRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        // Set correct types for rule
-        type Key = bindings::policy::CapPolicyKey;
-        type Value = bindings::policy::CapPolicyVal;
-        type Access = bindings::policy::Capability;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.cap_policy()
+    }
 
-        // Get correct map
-        let mut maps = skel.maps();
-        let map = maps.cap_policy();
-
-        // Convert access into bitmask
-        let vec: Vec<Capability> = self.0.clone().into();
-        let access: Access = vec
-            .iter()
-            .fold(Access::default(), |v1, v2| v1 | Access::from(v2.clone()));
-
-        // Set key
-        let mut key = Key::zeroed();
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        let mut key = keys::CapPolicyKey::default();
         key.policy_id = policy.policy_id();
-        let key = key.as_bytes();
 
-        // Value should be old | new
-        let value = {
-            let mut value = Value::default();
-            match decision {
-                PolicyDecision::Allow => value.allow = access.bits(),
-                PolicyDecision::Taint => value.taint = access.bits(),
-                PolicyDecision::Deny => value.deny = access.bits(),
-            }
-            if let Some(old_value) = map
-                .lookup(key, MapFlags::ANY)
-                .context(format!("Exception during map lookup with key {:?}", key))?
-            {
-                let old_value =
-                    Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-                value.allow |= old_value.allow;
-                value.taint |= old_value.taint;
-                value.deny |= old_value.deny;
-            }
-            value
-        };
+        Ok(key.as_bytes().clone().into())
+    }
 
-        // Update old value with new value
-        map.update(key, value.as_bytes(), MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let capvec: Vec<_> = self.0.clone().into();
+        let access: bitflags::Capability = capvec
+            .iter()
+            .fold(bitflags::Capability::default(), |v1, v2| {
+                v1 | bitflags::Capability::from(v2.clone())
+            });
 
-        Ok(())
+        let mut value = values::CapPolicyVal::default();
+        match decision {
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
+        }
+
+        Ok(value.as_bytes().clone().into())
     }
 }
 
@@ -492,34 +467,23 @@ impl LoadRule for CapabilityRule {
 pub struct IpcRule(String);
 
 impl LoadRule for IpcRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        // Set correct types for rule
-        type Key = bindings::policy::IpcPolicyKey;
-        type Value = bindings::policy::IpcPolicyVal;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.ipc_policy()
+    }
 
-        // Get correct map
-        let mut maps = skel.maps();
-        let map = maps.ipc_policy();
-
-        // Set key
-        let mut key = Key::zeroed();
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        let mut key = keys::IpcPolicyKey::default();
         key.policy_id = policy.policy_id();
         key.other_policy_id = Policy::policy_id_for_name(&self.0);
-        let key = key.as_bytes();
 
-        // Value should be the policy decision
-        let value = Value {
-            decision: bindings::policy::PolicyDecision::from(decision).bits(),
-        };
+        Ok(key.as_bytes().clone().into())
+    }
 
-        // Update old value with new value
-        map.update(key, value.as_bytes(), MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let mut value = values::IpcPolicyVal::default();
+        value.decision = bitflags::PolicyDecision::from(decision.clone()).bits();
 
-        Ok(())
+        Ok(value.as_bytes().clone().into())
     }
 }
 
@@ -538,7 +502,7 @@ pub enum NetAccess {
     Any,
 }
 
-impl From<NetAccess> for bindings::policy::NetOperation {
+impl From<NetAccess> for bitflags::NetOperation {
     fn from(value: NetAccess) -> Self {
         match value {
             NetAccess::Client => Self::MASK_CLIENT,
@@ -556,56 +520,33 @@ impl From<NetAccess> for bindings::policy::NetOperation {
 pub struct NetRule(SingleOrVec<NetAccess>);
 
 impl LoadRule for NetRule {
-    fn load(&self, policy: &Policy, skel: &mut Skel, decision: PolicyDecision) -> Result<()> {
-        // Set correct types for rule
-        type Key = bindings::policy::NetPolicyKey;
-        type Value = bindings::policy::NetPolicyVal;
-        type Access = bindings::policy::NetOperation;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+        maps.net_policy()
+    }
 
-        // Get correct map
-        let mut maps = skel.maps();
-        let map = maps.net_policy();
-
-        // Convert access into bitmask
-        let vec: Vec<NetAccess> = self.0.clone().into();
-        let access: Access = vec
-            .iter()
-            .fold(Access::default(), |v1, v2| v1 | Access::from(v2.clone()));
-
-        // Set key
-        let mut key = Key::zeroed();
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        let mut key = keys::NetPolicyKey::default();
         key.policy_id = policy.policy_id();
-        let key = key.as_bytes();
 
-        // Value should be old | new
-        let value = {
-            let mut value = Value::default();
-            match decision {
-                PolicyDecision::Allow => value.allow = access.bits(),
-                PolicyDecision::Taint => value.taint = access.bits(),
-                PolicyDecision::Deny => value.deny = access.bits(),
-            }
-            if let Some(old_value) = map
-                .lookup(key, MapFlags::ANY)
-                .context(format!("Exception during map lookup with key {:?}", key))?
-            {
-                let old_value =
-                    Value::from_bytes(&old_value).expect("Buffer is too short or not aligned");
-                value.allow |= old_value.allow;
-                value.taint |= old_value.taint;
-                value.deny |= old_value.deny;
-            }
-            value
-        };
+        Ok(key.as_bytes().clone().into())
+    }
 
-        // Update old value with new value
-        map.update(key, value.as_bytes(), MapFlags::ANY)
-            .context(format!(
-                "Failed to update map key={:?} value={:?}",
-                key, value
-            ))?;
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let netvec: Vec<_> = self.0.clone().into();
+        let access: bitflags::NetOperation = netvec
+            .iter()
+            .fold(bitflags::NetOperation::default(), |v1, v2| {
+                v1 | bitflags::NetOperation::from(v2.clone())
+            });
 
-        Ok(())
+        let mut value = values::NetPolicyVal::default();
+        match decision {
+            PolicyDecision::Allow => value.allow = access.bits(),
+            PolicyDecision::Taint => value.taint = access.bits(),
+            PolicyDecision::Deny => value.deny = access.bits(),
+        }
+
+        Ok(value.as_bytes().clone().into())
     }
 }
 
@@ -622,7 +563,7 @@ pub enum PolicyDecision {
     Taint,
 }
 
-impl From<PolicyDecision> for bindings::policy::PolicyDecision {
+impl From<PolicyDecision> for bitflags::PolicyDecision {
     fn from(value: PolicyDecision) -> Self {
         match value {
             PolicyDecision::Deny => Self::DENY,
@@ -656,37 +597,53 @@ mod tests {
         assert!(matches!(rule, Rule::File(_)))
     }
 
-    /// A smoke test for deserializing device rules.
+    /// A smoke test for deserializing numbered device rules.
+    #[test]
+    fn test_numbered_dev_deserialize_smoke() {
+        let s = "numberedDevice: {major: 136, minor: 2, access: readOnly}";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::NumberedDevice(_)))
+    }
+
+    /// A smoke test for deserializing normal device rules.
     #[test]
     fn test_dev_deserialize_smoke() {
-        let s = "device: {major: 136, minor: 2, access: readOnly}";
+        let s = "device: terminal";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Device(_)));
+
+        let s = "device: null";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Device(_)));
+
+        let s = "device: random";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
         assert!(matches!(rule, Rule::Device(_)))
     }
 
-    /// A smoke test for deserializing terminal rules.
-    #[test]
-    fn test_terminal_deserialize_smoke() {
-        let s = "terminal:";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Terminal(_)))
-    }
+    ///// A smoke test for deserializing terminal rules.
+    //#[test]
+    //fn test_terminal_deserialize_smoke() {
+    //    let s = "terminal:";
+    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+    //    assert!(matches!(rule, Rule::Terminal(_)))
+    //}
 
-    /// A smoke test for deserializing devrandom rules.
-    #[test]
-    fn test_devrandom_deserialize_smoke() {
-        let s = "devRandom:";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::DevRandom(_)))
-    }
+    ///// A smoke test for deserializing devrandom rules.
+    //#[test]
+    //fn test_devrandom_deserialize_smoke() {
+    //    let s = "devRandom:";
+    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+    //    assert!(matches!(rule, Rule::DevRandom(_)))
+    //}
 
-    /// A smoke test for deserializing devfake rules.
-    #[test]
-    fn test_devfake_deserialize_smoke() {
-        let s = "devFake:";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::DevFake(_)))
-    }
+    ///// A smoke test for deserializing devfake rules.
+    //#[test]
+    //fn test_devfake_deserialize_smoke() {
+    //    let s = "devFake:";
+    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+    //    assert!(matches!(rule, Rule::DevFake(_)))
+    //}
 
     /// A smoke test for deserializing capability rules.
     #[test]
