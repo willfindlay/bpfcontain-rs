@@ -20,9 +20,7 @@ pub fn configure(log_level: LevelFilter, log_file: Option<&str>) -> Result<()> {
 
     // Log to stderr
     let stderr = ConsoleAppender::builder()
-        .encoder(Box::new(PatternEncoder::new(
-            "[{d(%Y-%m-%d %H:%M:%S)}] {h([{l}])}: {m}\n",
-        )))
+        .encoder(Box::new(PatternEncoder::new("{h([{l}])}: {m}\n")))
         .target(Target::Stderr)
         .build();
     let config_builder =
