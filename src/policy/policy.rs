@@ -16,7 +16,7 @@ use libbpf_rs::MapFlags;
 use pod::Pod as _;
 use serde::Deserialize;
 
-use crate::bindings;
+use crate::bindings::policy::{keys, values};
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::policy::rules::*;
 
@@ -102,8 +102,8 @@ impl Policy {
 
     /// Load the common part of the policy into the kernel
     fn load_common(&self, skel: &mut Skel) -> Result<()> {
-        type Key = bindings::policy::PolicyId;
-        type Value = bindings::policy::PolicyCommon;
+        type Key = keys::PolicyId;
+        type Value = values::PolicyCommon;
 
         // Get correct map
         let mut maps = skel.maps();

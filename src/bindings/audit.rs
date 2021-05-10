@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 
 use pod::Pod;
 
-use super::policy::*;
+use super::policy::bitflags::{Capability, FileAccess, NetOperation, PolicyDecision};
 use super::raw;
 
 /// Represents the common part of an audit event.

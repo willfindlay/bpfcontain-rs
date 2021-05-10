@@ -8,11 +8,11 @@ defaultTaint: false
 # A set of rights to grant, OPTIONAL
 rights:
   # Grants read/write/append access to /dev/pts/* devices
-  - terminal: # colon is unfortunately necessary for now (future versions will not require it)
+  - dev: terminal
   # Grants read access to /dev/[u]random
-  - devRandom: # colon is unfortunately necessary for now (future versions will not require it)
+  - dev: random
   # Grants readonly access to devices with major number 12
-  - device: {major: 12, access: readOnly}
+  - numberedDevice: {major: 12, access: readOnly}
   # Grants read-only access to /dev/**
   - fs: {path: /dev, access: readOnly}
   # Grants read-only access to /**
