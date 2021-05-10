@@ -57,7 +57,15 @@ pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()>
         if let Some(cmd) = cmd {
             cmd.split_whitespace().collect::<Vec<_>>()
         } else {
-            policy.cmd.split_whitespace().collect::<Vec<_>>()
+            policy
+                .cmd
+                .as_ref()
+                .context(
+                    "No default command provided for this policy.
+                    Either specify it using -- <CMD> [ARGS...] or modify the policy file.",
+                )?
+                .split_whitespace()
+                .collect::<Vec<_>>()
         }
     };
 

@@ -32,7 +32,7 @@ pub struct Policy {
     /// The command associated with the policy. This will be run when the user
     /// invokes `bpfcontain-rs run </path/to/policy.yml>`.
     /// A policy _must_ specify a command.
-    pub cmd: String,
+    pub cmd: Option<String>,
     /// Whether the container should spawn in a tainted state. Otherwise, taint rules will
     /// specify when the container should become tainted.
     default_taint: bool,
