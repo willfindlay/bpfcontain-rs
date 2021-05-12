@@ -325,6 +325,8 @@ impl LoadRule for DeviceRule {
         Ok(value.as_bytes().clone().into())
     }
 
+    /// This is a reimplementation of LoadRule::load(), the only difference being that we
+    /// want to unload _multiple_ key, value pairs from the kernel.
     fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
         let mut maps = skel.maps();
         let map = self.map(&mut maps);
@@ -347,6 +349,8 @@ impl LoadRule for DeviceRule {
         Ok(())
     }
 
+    /// This is a reimplementation of LoadRule::load(), the only difference being that we
+    /// want to load _multiple_ key, value pairs into the kernel.
     fn load<'a: 'a>(
         &self,
         policy: &Policy,

@@ -110,6 +110,15 @@ impl<'a> BpfcontainContext<'a> {
 
         Ok(())
     }
+
+    /// Unload a policy from the kernel
+    pub fn unload_policy(&mut self, policy: &Policy) -> Result<()> {
+        log::debug!("Unloading policy {}...", policy.name);
+
+        policy
+            .unload(&mut self.skel)
+            .context(format!("Failed to unload policy {}", policy.name))
+    }
 }
 
 /// Set BPF global variables

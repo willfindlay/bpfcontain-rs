@@ -26,6 +26,12 @@ impl BpfcontainContextWrapper {
         let context = lock.get_mut();
         context.load_policy(policy)
     }
+
+    pub fn unload_policy(&self, policy: &Policy) -> Result<()> {
+        let mut lock = self.0.lock().unwrap();
+        let context = lock.get_mut();
+        context.unload_policy(policy)
+    }
 }
 
 unsafe impl Send for BpfcontainContextWrapper {}
