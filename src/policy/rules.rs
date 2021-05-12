@@ -160,11 +160,12 @@ impl LoadRule for FilesystemRule {
             .context(format!("Failed to get information for {}", &self.pathname))?;
 
         // Construct the key
-        let mut key = keys::FsPolicyKey::default();
-        key.policy_id = policy.policy_id();
-        key.device_id = st_dev as u32;
+        let key = keys::FsPolicyKey {
+            policy_id: policy.policy_id(),
+            device_id: st_dev as u32,
+        };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -177,7 +178,7 @@ impl LoadRule for FilesystemRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
@@ -201,12 +202,13 @@ impl LoadRule for FileRule {
             .context(format!("Failed to get information for {}", &self.pathname))?;
 
         // Construct the key
-        let mut key = keys::FilePolicyKey::default();
-        key.policy_id = policy.policy_id();
-        key.device_id = st_dev as u32;
-        key.inode_id = st_ino;
+        let key = keys::FilePolicyKey {
+            policy_id: policy.policy_id(),
+            device_id: st_dev as u32,
+            inode_id: st_ino,
+        };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -219,7 +221,7 @@ impl LoadRule for FileRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
@@ -238,16 +240,16 @@ impl LoadRule for NumberedDeviceRule {
     }
 
     fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
-        let mut key = keys::DevPolicyKey::default();
-
-        key.policy_id = policy.policy_id();
-        key.major = self.major;
-        key.minor = match self.minor {
-            Some(minor) => minor as i64,
-            None => keys::DevPolicyKey::wildcard(),
+        let key = keys::DevPolicyKey {
+            policy_id: policy.policy_id(),
+            major: self.major,
+            minor: match self.minor {
+                Some(minor) => minor as i64,
+                None => keys::DevPolicyKey::wildcard(),
+            },
         };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -260,7 +262,7 @@ impl LoadRule for NumberedDeviceRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
@@ -322,7 +324,7 @@ impl LoadRule for DeviceRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 
     /// This is a reimplementation of LoadRule::load(), the only difference being that we
@@ -335,10 +337,9 @@ impl LoadRule for DeviceRule {
             let key = keys::DevPolicyKey {
                 policy_id: policy.policy_id(),
                 major,
-                minor: if let Some(minor) = minor {
-                    minor as i64
-                } else {
-                    keys::DevPolicyKey::wildcard()
+                minor: match minor {
+                    Some(minor) => minor as i64,
+                    None => keys::DevPolicyKey::wildcard(),
                 },
             };
             let key = key.as_bytes();
@@ -435,10 +436,11 @@ impl LoadRule for CapabilityRule {
     }
 
     fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
-        let mut key = keys::CapPolicyKey::default();
-        key.policy_id = policy.policy_id();
+        let key = keys::CapPolicyKey {
+            policy_id: policy.policy_id(),
+        };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -456,7 +458,7 @@ impl LoadRule for CapabilityRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
@@ -476,18 +478,20 @@ impl LoadRule for IpcRule {
     }
 
     fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
-        let mut key = keys::IpcPolicyKey::default();
-        key.policy_id = policy.policy_id();
-        key.other_policy_id = Policy::policy_id_for_name(&self.0);
+        let key = keys::IpcPolicyKey {
+            policy_id: policy.policy_id(),
+            other_policy_id: Policy::policy_id_for_name(&self.0),
+        };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
-        let mut value = values::IpcPolicyVal::default();
-        value.decision = bitflags::PolicyDecision::from(decision.clone()).bits();
+        let value = values::IpcPolicyVal {
+            decision: bitflags::PolicyDecision::from(decision.clone()).bits(),
+        };
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
@@ -529,10 +533,11 @@ impl LoadRule for NetRule {
     }
 
     fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
-        let mut key = keys::NetPolicyKey::default();
-        key.policy_id = policy.policy_id();
+        let key = keys::NetPolicyKey {
+            policy_id: policy.policy_id(),
+        };
 
-        Ok(key.as_bytes().clone().into())
+        Ok(key.as_bytes().into())
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -550,7 +555,7 @@ impl LoadRule for NetRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().clone().into())
+        Ok(value.as_bytes().into())
     }
 }
 
