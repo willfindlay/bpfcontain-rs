@@ -19,9 +19,10 @@ jobs:
       - name: Cancel Previous Workflow Runs
         uses: n1hility/cancel-previous-runs@v2.0
 
-      - uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-      - name: cache vagrant boxes
+      - name: Cache Vagrant Boxes
         uses: actions/cache@v2
         with:
           path: ~/.vagrant.d/boxes
@@ -29,23 +30,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vagrant-
 
-      - name: show vagrant version
+      - name: Show Vagrant Version
         run: vagrant --version
 
-      - name: run vagrant up
+      - name: Run Vagrant Up
         run: vagrant up
 
-      - name: print uname
+      - name: Print Uname
         run: vagrant ssh -c "uname -a"
 
-      - name: build
+      - name: Build Project
         run: vagrant ssh -c "cargo build"
 
-      - name: clippy lints
+      - name: Clippy Lints
         run: vagrant ssh -c "cargo clippy -- -D warnings"
 
-      - name: run rustfmt
+      - name: Run Rustfmt
         run: vagrant ssh -c "cargo fmt -- --check"
 
-      - name: run tests
+      - name: Run Tests
         run: vagrant ssh -c "cargo test"
