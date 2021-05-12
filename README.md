@@ -1,6 +1,6 @@
 # BPFContain
 
-[![Continuous Integration](https://github.com/willfindlay/bpfcontain-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/willfindlay/bpfcontain-rs/actions/workflows/ci.yml)
+[![Continuous Integration](https://github.com/willfindlay/bpfcontain-rs/actions/workflows/ci.yml/badge.svg?branch=master&event=push)](https://github.com/willfindlay/bpfcontain-rs/actions/workflows/ci.yml)
 
 BPFContain is a container security daemon for GNU/Linux leveraging the power and
 safety of eBPF and Rust.
