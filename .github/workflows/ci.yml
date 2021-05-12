@@ -16,6 +16,9 @@ jobs:
     runs-on: macos-latest
 
     steps:
+      - name: Cancel Previous Workflow Runs
+        uses: n1hility/cancel-previous-runs@v2.0
+
       - uses: actions/checkout@v2
 
       - name: cache vagrant boxes
