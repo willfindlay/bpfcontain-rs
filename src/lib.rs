@@ -19,3 +19,5 @@ mod bindings;
 mod ns;
 mod uprobe_ext;
 mod uprobes;
+
+pub use uprobes::containerize;

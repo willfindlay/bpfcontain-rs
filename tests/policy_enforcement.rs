@@ -5,8 +5,13 @@
 //
 // May 3, 2020  William Findlay  Created this.
 
+use std::fs::{create_dir_all, File};
+use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::mpsc::channel;
+use std::thread;
 
+use bpfcontain::containerize;
 use bpfcontain::policy::Policy;
 use lazy_static::lazy_static;
 
@@ -19,17 +24,30 @@ lazy_static! {
 /// Set up test files
 #[ctor::ctor]
 fn setup_files() {
-    eprintln!("setting up files...");
+    let path = PathBuf::from_str("/tmp/bpfcontain").unwrap();
+    create_dir_all(path.clone()).expect("Failed to create test path");
+
+    File::create(path.join("fileA")).unwrap();
+    File::create(path.join("fileB")).unwrap();
+    File::create(path.join("fileC")).unwrap();
 }
 
 #[test]
-fn test_untainted() {
-    // TODO temporary
+fn test_taints() {
     let policy = Policy::from_str(
         "
-        name: foo
-        cmd: qux
+        name: test_taints
         defaultTaint: false
+
+        restrictions:
+            - file:
+                path: /tmp/bpfcontain/fileB
+                access: r
+
+        taints:
+            - file:
+                path: /tmp/bpfcontain/fileC
+                access: r
         ",
     )
     .expect("Failed to parse policy");
@@ -37,4 +55,29 @@ fn test_untainted() {
     BPFCONTAIN
         .load_policy(&policy)
         .expect("Failed to load policy");
+
+    let (tx, rx) = channel();
+    tx.send(policy.clone()).unwrap();
+
+    let handler = thread::spawn(move || {
+        containerize(&rx.recv().unwrap()).unwrap();
+        // fileA should be fine while untainted
+        File::open("/tmp/bpfcontain/fileA").unwrap();
+        // fileB should always be off limits
+        File::open("/tmp/bpfcontain/fileB").unwrap_err();
+        // Taint the process
+        File::open("/tmp/bpfcontain/fileC").unwrap();
+        // Now fileA should be off limits
+        File::open("/tmp/bpfcontain/fileA").unwrap_err();
+    });
+    handler.join().unwrap();
+
+    // We should be able to open the files just fine in our main thread
+    File::open("/tmp/bpfcontain/fileA").unwrap();
+    File::open("/tmp/bpfcontain/fileB").unwrap();
+    File::open("/tmp/bpfcontain/fileC").unwrap();
+
+    BPFCONTAIN
+        .unload_policy(&policy)
+        .expect("Failed to unload policy");
 }

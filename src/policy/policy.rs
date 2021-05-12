@@ -119,6 +119,44 @@ impl Policy {
 
         Ok(())
     }
+
+    /// Unload the policy from the kernel
+    pub fn unload(&self, skel: &mut Skel) -> Result<()> {
+        // Unload common policy info
+        self.unload_common(skel)?;
+
+        // Unload rules
+        self.unload_rules(&self.rights, skel);
+        self.unload_rules(&self.restrictions, skel);
+        self.unload_rules(&self.taints, skel);
+
+        Ok(())
+    }
+
+    /// Unload a set of rules from the kernel
+    fn unload_rules(&self, rules: &[Rule], skel: &mut Skel) {
+        for rule in rules.iter() {
+            if let Err(e) = rule.unload(self, skel) {
+                log::warn!("Failed to unload rule for policy {}: {:?}", self.name, e);
+            }
+        }
+    }
+
+    /// Unload the common part of the policy from the kernel
+    fn unload_common(&self, skel: &mut Skel) -> Result<()> {
+        type Key = keys::PolicyId;
+
+        // Get correct map
+        let mut maps = skel.maps();
+        let map = maps.policy_common();
+
+        let key: Key = self.policy_id();
+
+        map.delete(key.as_bytes())
+            .context("Failed to delete from policy map")?;
+
+        Ok(())
+    }
 }
 
 impl FromStr for Policy {
