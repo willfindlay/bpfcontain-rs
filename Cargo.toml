@@ -18,7 +18,8 @@ name = "bpfcontain"
 
 [dependencies]
 anyhow = "1.0.36"
-libbpf-rs = "0.7.0"
+#libbpf-rs = "0.7.0"
+libbpf-rs = { git = "https://github.com/willfindlay/libbpf-rs", branch = "merge-cargo-libbpf-builder" }
 clap = "2.33.3"
 libc = "0.2.81"
 daemonize = "0.4.1"
@@ -42,6 +43,7 @@ fs2 = "0.4.3"
 bindgen = "0.56.0"
 glob = "0.3.0"
 uname = "0.1.1"
+libbpf-cargo = { git = "https://github.com/willfindlay/libbpf-rs", branch = "merge-cargo-libbpf-builder" }
 
 [dev-dependencies]
 ctor = "0.1.20"
