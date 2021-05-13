@@ -5,13 +5,14 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use uname::uname;
-
 use std::fs::{remove_file, File};
 use std::io::{BufWriter, Write};
 use std::os::unix::fs::symlink;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+
+use libbpf_cargo::SkeletonBuilder;
+use uname::uname;
 
 fn main() {
     // Re-run build if bpfcontain.bpf.c has changed
@@ -79,19 +80,9 @@ fn main() {
     symlink(vmlinux_path.file_name().unwrap(), vmlinux_link_path)
         .expect("Failed to symlink vmlinux.h");
 
-    // Run cargo-libbpf-build
-    let status = Command::new("cargo")
-        .arg("libbpf")
-        .arg("build")
-        .status()
-        .expect("Failed to run cargo libbpf build");
-    assert!(status.success());
-
-    // Run cargo-libbpf-gen
-    let status = Command::new("cargo")
-        .arg("libbpf")
-        .arg("gen")
-        .status()
-        .expect("Failed to run cargo libbpf gen");
-    assert!(status.success());
+    // Generate skeleton
+    SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
+        .options("-Isrc/bpf/include")
+        .generate("src/bpf/mod.rs")
+        .expect("Failed to generate skeleton");
 }

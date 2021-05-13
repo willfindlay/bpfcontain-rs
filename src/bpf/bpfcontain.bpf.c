@@ -6,20 +6,20 @@
 // Dec. 29, 2020  William Findlay  Created this.
 
 // This must be first
-#include "include/vmlinux.h"
+#include <vmlinux.h>
 
 // These must be below vmlinux.h
 #include <bpf/bpf_core_read.h> /* for BPF CO-RE helpers */
 #include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
 #include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
 
-#include "include/kernel_defs.h"
-#include "include/defs.h"
-#include "include/map_defs.h"
-#include "include/allocator.h"
-#include "include/audit.h"
-#include "include/policy.h"
-#include "include/state.h"
+#include <kernel_defs.h>
+#include <defs.h>
+#include <map_defs.h>
+#include <allocator.h>
+#include <audit.h>
+#include <policy.h>
+#include <state.h>
 
 /* ========================================================================= *
  * BPF CO-RE Globals                                                         *

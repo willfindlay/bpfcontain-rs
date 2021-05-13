@@ -21,9 +21,6 @@ Vagrant.configure("2") do |config|
 
       sudo pacman --noconfirm -Syu
       sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
-
-      cargo install libbpf-cargo --root /home/vagrant/.cargo
-      chown -R vagrant:vagrant /home/vagrant/.cargo
     "
   end
 end

@@ -1,3 +1,2 @@
 clang
--I
-src/include
+-Isrc/bpf/include
