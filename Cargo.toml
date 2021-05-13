@@ -13,12 +13,6 @@ name = "bpfcontain"
 name = "integration"
 path = "tests/lib.rs"
 
-## Driver program for integration tests
-#[[bin]]
-#name = "driver"
-#path = "tests/driver/main.rs"
-#test = false
-
 [lib]
 name = "bpfcontain"
 
