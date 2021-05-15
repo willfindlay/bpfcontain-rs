@@ -42,16 +42,16 @@ typedef enum {
     BPFCON_MAY_LINK = 0x80,
 } file_permission_t;
 
-#define BPFCON_ALL_FS_PERM_MASK                                 \
-    (BPFCON_MAY_EXEC | BPFCON_MAY_WRITE | BPFCON_MAY_READ |     \
-     BPFCON_MAY_APPEND | BPFCON_MAY_CHMOD | BPFCON_MAY_DELETE | \
+#define BPFCON_ALL_FS_PERM_MASK                                                \
+    (BPFCON_MAY_EXEC | BPFCON_MAY_WRITE | BPFCON_MAY_READ |                    \
+     BPFCON_MAY_APPEND | BPFCON_MAY_CHMOD | BPFCON_MAY_DELETE |                \
      BPFCON_MAY_EXEC_MMAP)
 
-#define TASK_INODE_PERM_MASK                                  \
-    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND | \
+#define TASK_INODE_PERM_MASK                                                   \
+    (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND |                  \
      BPFCON_MAY_DELETE | BPFCON_MAY_CHMOD)
 
-#define PROC_INODE_PERM_MASK \
+#define PROC_INODE_PERM_MASK                                                   \
     (BPFCON_MAY_WRITE | BPFCON_MAY_READ | BPFCON_MAY_APPEND)
 
 #define OVERLAYFS_PERM_MASK BPFCON_ALL_FS_PERM_MASK

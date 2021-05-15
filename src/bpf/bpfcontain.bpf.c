@@ -13,11 +13,11 @@
 #include <bpf/bpf_helpers.h> /* most used helpers: SEC, __always_inline, etc */
 #include <bpf/bpf_tracing.h> /* for getting kprobe arguments */
 
-#include <kernel_defs.h>
-#include <defs.h>
-#include <map_defs.h>
 #include <allocator.h>
 #include <audit.h>
+#include <defs.h>
+#include <kernel_defs.h>
+#include <map_defs.h>
 #include <policy.h>
 #include <state.h>
 
@@ -74,9 +74,10 @@ __do_audit_common(audit_common_t *common, policy_decision_t decision,
  * @inode: A pointer to the inode in question.
  * @access: The requested access.
  */
-static __always_inline void
-audit_inode(policy_decision_t decision, u64 policy_id, bool tainted,
-            struct inode *inode, file_permission_t access)
+static __always_inline void audit_inode(policy_decision_t decision,
+                                        u64 policy_id, bool tainted,
+                                        struct inode *inode,
+                                        file_permission_t access)
 {
     if (tainted && !(decision & BPFCON_ALLOW))
         decision |= BPFCON_DENY;
@@ -168,9 +169,9 @@ static __always_inline void audit_net(policy_decision_t decision, u64 policy_id,
  * @other_policy_id: The policy ID of the other container.
  * @sender: 1 if we are the current sender, 0 otherwise
  */
-static __always_inline void
-audit_ipc(policy_decision_t decision, u64 policy_id, bool tainted,
-          u64 other_policy_id, u8 sender)
+static __always_inline void audit_ipc(policy_decision_t decision, u64 policy_id,
+                                      bool tainted, u64 other_policy_id,
+                                      u8 sender)
 {
     if (tainted && !(decision & BPFCON_ALLOW))
         decision |= BPFCON_DENY;
@@ -345,8 +346,8 @@ check_ipc_access(container_t *container, container_t *other_container)
  *
  * return: Converted access mask.
  */
-static __always_inline int
-do_update_policy(void *map, const void *key, const u32 *value)
+static __always_inline int do_update_policy(void *map, const void *key,
+                                            const u32 *value)
 {
     u32 new_value = 0;
 
@@ -371,9 +372,9 @@ do_update_policy(void *map, const void *key, const u32 *value)
  *
  * return: Converted access mask.
  */
-static __always_inline int
-do_policy_decision(container_t *container, policy_decision_t decision,
-                   u8 ignore_taint)
+static __always_inline int do_policy_decision(container_t *container,
+                                              policy_decision_t decision,
+                                              u8 ignore_taint)
 {
     u8 tainted = container->tainted || ignore_taint;
 
@@ -681,8 +682,8 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
  *   A pid, if one exists
  *   Otherwise, returns 0
  */
-static __always_inline bool
-filter_inode_by_magic(struct inode *inode, u64 magic)
+static __always_inline bool filter_inode_by_magic(struct inode *inode,
+                                                  u64 magic)
 {
     if (inode->i_sb->s_magic == magic)
         return true;
@@ -697,8 +698,8 @@ filter_inode_by_magic(struct inode *inode, u64 magic)
  *
  * return: Does not return.
  */
-static __always_inline void
-add_inode_to_container(const container_t *container, struct inode *inode)
+static __always_inline void add_inode_to_container(const container_t *container,
+                                                   struct inode *inode)
 {
     container_id_t *id = bpf_inode_storage_get(&task_inodes, (void *)inode, 0,
                                                BPF_LOCAL_STORAGE_GET_F_CREATE);
@@ -784,8 +785,8 @@ remove_process_from_container(container_t *container, u32 host_pid)
  *    A pointer to the newly created container, if successful
  *    Otherwise, NULL
  */
-static __always_inline container_t *
-start_container(policy_id_t policy_id, bool tainted)
+static __always_inline container_t *start_container(policy_id_t policy_id,
+                                                    bool tainted)
 {
     // Allocate a new container
     container_t *container = new_container_t();
@@ -867,8 +868,8 @@ static __always_inline container_t *get_container_by_host_pid(u32 pid)
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_fs_permission(container_t *container, struct inode *inode, u32 access)
+static __always_inline int do_fs_permission(container_t *container,
+                                            struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -900,8 +901,8 @@ do_fs_permission(container_t *container, struct inode *inode, u32 access)
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_file_permission(container_t *container, struct inode *inode, u32 access)
+static __always_inline int do_file_permission(container_t *container,
+                                              struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -933,8 +934,8 @@ do_file_permission(container_t *container, struct inode *inode, u32 access)
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_dev_permission(container_t *container, struct inode *inode, u32 access)
+static __always_inline int do_dev_permission(container_t *container,
+                                             struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -995,8 +996,8 @@ do_dev_permission(container_t *container, struct inode *inode, u32 access)
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_procfs_permission(container_t *container, struct inode *inode, u32 access)
+static __always_inline int do_procfs_permission(container_t *container,
+                                                struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -1062,9 +1063,9 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_task_inode_permission(container_t *container, struct inode *inode,
-                         u32 access)
+static __always_inline int do_task_inode_permission(container_t *container,
+                                                    struct inode *inode,
+                                                    u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -1097,8 +1098,8 @@ do_task_inode_permission(container_t *container, struct inode *inode,
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int
-bpfcontain_inode_perm(container_t *container, struct inode *inode, u32 access)
+static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
+                                 u32 access)
 {
     bool super_allow = false;
     int ret = 0;
@@ -1403,9 +1404,10 @@ int BPF_PROG(path_chmod, const struct path *path)
  *
  * return: Converted access mask.
  */
-static __always_inline int
-mmap_permission(container_t *container, struct file *file, unsigned long prot,
-                unsigned long flags)
+static __always_inline int mmap_permission(container_t *container,
+                                           struct file *file,
+                                           unsigned long prot,
+                                           unsigned long flags)
 {
     u32 access = 0;
 
@@ -1467,20 +1469,20 @@ static u8 family_to_category(int family)
     // Note: I think it makes sense to support these protocol families for
     // now. Support for others can be added in the future.
     switch (family) {
-        case AF_UNIX:
-            return BPFCON_NET_IPC;
-            break;
-        case AF_INET:
-        case AF_INET6:
-            return BPFCON_NET_WWW;
-            break;
-        default:
-            return 0;
+    case AF_UNIX:
+        return BPFCON_NET_IPC;
+        break;
+    case AF_INET:
+    case AF_INET6:
+        return BPFCON_NET_WWW;
+        break;
+    default:
+        return 0;
     }
 }
 
-static policy_decision_t
-bpfcontain_net_www_perm(container_t *container, u32 access)
+static policy_decision_t bpfcontain_net_www_perm(container_t *container,
+                                                 u32 access)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
@@ -1722,131 +1724,131 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
 static __always_inline capability_t cap_to_access(int cap)
 {
     switch (cap) {
-        case CAP_CHOWN:
-            return BPFCON_CAP_CHOWN;
-            break;
-        case CAP_DAC_OVERRIDE:
-            return BPFCON_CAP_DAC_OVERRIDE;
-            break;
-        case CAP_DAC_READ_SEARCH:
-            return BPFCON_CAP_DAC_READ_SEARCH;
-            break;
-        case CAP_FOWNER:
-            return BPFCON_CAP_FOWNER;
-            break;
-        case CAP_FSETID:
-            return BPFCON_CAP_FSETID;
-            break;
-        case CAP_KILL:
-            return BPFCON_CAP_KILL;
-            break;
-        case CAP_SETGID:
-            return BPFCON_CAP_SETGID;
-            break;
-        case CAP_SETUID:
-            return BPFCON_CAP_SETUID;
-            break;
-        case CAP_SETPCAP:
-            return BPFCON_CAP_SETPCAP;
-            break;
-        case CAP_LINUX_IMMUTABLE:
-            return BPFCON_CAP_LINUX_IMMUTABLE;
-            break;
-        case CAP_NET_BIND_SERVICE:
-            return BPFCON_CAP_NET_BIND_SERVICE;
-            break;
-        case CAP_NET_BROADCAST:
-            return BPFCON_CAP_NET_BROADCAST;
-            break;
-        case CAP_NET_ADMIN:
-            return BPFCON_CAP_NET_ADMIN;
-            break;
-        case CAP_NET_RAW:
-            return BPFCON_CAP_NET_RAW;
-            break;
-        case CAP_IPC_LOCK:
-            return BPFCON_CAP_IPC_LOCK;
-            break;
-        case CAP_IPC_OWNER:
-            return BPFCON_CAP_IPC_OWNER;
-            break;
-        case CAP_SYS_MODULE:
-            return BPFCON_CAP_SYS_MODULE;
-            break;
-        case CAP_SYS_RAWIO:
-            return BPFCON_CAP_SYS_RAWIO;
-            break;
-        case CAP_SYS_CHROOT:
-            return BPFCON_CAP_SYS_CHROOT;
-            break;
-        case CAP_SYS_PTRACE:
-            return BPFCON_CAP_SYS_PTRACE;
-            break;
-        case CAP_SYS_PACCT:
-            return BPFCON_CAP_SYS_PACCT;
-            break;
-        case CAP_SYS_ADMIN:
-            return BPFCON_CAP_SYS_ADMIN;
-            break;
-        case CAP_SYS_BOOT:
-            return BPFCON_CAP_SYS_BOOT;
-            break;
-        case CAP_SYS_NICE:
-            return BPFCON_CAP_SYS_NICE;
-            break;
-        case CAP_SYS_RESOURCE:
-            return BPFCON_CAP_SYS_RESOURCE;
-            break;
-        case CAP_SYS_TIME:
-            return BPFCON_CAP_SYS_TIME;
-            break;
-        case CAP_SYS_TTY_CONFIG:
-            return BPFCON_CAP_SYS_TTY_CONFIG;
-            break;
-        case CAP_MKNOD:
-            return BPFCON_CAP_MKNOD;
-            break;
-        case CAP_LEASE:
-            return BPFCON_CAP_LEASE;
-            break;
-        case CAP_AUDIT_WRITE:
-            return BPFCON_CAP_AUDIT_WRITE;
-            break;
-        case CAP_AUDIT_CONTROL:
-            return BPFCON_CAP_AUDIT_CONTROL;
-            break;
-        case CAP_SETFCAP:
-            return BPFCON_CAP_SETFCAP;
-            break;
-        case CAP_MAC_OVERRIDE:
-            return BPFCON_CAP_MAC_OVERRIDE;
-            break;
-        case CAP_MAC_ADMIN:
-            return BPFCON_CAP_MAC_ADMIN;
-            break;
-        case CAP_SYSLOG:
-            return BPFCON_CAP_SYSLOG;
-            break;
-        case CAP_WAKE_ALARM:
-            return BPFCON_CAP_WAKE_ALARM;
-            break;
-        case CAP_BLOCK_SUSPEND:
-            return BPFCON_CAP_BLOCK_SUSPEND;
-            break;
-        case CAP_AUDIT_READ:
-            return BPFCON_CAP_AUDIT_READ;
-            break;
-        case CAP_PERFMON:
-            return BPFCON_CAP_PERFMON;
-            break;
-        case CAP_BPF:
-            return BPFCON_CAP_BPF;
-            break;
-        case CAP_CHECKPOINT_RESTORE:
-            return BPFCON_CAP_CHECKPOINT_RESTORE;
-            break;
-        default:
-            break;
+    case CAP_CHOWN:
+        return BPFCON_CAP_CHOWN;
+        break;
+    case CAP_DAC_OVERRIDE:
+        return BPFCON_CAP_DAC_OVERRIDE;
+        break;
+    case CAP_DAC_READ_SEARCH:
+        return BPFCON_CAP_DAC_READ_SEARCH;
+        break;
+    case CAP_FOWNER:
+        return BPFCON_CAP_FOWNER;
+        break;
+    case CAP_FSETID:
+        return BPFCON_CAP_FSETID;
+        break;
+    case CAP_KILL:
+        return BPFCON_CAP_KILL;
+        break;
+    case CAP_SETGID:
+        return BPFCON_CAP_SETGID;
+        break;
+    case CAP_SETUID:
+        return BPFCON_CAP_SETUID;
+        break;
+    case CAP_SETPCAP:
+        return BPFCON_CAP_SETPCAP;
+        break;
+    case CAP_LINUX_IMMUTABLE:
+        return BPFCON_CAP_LINUX_IMMUTABLE;
+        break;
+    case CAP_NET_BIND_SERVICE:
+        return BPFCON_CAP_NET_BIND_SERVICE;
+        break;
+    case CAP_NET_BROADCAST:
+        return BPFCON_CAP_NET_BROADCAST;
+        break;
+    case CAP_NET_ADMIN:
+        return BPFCON_CAP_NET_ADMIN;
+        break;
+    case CAP_NET_RAW:
+        return BPFCON_CAP_NET_RAW;
+        break;
+    case CAP_IPC_LOCK:
+        return BPFCON_CAP_IPC_LOCK;
+        break;
+    case CAP_IPC_OWNER:
+        return BPFCON_CAP_IPC_OWNER;
+        break;
+    case CAP_SYS_MODULE:
+        return BPFCON_CAP_SYS_MODULE;
+        break;
+    case CAP_SYS_RAWIO:
+        return BPFCON_CAP_SYS_RAWIO;
+        break;
+    case CAP_SYS_CHROOT:
+        return BPFCON_CAP_SYS_CHROOT;
+        break;
+    case CAP_SYS_PTRACE:
+        return BPFCON_CAP_SYS_PTRACE;
+        break;
+    case CAP_SYS_PACCT:
+        return BPFCON_CAP_SYS_PACCT;
+        break;
+    case CAP_SYS_ADMIN:
+        return BPFCON_CAP_SYS_ADMIN;
+        break;
+    case CAP_SYS_BOOT:
+        return BPFCON_CAP_SYS_BOOT;
+        break;
+    case CAP_SYS_NICE:
+        return BPFCON_CAP_SYS_NICE;
+        break;
+    case CAP_SYS_RESOURCE:
+        return BPFCON_CAP_SYS_RESOURCE;
+        break;
+    case CAP_SYS_TIME:
+        return BPFCON_CAP_SYS_TIME;
+        break;
+    case CAP_SYS_TTY_CONFIG:
+        return BPFCON_CAP_SYS_TTY_CONFIG;
+        break;
+    case CAP_MKNOD:
+        return BPFCON_CAP_MKNOD;
+        break;
+    case CAP_LEASE:
+        return BPFCON_CAP_LEASE;
+        break;
+    case CAP_AUDIT_WRITE:
+        return BPFCON_CAP_AUDIT_WRITE;
+        break;
+    case CAP_AUDIT_CONTROL:
+        return BPFCON_CAP_AUDIT_CONTROL;
+        break;
+    case CAP_SETFCAP:
+        return BPFCON_CAP_SETFCAP;
+        break;
+    case CAP_MAC_OVERRIDE:
+        return BPFCON_CAP_MAC_OVERRIDE;
+        break;
+    case CAP_MAC_ADMIN:
+        return BPFCON_CAP_MAC_ADMIN;
+        break;
+    case CAP_SYSLOG:
+        return BPFCON_CAP_SYSLOG;
+        break;
+    case CAP_WAKE_ALARM:
+        return BPFCON_CAP_WAKE_ALARM;
+        break;
+    case CAP_BLOCK_SUSPEND:
+        return BPFCON_CAP_BLOCK_SUSPEND;
+        break;
+    case CAP_AUDIT_READ:
+        return BPFCON_CAP_AUDIT_READ;
+        break;
+    case CAP_PERFMON:
+        return BPFCON_CAP_PERFMON;
+        break;
+    case CAP_BPF:
+        return BPFCON_CAP_BPF;
+        break;
+    case CAP_CHECKPOINT_RESTORE:
+        return BPFCON_CAP_CHECKPOINT_RESTORE;
+        break;
+    default:
+        break;
     }
 
     return 0;
@@ -1872,7 +1874,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
     // Convert cap to an "access vector"
     // (even though only one bit will be on at a time)
     capability_t access = cap_to_access(cap);
-    if (!access) {  // Something has gone wrong
+    if (!access) { // Something has gone wrong
         decision = BPFCON_DENY;
         goto out;
     }
