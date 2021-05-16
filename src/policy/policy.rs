@@ -36,6 +36,9 @@ pub struct Policy {
     /// Whether the container should spawn in a tainted state. Otherwise, taint rules will
     /// specify when the container should become tainted.
     default_taint: bool,
+    /// Whether the policy should complain (log) instead of deny.
+    #[serde(default = "default_false")]
+    complain: bool,
     /// The rights (allow-rules) associated with the policy.
     #[serde(default)]
     rights: Vec<Rule>,
@@ -45,6 +48,10 @@ pub struct Policy {
     /// The taints (taint-rules) associated with the policy.
     #[serde(default)]
     taints: Vec<Rule>,
+}
+
+fn default_false() -> bool {
+    false
 }
 
 impl Policy {
@@ -114,6 +121,7 @@ impl Policy {
 
         let mut value = Value::default();
         value.set_default_taint(self.default_taint as u8);
+        value.set_complain(self.complain as u8);
         let value = unsafe { as_bytes(&value) };
 
         map.update(key, value, MapFlags::ANY)

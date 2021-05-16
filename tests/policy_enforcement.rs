@@ -7,6 +7,7 @@
 
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
+use std::process::Command;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::thread;
@@ -30,6 +31,18 @@ fn setup_files() {
     File::create(path.join("fileA")).unwrap();
     File::create(path.join("fileB")).unwrap();
     File::create(path.join("fileC")).unwrap();
+}
+
+/// Consume ringbuf to ensure no audit data leaks from tests
+#[ctor::dtor]
+fn consume_ringbuf() {
+    BPFCONTAIN.consume_ringbuf();
+}
+
+#[test]
+#[ignore = "TODO"]
+fn test_policy_unload() {
+    todo!()
 }
 
 #[test]
@@ -76,6 +89,44 @@ fn test_taints() {
     File::open("/tmp/bpfcontain/fileA").unwrap();
     File::open("/tmp/bpfcontain/fileB").unwrap();
     File::open("/tmp/bpfcontain/fileC").unwrap();
+
+    BPFCONTAIN
+        .unload_policy(&policy)
+        .expect("Failed to unload policy");
+}
+
+#[test]
+fn test_complain() {
+    let policy = Policy::from_str(
+        "
+        name: test_complain
+        defaultTaint: true
+        complain: true
+
+        restrictions:
+            - file:
+                path: /tmp/bpfcontain/fileA
+                access: r
+        ",
+    )
+    .expect("Failed to parse policy");
+
+    BPFCONTAIN
+        .load_policy(&policy)
+        .expect("Failed to load policy");
+
+    let (tx, rx) = channel();
+    tx.send(policy.clone()).unwrap();
+
+    let handler = thread::spawn(move || {
+        containerize(&rx.recv().unwrap()).unwrap();
+
+        // Even though fileA should be denied explicitly and fileB should be denied
+        // implicitly, both should be fine because we are in complaining mode
+        File::open("/tmp/bpfcontain/fileA").unwrap();
+        File::open("/tmp/bpfcontain/fileB").unwrap();
+    });
+    handler.join().unwrap();
 
     BPFCONTAIN
         .unload_policy(&policy)

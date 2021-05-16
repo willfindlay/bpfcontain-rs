@@ -32,6 +32,12 @@ impl BpfcontainContextWrapper {
         let context = lock.get_mut();
         context.unload_policy(policy)
     }
+
+    pub fn consume_ringbuf(&self) {
+        let mut lock = self.0.lock().unwrap();
+        let context = lock.get_mut();
+        let _ = context.ringbuf.consume();
+    }
 }
 
 unsafe impl Send for BpfcontainContextWrapper {}

@@ -219,7 +219,7 @@ static __always_inline int do_policy_decision(container_t *container,
                                               policy_decision_t decision,
                                               u8 ignore_taint)
 {
-    u8 tainted = container->tainted || ignore_taint;
+    bool tainted = container->tainted || ignore_taint;
 
     // Taint container
     if (decision & BPFCON_TAINT) {
@@ -227,7 +227,7 @@ static __always_inline int do_policy_decision(container_t *container,
     }
 
     // Always deny if denied
-    if (decision & BPFCON_DENY) {
+    if (decision & BPFCON_DENY && !container->complain) {
         return -EACCES;
     }
 
@@ -237,7 +237,7 @@ static __always_inline int do_policy_decision(container_t *container,
     }
 
     // If tainted with no policy decision, deny
-    if (tainted) {
+    if (tainted && !container->complain) {
         return -EACCES;
     }
 
@@ -638,6 +638,13 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
         return NULL;
     }
 
+    // Look up common part of the policy
+    policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
+    if (!common) {
+        // TODO: Log that an error occurred
+        return NULL;
+    }
+
     u32 pid = bpf_get_current_pid_tgid();
 
     // Initialize the container
@@ -657,7 +664,9 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     // This value is _only_ modified atomically
     container->refcount = 0;
     // Is the container tainted?
-    container->tainted = tainted;
+    container->tainted = tainted || common->default_taint;
+    // Is the container in complaining mode?
+    container->complain = common->complain;
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id.
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
@@ -1781,6 +1790,8 @@ out:
 /* ========================================================================= *
  * Implicit Policy                                                           *
  * ========================================================================= */
+
+// FIXME: Implement complaining mode for all of the following
 
 /* Disallow BPF */
 SEC("lsm/bpf")
