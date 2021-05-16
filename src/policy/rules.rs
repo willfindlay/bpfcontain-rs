@@ -21,7 +21,7 @@ use anyhow::{Context, Result};
 use enum_dispatch::enum_dispatch;
 use libbpf_rs::Map;
 use libbpf_rs::MapFlags;
-use pod::Pod;
+use plain::as_bytes;
 use serde::Deserialize;
 
 use crate::bindings::policy::{bitflags, keys, values};
@@ -165,7 +165,7 @@ impl LoadRule for FilesystemRule {
             device_id: st_dev as u32,
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -178,7 +178,7 @@ impl LoadRule for FilesystemRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 
@@ -208,7 +208,7 @@ impl LoadRule for FileRule {
             inode_id: st_ino,
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -221,7 +221,7 @@ impl LoadRule for FileRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 
@@ -249,7 +249,7 @@ impl LoadRule for NumberedDeviceRule {
             },
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -262,7 +262,7 @@ impl LoadRule for NumberedDeviceRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 
@@ -324,7 +324,7 @@ impl LoadRule for DeviceRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 
     /// This is a reimplementation of LoadRule::load(), the only difference being that we
@@ -342,7 +342,7 @@ impl LoadRule for DeviceRule {
                     None => keys::DevPolicyKey::wildcard(),
                 },
             };
-            let key = key.as_bytes();
+            let key = unsafe { as_bytes(&key) };
 
             map.delete(key).context("Failed to delete map value")?;
         }
@@ -372,7 +372,7 @@ impl LoadRule for DeviceRule {
                     keys::DevPolicyKey::wildcard()
                 },
             };
-            let key = key.as_bytes();
+            let key = unsafe { as_bytes(&key) };
 
             // We don't want to _replace_ the existing value. Rather, we want to _extend_ it.
             // For BPFContain policy, this means doing a bitwise OR with the existing value
@@ -440,7 +440,7 @@ impl LoadRule for CapabilityRule {
             policy_id: policy.policy_id(),
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -458,7 +458,7 @@ impl LoadRule for CapabilityRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 
@@ -483,7 +483,7 @@ impl LoadRule for IpcRule {
             other_policy_id: Policy::policy_id_for_name(&self.0),
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -491,7 +491,7 @@ impl LoadRule for IpcRule {
             decision: bitflags::PolicyDecision::from(decision.clone()).bits(),
         };
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 
@@ -537,7 +537,7 @@ impl LoadRule for NetRule {
             policy_id: policy.policy_id(),
         };
 
-        Ok(key.as_bytes().into())
+        Ok(unsafe { as_bytes(&key).into() })
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
@@ -555,7 +555,7 @@ impl LoadRule for NetRule {
             PolicyDecision::Deny => value.deny = access.bits(),
         }
 
-        Ok(value.as_bytes().into())
+        Ok(unsafe { as_bytes(&value).into() })
     }
 }
 

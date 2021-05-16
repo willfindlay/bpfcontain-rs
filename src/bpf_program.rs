@@ -15,6 +15,7 @@ use anyhow::{Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 
+use crate::bindings::audit;
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::ns;
 use crate::policy::Policy;
@@ -150,57 +151,8 @@ fn configure_ringbuf(skel: &mut BpfcontainSkel) -> Result<RingBuffer> {
     let mut ringbuf_builder = RingBufferBuilder::default();
 
     ringbuf_builder
-        .add(skel.maps().audit_file_buf(), ringbuf::audit_file)
-        .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_cap_buf(), ringbuf::audit_cap)
-        .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_net_buf(), ringbuf::audit_net)
-        .context("Failed to add ringbuf")?
-        .add(skel.maps().audit_ipc_buf(), ringbuf::audit_ipc)
-        .context("Failed to add ringbuf")?;
+        .add(skel.maps().__audit_buf(), audit::audit_callback)
+        .context("Failed to add callback")?;
 
     ringbuf_builder.build().context("Failed to create ringbuf")
-}
-
-/// Callbacks for ring buffer events.
-mod ringbuf {
-    use pod::Pod as _;
-
-    use crate::bindings::audit::*;
-
-    /// File audit events
-    pub fn audit_file(data: &[u8]) -> i32 {
-        let event = AuditFile::from_bytes(data).expect("Failed to copy event");
-
-        log::info!("file {}", event);
-
-        0
-    }
-
-    /// Capability audit events
-    pub fn audit_cap(data: &[u8]) -> i32 {
-        let event = AuditCap::from_bytes(data).expect("Failed to copy event");
-
-        log::info!("capability {}", event);
-
-        0
-    }
-
-    /// Network audit events
-    pub fn audit_net(data: &[u8]) -> i32 {
-        let event = AuditNet::from_bytes(data).expect("Failed to copy event");
-
-        log::info!("network {}", event);
-
-        0
-    }
-
-    /// IPC audit events
-    pub fn audit_ipc(data: &[u8]) -> i32 {
-        let event = AuditIpc::from_bytes(data).expect("Failed to copy event");
-
-        log::info!("ipc {}", event);
-
-        0
-    }
 }

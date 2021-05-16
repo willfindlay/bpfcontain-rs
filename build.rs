@@ -32,7 +32,18 @@ fn main() {
         .derive_default(true)
         .derive_eq(true)
         .derive_partialeq(true)
-        .default_enum_style(bindgen::EnumVariation::ModuleConsts)
+        .default_enum_style(bindgen::EnumVariation::Rust {
+            non_exhaustive: false,
+        })
+        .constified_enum_module("policy_decision_t")
+        .constified_enum_module("file_permission_t")
+        .constified_enum_module("capability_t")
+        .constified_enum_module("net_operation_t")
+        .clang_arg("-Isrc/bpf/include")
+        .clang_arg("-Wno-unknown-attributes")
+        .clang_arg("-target")
+        .clang_arg("bpf")
+        .ignore_functions()
         .generate()
         .expect("Failed to generate bindings");
 
@@ -82,7 +93,7 @@ fn main() {
 
     // Generate skeleton
     SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
-        .options("-Isrc/bpf/include")
+        .options("-Isrc/bpf/include -Wno-unknown-attributes")
         .generate("src/bpf/mod.rs")
         .expect("Failed to generate skeleton");
 }

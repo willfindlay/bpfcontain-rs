@@ -10,8 +10,10 @@
 
 #include "defs.h"
 #include "maps.h"
-#include "policy.h"
-#include "state.h"
+#include "structs.h"
+
+/* Ring buffer for passing logging events to userspace */
+BPF_RINGBUF(__audit_buf, 16, LIBBPF_PIN_BY_NAME);
 
 /* Active (containerized) processes */
 BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, LIBBPF_PIN_BY_NAME,

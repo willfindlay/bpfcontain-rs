@@ -13,7 +13,7 @@ use std::str::FromStr;
 use anyhow::{Context, Error, Result};
 use glob::glob;
 use libbpf_rs::MapFlags;
-use pod::Pod as _;
+use plain::as_bytes;
 use serde::Deserialize;
 
 use crate::bindings::policy::{keys, values};
@@ -110,11 +110,13 @@ impl Policy {
         let map = maps.policy_common();
 
         let key: Key = self.policy_id();
+        let key = unsafe { as_bytes(&key) };
 
         let mut value = Value::default();
         value.set_default_taint(self.default_taint as u8);
+        let value = unsafe { as_bytes(&value) };
 
-        map.update(key.as_bytes(), value.as_bytes(), MapFlags::ANY)
+        map.update(key, value, MapFlags::ANY)
             .context("Failed to update policy map")?;
 
         Ok(())
@@ -151,8 +153,9 @@ impl Policy {
         let map = maps.policy_common();
 
         let key: Key = self.policy_id();
+        let key = unsafe { as_bytes(&key) };
 
-        map.delete(key.as_bytes())
+        map.delete(key)
             .context("Failed to delete from policy map")?;
 
         Ok(())

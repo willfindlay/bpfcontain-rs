@@ -10,7 +10,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use anyhow::bail;
-use pod::Pod;
+use plain::Plain;
 
 use super::raw;
 
@@ -23,15 +23,15 @@ pub mod keys {
 
     /// Represents a per-filesystem policy key on the BPF side.
     pub type FsPolicyKey = raw::fs_policy_key_t;
-    unsafe impl Pod for FsPolicyKey {}
+    unsafe impl Plain for FsPolicyKey {}
 
     /// Represents a per-file policy key on the BPF side.
     pub type FilePolicyKey = raw::file_policy_key_t;
-    unsafe impl Pod for FilePolicyKey {}
+    unsafe impl Plain for FilePolicyKey {}
 
     /// Represents a per-device policy key on the BPF side.
     pub type DevPolicyKey = raw::dev_policy_key_t;
-    unsafe impl Pod for DevPolicyKey {}
+    unsafe impl Plain for DevPolicyKey {}
 
     impl DevPolicyKey {
         pub fn wildcard() -> i64 {
@@ -41,15 +41,15 @@ pub mod keys {
 
     /// Represents a capability policy key on the BPF side.
     pub type CapPolicyKey = raw::cap_policy_key_t;
-    unsafe impl Pod for CapPolicyKey {}
+    unsafe impl Plain for CapPolicyKey {}
 
     /// Represents a network policy key on the BPF side.
     pub type NetPolicyKey = raw::net_policy_key_t;
-    unsafe impl Pod for NetPolicyKey {}
+    unsafe impl Plain for NetPolicyKey {}
 
     /// Represents a IPC policy key on the BPF side.
     pub type IpcPolicyKey = raw::ipc_policy_key_t;
-    unsafe impl Pod for IpcPolicyKey {}
+    unsafe impl Plain for IpcPolicyKey {}
 }
 
 /// Values for policy maps
@@ -58,23 +58,23 @@ pub mod values {
 
     /// Represents a common policy type on the BPF side
     pub type PolicyCommon = raw::policy_common_t;
-    unsafe impl Pod for PolicyCommon {}
+    unsafe impl Plain for PolicyCommon {}
 
     /// Represents a file policy value on the BPF side.
     pub type FilePolicyVal = raw::file_policy_val_t;
-    unsafe impl Pod for FilePolicyVal {}
+    unsafe impl Plain for FilePolicyVal {}
 
     /// Represents a file policy value on the BPF side.
     pub type CapPolicyVal = raw::cap_policy_val_t;
-    unsafe impl Pod for CapPolicyVal {}
+    unsafe impl Plain for CapPolicyVal {}
 
     /// Represents a network policy value on the BPF side.
     pub type NetPolicyVal = raw::net_policy_val_t;
-    unsafe impl Pod for NetPolicyVal {}
+    unsafe impl Plain for NetPolicyVal {}
 
     /// Represents a file policy value on the BPF side.
     pub type IpcPolicyVal = raw::ipc_policy_val_t;
-    unsafe impl Pod for IpcPolicyVal {}
+    unsafe impl Plain for IpcPolicyVal {}
 }
 
 /// Biflags representing policy decisions and access vectors.
