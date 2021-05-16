@@ -3,8 +3,6 @@ name = "bpfcontain"
 version = "0.0.5"
 authors = ["William Findlay <william@williamfindlay.com>"]
 edition = "2018"
-autotests = false
-default-run = "bpfcontain"
 
 [[bin]]
 name = "bpfcontain"
