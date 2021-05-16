@@ -9,38 +9,42 @@
 
 use std::fmt::{Display, Formatter};
 
-use pod::Pod;
+use plain::Plain;
 
-use super::policy::bitflags::{Capability, FileAccess, NetOperation, PolicyDecision};
+use super::policy::bitflags::{Capability, FileAccess, NetOperation};
 use super::raw;
 
 /// Represents the common part of an audit event.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
-type AuditCommon = raw::audit_common_t;
+pub type AuditData = raw::audit_data_t;
 
-impl Display for AuditCommon {
+impl Display for AuditData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let comm = std::str::from_utf8(&self.comm).unwrap_or("Unknown");
-        let res =
-            PolicyDecision::from_bits(self.decision).expect("Failed to convert policy decision");
+
+        // Convert inner type into string representation
+        // SAFETY: We assert that the BPF program will always transmit the correct type flag
+        // corresponding with the inner union.
+        let inner_data_str = unsafe {
+            match self.type_ {
+                AuditType::AUDIT_TYPE_FILE => self.__bindgen_anon_1.file.to_string(),
+                AuditType::AUDIT_TYPE_CAP => self.__bindgen_anon_1.cap.to_string(),
+                AuditType::AUDIT_TYPE_NET => self.__bindgen_anon_1.net.to_string(),
+                AuditType::AUDIT_TYPE_IPC => self.__bindgen_anon_1.ipc.to_string(),
+                _ => return Err(std::fmt::Error),
+            }
+        };
+
         write!(
             f,
-            "res={:#?} comm={} pid={} tid={} policy_id={}",
-            res, comm, self.tgid, self.pid, self.policy_id
+            "[{}] comm={} pid={} tid={} policy={} {}",
+            self.level, comm, self.tgid, self.pid, self.policy_id, inner_data_str
         )
     }
 }
 
-unsafe impl Pod for AuditCommon {}
+unsafe impl Plain for AuditData {}
 
 /// Represents a file audit event.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
 pub type AuditFile = raw::audit_file_t;
 
 impl Display for AuditFile {
@@ -48,52 +52,40 @@ impl Display for AuditFile {
         let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
         write!(
             f,
-            "{} st_ino={} st_dev={} access={:#?}",
-            self.common, self.st_ino, self.st_dev, access
+            "st_ino={} st_dev={} access={:#?}",
+            self.st_ino, self.st_dev, access
         )
     }
 }
 
-unsafe impl Pod for AuditFile {}
+unsafe impl Plain for AuditFile {}
 
 /// Represents a capability audit event.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
 pub type AuditCap = raw::audit_cap_t;
 
 impl Display for AuditCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let cap = Capability::from_bits(self.cap).expect("Failed to convert capability");
-        write!(f, "{} cap={:#?}", self.common, cap)
+        write!(f, "cap={:#?}", cap)
     }
 }
 
-unsafe impl Pod for AuditCap {}
+unsafe impl Plain for AuditCap {}
 
 /// Represents a network audit event.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
 pub type AuditNet = raw::audit_net_t;
 
 impl Display for AuditNet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let operation =
             NetOperation::from_bits(self.operation).expect("Failed to convert network operation");
-        write!(f, "{} operation={:#?}", self.common, operation)
+        write!(f, "operation={:#?}", operation)
     }
 }
 
-unsafe impl Pod for AuditNet {}
+unsafe impl Plain for AuditNet {}
 
 /// Represents a capability audit event.
-///
-/// # Warning
-///
-/// Keep this in sync with [structs.h](src/include/structs.h)
 pub type AuditIpc = raw::audit_ipc_t;
 
 impl Display for AuditIpc {
@@ -102,13 +94,37 @@ impl Display for AuditIpc {
             0 => "recv",
             _ => "send",
         };
-
         write!(
             f,
-            "{} operation={} other_id={}",
-            self.common, operation, self.other_policy_id
+            "operation={} other_id={}",
+            operation, self.other_policy_id
         )
     }
 }
 
-unsafe impl Pod for AuditIpc {}
+unsafe impl Plain for AuditIpc {}
+
+/// Callback to run when audit events are received
+pub fn audit_callback(data: &[u8]) -> i32 {
+    let data = AuditData::from_bytes(data).expect("Failed to convert audit data from raw bytes");
+    log::info!("{}", data);
+
+    0
+}
+
+type AuditType = raw::audit_type_t;
+
+type AuditLevel = raw::audit_level_t;
+
+impl Display for AuditLevel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let level = match self {
+            Self::AUDIT_ALLOW => "ALLOW",
+            Self::AUDIT_DENY => "DENY",
+            Self::AUDIT_TAINT => "TAINT",
+            // FIXME: Others are unsupported for now
+            _ => return Err(std::fmt::Error),
+        };
+        write!(f, "{}", level)
+    }
+}

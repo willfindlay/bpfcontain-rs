@@ -39,163 +39,6 @@ extern const void init_nsproxy __ksym;
 extern const void init_user_ns __ksym;
 
 /* ========================================================================= *
- * Audit Helpers                                                             *
- * ========================================================================= */
-
-static __always_inline bool __should_audit(policy_decision_t decision)
-{
-    if (decision & BPFCON_DENY && audit_level & BC_AUDIT_DENY)
-        return true;
-
-    else if (decision & BPFCON_TAINT && audit_level & BC_AUDIT_TAINT)
-        return true;
-
-    else if (decision & BPFCON_ALLOW && audit_level & BC_AUDIT_ALLOW)
-        return true;
-
-    return false;
-}
-
-static __always_inline void
-__do_audit_common(audit_common_t *common, policy_decision_t decision,
-                  u64 policy_id)
-{
-    common->decision = decision;
-    common->policy_id = policy_id;
-    common->pid = bpf_get_current_pid_tgid();
-    common->tgid = bpf_get_current_pid_tgid() >> 32;
-    bpf_get_current_comm(common->comm, sizeof(common->comm));
-}
-
-/* Log a filesystem policy event to userspace.
- *
- * @decision: The policy decision.
- * @policy_id: Current policy ID.
- * @inode: A pointer to the inode in question.
- * @access: The requested access.
- */
-static __always_inline void audit_inode(policy_decision_t decision,
-                                        u64 policy_id, bool tainted,
-                                        struct inode *inode,
-                                        file_permission_t access)
-{
-    if (tainted && !(decision & BPFCON_ALLOW))
-        decision |= BPFCON_DENY;
-
-    if (!__should_audit(decision))
-        return;
-
-    // Reserve space for the event on the ring buffer
-    audit_file_t *event =
-        bpf_ringbuf_reserve(&audit_file_buf, sizeof(audit_file_t), 0);
-
-    if (!event)
-        return;
-
-    __do_audit_common(&event->common, decision, policy_id);
-
-    event->access = access;
-    event->st_ino = inode->i_ino;
-    event->st_dev = new_encode_dev(inode->i_sb->s_dev);
-
-    // Submit the event
-    bpf_ringbuf_submit(event, 0);
-}
-
-/* Log a capability policy event to userspace.
- *
- * @decision: The policy decision.
- * @policy_id: Current policy ID.
- * @cap: The requested capability.
- */
-static __always_inline void audit_cap(policy_decision_t decision, u64 policy_id,
-                                      bool tainted, capability_t cap)
-{
-    if (tainted && !(decision & BPFCON_ALLOW))
-        decision |= BPFCON_DENY;
-
-    if (!__should_audit(decision))
-        return;
-
-    // Reserve space for the event on the ring buffer
-    audit_cap_t *event =
-        bpf_ringbuf_reserve(&audit_cap_buf, sizeof(audit_cap_t), 0);
-
-    if (!event)
-        return;
-
-    __do_audit_common(&event->common, decision, policy_id);
-
-    event->cap = cap;
-
-    // Submit the event
-    bpf_ringbuf_submit(event, 0);
-}
-
-/* Log a network policy event to userspace.
- *
- * @decision: The policy decision.
- * @policy_id: Current policy ID.
- * @operation: The requested socket operation.
- */
-static __always_inline void audit_net(policy_decision_t decision, u64 policy_id,
-                                      bool tainted, net_operation_t operation)
-{
-    if (tainted && !(decision & BPFCON_ALLOW))
-        decision |= BPFCON_DENY;
-
-    if (!__should_audit(decision))
-        return;
-
-    // Reserve space for the event on the ring buffer
-    audit_net_t *event =
-        bpf_ringbuf_reserve(&audit_net_buf, sizeof(audit_net_t), 0);
-
-    if (!event)
-        return;
-
-    __do_audit_common(&event->common, decision, policy_id);
-
-    event->operation = operation;
-
-    // Submit the event
-    bpf_ringbuf_submit(event, 0);
-}
-
-/* Log an ipc policy event to userspace.
- *
- * @decision: The policy decision.
- * @policy_id: Current policy ID.
- * @other_policy_id: The policy ID of the other container.
- * @sender: 1 if we are the current sender, 0 otherwise
- */
-static __always_inline void audit_ipc(policy_decision_t decision, u64 policy_id,
-                                      bool tainted, u64 other_policy_id,
-                                      u8 sender)
-{
-    if (tainted && !(decision & BPFCON_ALLOW))
-        decision |= BPFCON_DENY;
-
-    if (!__should_audit(decision))
-        return;
-
-    // Reserve space for the event on the ring buffer
-    audit_ipc_t *event =
-        bpf_ringbuf_reserve(&audit_ipc_buf, sizeof(audit_ipc_t), 0);
-
-    if (!event)
-        return;
-
-    __do_audit_common(&event->common, decision, policy_id);
-
-    event->other_policy_id = other_policy_id;
-    event->sender = sender;
-
-    // Submit the event
-    bpf_ringbuf_submit(event, 0);
-}
-
-/* ========================================================================= *
  * Helpers                                                                   *
  * ========================================================================= */
 
@@ -1140,8 +983,17 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
         decision &= (~BPFCON_DENY);
 
     ret = do_policy_decision(container, decision, 0);
-    audit_inode(decision, container->policy_id, container->tainted, inode,
-                access);
+
+    // Submit an audit event
+    audit_data_t *event = alloc_audit_event(
+        container->policy_id, AUDIT_TYPE_FILE,
+        decision_to_audit_level(decision, container->tainted));
+    if (event) {
+        event->file.access = access;
+        event->file.st_ino = inode->i_ino;
+        event->file.st_dev = new_encode_dev(inode->i_sb->s_dev);
+        submit_audit_event(event);
+    }
 
     return ret;
 }
@@ -1501,7 +1353,14 @@ static policy_decision_t bpfcontain_net_www_perm(container_t *container,
     if (val && (val->deny & access))
         decision |= BPFCON_DENY;
 
-    audit_net(decision, container->policy_id, container->tainted, access);
+    // Submit an audit event
+    audit_data_t *event = alloc_audit_event(
+        container->policy_id, AUDIT_TYPE_NET,
+        decision_to_audit_level(decision, container->tainted));
+    if (event) {
+        event->net.operation = access;
+        submit_audit_event(event);
+    }
 
     return decision;
 }
@@ -1516,6 +1375,16 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
     container_t *other_container = get_container_by_host_pid(other_pid);
     if (other_container) {
         decision |= check_ipc_access(container, other_container);
+
+        // Submit an audit event
+        audit_data_t *event = alloc_audit_event(
+            container->policy_id, AUDIT_TYPE_IPC,
+            decision_to_audit_level(decision, container->tainted));
+        if (event) {
+            event->ipc.other_policy_id = other_container->policy_id;
+            event->ipc.sender = 1;
+            submit_audit_event(event);
+        }
     } else {
         // TODO: handle no other container
     }
@@ -1896,9 +1765,15 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
 
 out:
     ret = do_policy_decision(container, decision, 1);
-    audit_cap(decision, container->policy_id, 1, access);
-    bpf_printk("capability=%d", cap);
-    bpf_printk("ret=%d opts=%u user_ns=%lu", ret, opts, ns->ns.inum);
+
+    // Submit an audit event
+    audit_data_t *event =
+        alloc_audit_event(container->policy_id, AUDIT_TYPE_CAP,
+                          decision_to_audit_level(decision, true));
+    if (event) {
+        event->cap.cap = access;
+        submit_audit_event(event);
+    }
 
     return ret;
 }
