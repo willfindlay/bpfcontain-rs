@@ -5,7 +5,7 @@
 //
 // May 3, 2020  William Findlay  Created this.
 
-#[cfg(test)]
+#![cfg(test)]
+
 mod helpers;
-#[cfg(test)]
 mod policy_enforcement;

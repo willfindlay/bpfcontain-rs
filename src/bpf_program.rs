@@ -24,8 +24,8 @@ use crate::uprobes::do_containerize;
 use crate::utils::bump_memlock_rlimit;
 
 pub struct BpfcontainContext<'a> {
-    skel: BpfcontainSkel<'a>,
-    ringbuf: RingBuffer,
+    pub skel: BpfcontainSkel<'a>,
+    pub ringbuf: RingBuffer,
 }
 
 impl<'a> BpfcontainContext<'a> {
