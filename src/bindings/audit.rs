@@ -30,7 +30,7 @@ impl Display for AuditData {
                 AuditType::AUDIT_TYPE_CAP => self.__bindgen_anon_1.cap.to_string(),
                 AuditType::AUDIT_TYPE_NET => self.__bindgen_anon_1.net.to_string(),
                 AuditType::AUDIT_TYPE_IPC => self.__bindgen_anon_1.ipc.to_string(),
-                _ => return Err(std::fmt::Error),
+                AuditType::AUDIT_TYPE__UNKOWN => "UNKNOWN".to_string(),
             }
         };
 
@@ -112,16 +112,16 @@ pub fn audit_callback(data: &[u8]) -> i32 {
     0
 }
 
-type AuditType = raw::audit_type_t;
+pub type AuditType = raw::audit_type_t;
 
-type AuditLevel = raw::audit_level_t;
+pub type AuditLevel = raw::audit_level_t;
 
 impl Display for AuditLevel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let level = match self {
-            Self::AUDIT_ALLOW => "ALLOW",
-            Self::AUDIT_DENY => "DENY",
-            Self::AUDIT_TAINT => "TAINT",
+            level if level == &Self::AUDIT_ALLOW => "ALLOW",
+            level if level == &Self::AUDIT_DENY => "DENY",
+            level if level == &Self::AUDIT_TAINT => "TAINT",
             // FIXME: Others are unsupported for now
             _ => return Err(std::fmt::Error),
         };
