@@ -17,6 +17,7 @@ use libbpf_rs::{RingBuffer, RingBufferBuilder};
 
 use crate::bindings::audit;
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
+use crate::config::Settings;
 use crate::ns;
 use crate::policy::Policy;
 use crate::uprobe_ext::FindSymbolUprobeExt;
@@ -30,7 +31,7 @@ pub struct BpfcontainContext<'a> {
 
 impl<'a> BpfcontainContext<'a> {
     /// Open, load, and attach BPF objects, then return a new `BpfcontainContext`.
-    pub fn new() -> Result<Self> {
+    pub fn new(config: &Settings) -> Result<Self> {
         log::debug!("Initializing BPF objects...");
 
         let mut builder = BpfcontainSkelBuilder::default();
@@ -44,7 +45,8 @@ impl<'a> BpfcontainContext<'a> {
         log::debug!("Opening eBPF objects...");
         let mut open_skel = builder.open().context("Failed to open skeleton")?;
 
-        initialize_bpf_globals(&mut open_skel).context("Failed to initialize BPF globals")?;
+        initialize_bpf_globals(&mut open_skel, config)
+            .context("Failed to initialize BPF globals")?;
 
         log::debug!("Loading eBPF objects into kernel...");
         let mut skel = open_skel.load().context("Failed to load skeleton")?;
@@ -123,13 +125,24 @@ impl<'a> BpfcontainContext<'a> {
 }
 
 /// Set BPF global variables
-fn initialize_bpf_globals(open_skel: &mut OpenBpfcontainSkel) -> Result<()> {
+fn initialize_bpf_globals(open_skel: &mut OpenBpfcontainSkel, config: &Settings) -> Result<()> {
     // Set own PID
     open_skel.rodata().bpfcontain_pid = std::process::id();
     // Set own mount ns id
     open_skel.rodata().host_mnt_ns_id = ns::get_current_ns_id(ns::Namespace::Mnt)?;
     // Set own pid ns id
     open_skel.rodata().host_pid_ns_id = ns::get_current_ns_id(ns::Namespace::Pid)?;
+    // Set audit level
+    let audit_level = config
+        .bpf
+        .audit_level
+        .iter()
+        .map(|x| audit::AuditLevel::from(x.clone()))
+        .reduce(|a, b| a | b);
+    open_skel.rodata().audit_level = match audit_level {
+        Some(level) => level.0,
+        None => audit::AuditLevel::AUDIT__NONE.0,
+    };
 
     Ok(())
 }

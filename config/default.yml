@@ -11,3 +11,7 @@ daemon:
 policy:
   # Path to policy directory
   dir: /var/lib/bpfcontain/policy
+
+bpf:
+  # Possible values: [allow, deny, taint, info, warn]
+  auditLevel: [deny, taint]

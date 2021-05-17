@@ -7,7 +7,6 @@
 
 use std::fs::{create_dir_all, File};
 use std::path::PathBuf;
-use std::process::Command;
 use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::thread;

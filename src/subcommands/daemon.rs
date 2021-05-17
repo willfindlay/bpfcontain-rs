@@ -56,7 +56,7 @@ fn run_in_foreground(config: &Settings) -> Result<()> {
     log::info!("Running in the foreground...");
 
     // Load BPF and policy, then start work loop
-    let mut context = BpfcontainContext::new()?;
+    let mut context = BpfcontainContext::new(config)?;
     context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
     context.work_loop();
 
@@ -98,7 +98,7 @@ fn start_daemon(config: &Settings) -> Result<()> {
     daemonize.start().context("Failed to start the daemon")?;
 
     // Load BPF and policy, then start work loop
-    let mut context = BpfcontainContext::new()?;
+    let mut context = BpfcontainContext::new(config)?;
     context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
     context.work_loop();
 

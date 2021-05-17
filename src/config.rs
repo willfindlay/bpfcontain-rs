@@ -11,26 +11,7 @@ use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
 
-/// Configuration related to policy language
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "camelCase")]
-pub struct Policy {
-    #[serde(alias = "policyDir")]
-    #[serde(alias = "policy_dir")]
-    pub dir: String,
-}
-
-/// Configuration related to the daemon
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "camelCase")]
-pub struct Daemon {
-    pub log_file: String,
-    pub pid_file: String,
-    pub work_dir: String,
-    pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
-}
+use crate::bindings::audit::AuditLevel;
 
 /// Configuration struct
 #[derive(Debug, Deserialize)]
@@ -39,6 +20,7 @@ pub struct Daemon {
 pub struct Settings {
     pub daemon: Daemon,
     pub policy: Policy,
+    pub bpf: Bpf,
 }
 
 impl Settings {
@@ -69,6 +51,59 @@ impl Settings {
 
         // Lock the configuration
         Ok(s.try_into()?)
+    }
+}
+
+/// Configuration related to policy language
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct Policy {
+    #[serde(alias = "policyDir")]
+    #[serde(alias = "policy_dir")]
+    pub dir: String,
+}
+
+/// Configuration related to the daemon
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct Daemon {
+    pub log_file: String,
+    pub pid_file: String,
+    pub work_dir: String,
+    pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
+}
+
+/// Configuration related to BPF settings
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct Bpf {
+    pub audit_level: Vec<AuditLevelSettings>,
+}
+
+/// Possible audit levels that can be passed to `Bpf::audit_level`
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum AuditLevelSettings {
+    Allow,
+    Deny,
+    Taint,
+    Info,
+    Warn,
+}
+
+impl From<AuditLevelSettings> for AuditLevel {
+    fn from(level: AuditLevelSettings) -> Self {
+        use AuditLevelSettings::*;
+        match level {
+            Allow => Self::AUDIT_ALLOW,
+            Deny => Self::AUDIT_DENY,
+            Taint => Self::AUDIT_TAINT,
+            Info => Self::AUDIT_INFO,
+            Warn => Self::AUDIT_WARN,
+        }
     }
 }
 

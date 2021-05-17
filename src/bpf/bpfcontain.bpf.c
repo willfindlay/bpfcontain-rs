@@ -28,7 +28,7 @@
 // Settings
 // TODO: change this to audit_level_t when we add
 // support for enums in libbpf-rs
-u32 audit_level = DEFAULT_AUDIT_LEVEL;
+const volatile u32 audit_level;
 
 // Constants
 const volatile u32 bpfcontain_pid;
