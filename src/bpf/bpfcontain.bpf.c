@@ -1932,35 +1932,53 @@ int BPF_PROG(settime, int unused)
     return -EACCES;
 }
 
-/* Disallow ptrace */
+/* Disallow ptrace outside of the container */
 SEC("lsm/ptrace_access_check")
 int BPF_PROG(ptrace_access_check, struct task_struct *child, unsigned int mode)
 {
     // Look up the container using the current PID
     u32 pid = bpf_get_current_pid_tgid();
     container_t *container = get_container_by_host_pid(pid);
+    container_t *child_container = get_container_by_host_pid(child->pid);
 
     // Unconfined
     if (!container)
         return 0;
 
+    // Parent is unconfined
+    if (!child_container)
+        return -EACCES;
+
+    // We are in the same container
+    if (container->container_id == child_container->container_id)
+        return 0;
+
     return -EACCES;
 }
 
-/* Disallow ptrace */
-// SEC("lsm/ptrace_traceme")
-// int BPF_PROG(ptrace_traceme, struct task_struct *parent)
-//{
-//  // Look up the container using the current PID
-//  u32 pid = bpf_get_current_pid_tgid();
-//  container_t *container = get_container_by_host_pid(pid);
-//
-//  // Unconfined
-//  if (!container)
-//      return 0;
-//
-//    return -EACCES;
-//}
+/* Disallow ptrace outside of the container */
+SEC("lsm/ptrace_traceme")
+int BPF_PROG(ptrace_traceme, struct task_struct *parent)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+    container_t *parent_container = get_container_by_host_pid(parent->pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    // Parent is unconfined
+    if (!parent_container)
+        return -EACCES;
+
+    // We are in the same container
+    if (container->container_id == parent_container->container_id)
+        return 0;
+
+    return -EACCES;
+}
 
 SEC("lsm/sb_mount")
 int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
