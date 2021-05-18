@@ -94,7 +94,7 @@ fn main() {
 
     // Generate skeleton
     SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
-        .options("-Isrc/bpf/include -Wno-unknown-attributes")
+        .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
         .generate("src/bpf/mod.rs")
         .expect("Failed to generate skeleton");
 }
