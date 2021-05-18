@@ -20,7 +20,7 @@ Vagrant.configure("2") do |config|
       fi
 
       sudo pacman --noconfirm -Syu
-      sudo pacman --noconfirm -S rust clang make libelf bpf libbpf
+      sudo pacman --noconfirm -S rust clang make libelf bpf libbpf lib32-glibc
     "
   end
 end
