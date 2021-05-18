@@ -1980,6 +1980,21 @@ int BPF_PROG(ptrace_traceme, struct task_struct *parent)
     return -EACCES;
 }
 
+/**
+ * lsm/sb_mount - Disallow mounting (for now)
+ *
+ * @FIXME: Make this work with Docker integration (containerd_shim will need to
+ * mount devices before it containerizes, so we either need to consider that
+ * here or delay starting BPFContain confinement until all mountpoints have been
+ * mounted). Another option is providing a special whitelist of allowed mount
+ * paths.
+ *
+ * @TODO: This hook would be perfect for associating a container with its
+ * filesystem mounts (for implicit filesystem policy). We can detect what
+ * filesystems it mounts (and determine whether or not they are already mounted
+ * by somebody else). If everything looks kosher, we can grant implicit access
+ * here (likely by populating some map that tracks this information).
+ */
 SEC("lsm/sb_mount")
 int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
              const char *type, unsigned long flags, void *data)
