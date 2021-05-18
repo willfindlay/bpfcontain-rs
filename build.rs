@@ -93,8 +93,11 @@ fn main() {
         .expect("Failed to symlink vmlinux.h");
 
     // Generate skeleton
-    SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
+    match SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
         .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
         .generate("src/bpf/mod.rs")
-        .expect("Failed to generate skeleton");
+    {
+        Ok(_) => {}
+        Err(e) => panic!("Failed to generate skeleton: {}", e),
+    }
 }
