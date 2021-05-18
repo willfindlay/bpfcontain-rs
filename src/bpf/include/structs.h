@@ -19,6 +19,14 @@
 typedef u64 policy_id_t;
 typedef u64 container_id_t;
 
+/**
+ * process_t - Represents per-task metadata
+ * @container_id: id of the container_t that this process belongs to
+ * @host_pid: pid of this task in the host's pid namespace
+ * @host_tgid: tgid of this task in the host's pid namespace
+ * @pid: pid of this task in our own pid namespace
+ * @tgid: tgid of this task in our own pid namesapce
+ */
 typedef struct {
     container_id_t container_id;
     u32 host_pid;
@@ -27,7 +35,18 @@ typedef struct {
     u32 tgid;
 } process_t;
 
-// Represents the state of a container
+/**
+ * container_t - Represents per-container metadata
+ * @policy_id: id of the policy associated with the container
+ * @container_id: id of this container
+ * @mnt_ns_id: ns id of the container's mount namespace
+ * @pid_ns_id: ns id of the container's pid namespace
+ * @user_ns_id: ns id of the container's user namespace
+ * @refcount: number of processes that are running under this container
+ * @tained: is the container tainted?
+ * @complain: is the container in complaining mode?
+ * @uts_name: the container's UTS name (Docker's notion of container id)
+ */
 typedef struct {
     // id of bpfcontain policy associated with this container
     policy_id_t policy_id;
@@ -55,7 +74,13 @@ typedef struct {
  * Policy Types                                                              *
  * ========================================================================= */
 
-/* Possible policy decisions */
+/**
+ * policy_decision_t - Represents a BPFcontain policy decision
+ * @BPFCON_NO_DECISION: No policy decision
+ * @BPFCON_ALLOW: Allow access
+ * @BPFCON_DENY: Deny access
+ * @BPFCON_TAINT: Taint the container
+ */
 typedef enum {
     BPFCON_NO_DECISION = 0x00,
     BPFCON_ALLOW = 0x01,
@@ -63,6 +88,11 @@ typedef enum {
     BPFCON_TAINT = 0x04,
 } policy_decision_t;
 
+/**
+ * policy_common_t - The common part of a BPFContain policy
+ * @default_taint: Should containers under this policy spawn tainted?
+ * @complain: Should containers under this policy spawn in complaining mode?
+ */
 typedef struct {
     u8 default_taint : 1;
     u8 complain : 1;
@@ -72,7 +102,17 @@ typedef struct {
  * File Policy                                                               *
  * ========================================================================= */
 
-/* Permissions, partly based on AppArmor */
+/**
+ * file_permission_t - Access permissions for accessing files
+ * @BPFCON_MAY_EXEC: Execute the file
+ * @BPFCON_MAY_WRITE: Write to the file (implied append)
+ * @BPFCON_MAY_READ: Read from the file
+ * @BPFCON_MAY_APPEND: Append to the file
+ * @BPFCON_MAY_CHMOD: Change file permissions and owners
+ * @BPFCON_MAY_DELETE: Unlink the file
+ * @BPFCON_MAY_EXEC_MMAP: Map the file into executable memory
+ * @BPFCON_MAY_LINK: Create a hard link to the file
+ */
 typedef enum {
     BPFCON_MAY_EXEC = 0x01,
     BPFCON_MAY_WRITE = 0x02,
@@ -98,6 +138,11 @@ typedef enum {
 
 #define OVERLAYFS_PERM_MASK BPFCON_ALL_FS_PERM_MASK
 
+/**
+ * fs_policy_key_t - Key into the filesystem policy map
+ * @policy_id: The policy id of this policy
+ * @device_id: The device id of the filesystem
+ */
 typedef struct {
     u64 policy_id;
     u32 device_id;
