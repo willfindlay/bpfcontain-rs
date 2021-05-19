@@ -8,12 +8,6 @@
 //! Definitions for policy rules and their translations into eBPF maps. Uses the
 //! `enum_dispatch` crate.
 
-// This is unfortuantely required for now to silence compiler warnings about late bound
-// lifetime arguments resulting from the enum_dispatch crate. When this gets fixed
-// upstream, we can remove it.
-// See this issue: https://gitlab.com/antonok/enum_dispatch/-/issues/34
-#![allow(late_bound_lifetime_arguments)]
-
 use std::convert::{From, Into, TryFrom, TryInto};
 use std::path::PathBuf;
 
