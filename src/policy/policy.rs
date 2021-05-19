@@ -113,7 +113,7 @@ impl Policy {
         type Value = values::PolicyCommon;
 
         // Get correct map
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
         let map = maps.policy_common();
 
         let key: Key = self.policy_id();
@@ -157,7 +157,7 @@ impl Policy {
         type Key = keys::PolicyId;
 
         // Get correct map
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
         let map = maps.policy_common();
 
         let key: Key = self.policy_id();

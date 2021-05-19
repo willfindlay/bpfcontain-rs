@@ -86,15 +86,6 @@ impl FindSymbolUprobeExt for libbpf_rs::Program {
             .context("Error finding symbol")?
             .context("Failed to find symbol")?;
 
-        // Explicitly null terminate pathname
-        // TODO: file bug report in libbpf_rs
-        let mut pathname = String::from(
-            pathname
-                .to_str()
-                .context("Failed to convert pathname to string")?,
-        );
-        pathname.push('\0');
-
         // Use the offset we found to attach the probe
         self.attach_uprobe(retprobe, pid, pathname, offset)
             .context("Failed to attach uprobe")
@@ -111,10 +102,7 @@ impl FindSymbolUprobeExt for libbpf_rs::Program {
         let base_addr = get_base_addr()?;
         let offset = addr - base_addr;
 
-        // Explicitly null terminate pathname
-        // TODO: file bug report in libbpf_rs
-        let mut pathname = "/proc/self/exe".to_string();
-        pathname.push('\0');
+        let pathname = "/proc/self/exe";
 
         // Use the offset we found to attach the probe
         self.attach_uprobe(retprobe, pid, pathname, offset)
