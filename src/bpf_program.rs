@@ -151,7 +151,7 @@ fn initialize_bpf_globals(open_skel: &mut OpenBpfcontainSkel, config: &Settings)
 fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
     // do_containerize
     skel.links.do_containerize = skel
-        .progs()
+        .progs_mut()
         .do_containerize()
         .attach_uprobe_addr(false, -1, do_containerize as *const () as usize)?
         .into();

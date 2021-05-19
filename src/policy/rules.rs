@@ -19,7 +19,7 @@ use plain::as_bytes;
 use serde::Deserialize;
 
 use crate::bindings::policy::{bitflags, keys, values};
-use crate::bpf::{BpfcontainMaps, BpfcontainSkel as Skel};
+use crate::bpf::{BpfcontainMapsMut, BpfcontainSkel as Skel};
 use crate::policy::helpers::*;
 use crate::policy::Policy;
 use crate::utils::path_to_dev_ino;
@@ -38,13 +38,13 @@ pub trait LoadRule {
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>>;
 
     /// Get a mutable reference to the eBPF map corresponding with this rule.
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map;
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map;
 
     /// Lookup existing value and return it as POD if it exists.
     fn lookup_existing_value<'a: 'a>(
         &self,
         key: &[u8],
-        maps: &'a mut BpfcontainMaps,
+        maps: &'a mut BpfcontainMapsMut,
     ) -> Result<Option<Vec<u8>>> {
         let map = self.map(maps);
         Ok(map.lookup(key, MapFlags::ANY)?)
@@ -70,7 +70,7 @@ pub trait LoadRule {
         // This is probably code smell, but there isn't much we can do about this for now,
         // until we can figure out a way to support the actual Key, Value types over an
         // enum_dispatch interface.
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
         if let Some(existing) = self.lookup_existing_value(key, &mut maps)? {
             for (old, new) in existing.iter().zip(value.iter_mut()) {
                 *new |= *old;
@@ -89,7 +89,7 @@ pub trait LoadRule {
     fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
         let key = &self.key(policy).context("Failed to create map key")?;
 
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
         let map = self.map(&mut maps);
 
         // Remove the value corresponding with the key.
@@ -144,7 +144,7 @@ pub struct FilesystemRule {
 }
 
 impl LoadRule for FilesystemRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.fs_policy()
     }
 
@@ -186,7 +186,7 @@ pub struct FileRule {
 }
 
 impl LoadRule for FileRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.file_policy()
     }
 
@@ -229,7 +229,7 @@ pub struct NumberedDeviceRule {
 }
 
 impl LoadRule for NumberedDeviceRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.dev_policy()
     }
 
@@ -300,7 +300,7 @@ pub struct DeviceRule(Device);
 impl DeviceRule {}
 
 impl LoadRule for DeviceRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.dev_policy()
     }
 
@@ -324,7 +324,7 @@ impl LoadRule for DeviceRule {
     /// This is a reimplementation of LoadRule::load(), the only difference being that we
     /// want to unload _multiple_ key, value pairs from the kernel.
     fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
         let map = self.map(&mut maps);
 
         for (major, minor) in self.0.device_numbers() {
@@ -352,7 +352,7 @@ impl LoadRule for DeviceRule {
         skel: &'a mut Skel,
         decision: PolicyDecision,
     ) -> Result<()> {
-        let mut maps = skel.maps();
+        let mut maps = skel.maps_mut();
 
         let value = &mut self.value(&decision)?;
 
@@ -425,7 +425,7 @@ impl From<Capability> for bitflags::Capability {
 pub struct CapabilityRule(SingleOrVec<Capability>);
 
 impl LoadRule for CapabilityRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.cap_policy()
     }
 
@@ -467,7 +467,7 @@ impl LoadRule for CapabilityRule {
 pub struct IpcRule(String);
 
 impl LoadRule for IpcRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.ipc_policy()
     }
 
@@ -522,7 +522,7 @@ impl From<NetAccess> for bitflags::NetOperation {
 pub struct NetRule(SingleOrVec<NetAccess>);
 
 impl LoadRule for NetRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMaps) -> &'a mut Map {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
         maps.net_policy()
     }
 
