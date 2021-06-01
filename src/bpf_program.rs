@@ -21,7 +21,7 @@ use crate::config::Settings;
 use crate::ns;
 use crate::policy::Policy;
 use crate::uprobe_ext::FindSymbolUprobeExt;
-use crate::uprobes::do_containerize;
+use crate::uprobes;
 use crate::utils::bump_memlock_rlimit;
 
 pub struct BpfcontainContext<'a> {
@@ -153,7 +153,7 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
     skel.links.do_containerize = skel
         .progs_mut()
         .do_containerize()
-        .attach_uprobe_addr(false, -1, do_containerize as *const () as usize)?
+        .attach_uprobe_addr(false, -1, uprobes::do_containerize as *const () as usize)?
         .into();
 
     Ok(())
