@@ -36,6 +36,11 @@ log4rs = "1.0.0"
 procfs = "0.9.1"
 fs2 = "0.4.3"
 plain = "0.2.3"
+jsonrpc-pubsub = "17.0.0"
+jsonrpc-ws-server = "17.0.0"
+jsonrpc-core = "17.0.0"
+jsonrpc-derive = "17.0.0"
+jsonrpc-ipc-server = "17.0.1"
 
 [build-dependencies]
 bindgen = "0.56.0"

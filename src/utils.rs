@@ -58,8 +58,9 @@ pub fn glob_to_dev_ino(pattern: &str) -> Result<Vec<(u64, u64)>> {
 
 /// Get path relative to the current project
 pub fn get_project_path<P: AsRef<Path>>(path: P) -> PathBuf {
-    let project_path = Path::new(file!()).parent().expect("Failed to get parent");
-    project_path
+    Path::new(file!())
+        .parent()
+        .expect("Failed to get parent")
         .join("..")
         .join(path)
         .canonicalize()

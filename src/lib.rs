@@ -15,6 +15,7 @@ pub mod policy;
 pub mod subcommands;
 pub mod utils;
 
+mod api;
 mod bindings;
 mod ns;
 mod uprobe_ext;

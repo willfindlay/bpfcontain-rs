@@ -11,6 +11,7 @@ use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::thread;
 
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
@@ -19,6 +20,7 @@ use fs2::FileExt as _;
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 
+use crate::api::{spawn_api_server, ApiResponse};
 use crate::bpf_program::BpfcontainContext;
 use crate::config::Settings;
 
@@ -51,16 +53,35 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     Ok(())
 }
 
+/// The main BPFContain daemon work loop
+fn work_loop(config: &Settings) -> Result<()> {
+    let mut context = BpfcontainContext::new(config)?;
+    context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
+
+    let (server, active_subscriptions) = spawn_api_server();
+    thread::spawn(move || {
+        server.wait();
+    });
+
+    thread::spawn(move || loop {
+        for active in active_subscriptions.read().unwrap().values() {
+            if let Err(e) = active.notify(Ok(ApiResponse::String("Test!".into()))) {
+                log::error!("Failed to notify subscriber: {}", e);
+            }
+        }
+        thread::sleep(std::time::Duration::from_secs(30));
+    });
+
+    context.work_loop();
+
+    unreachable!()
+}
+
 /// Run in the foreground.
 fn run_in_foreground(config: &Settings) -> Result<()> {
     log::info!("Running in the foreground...");
 
-    // Load BPF and policy, then start work loop
-    let mut context = BpfcontainContext::new(config)?;
-    context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
-    context.work_loop();
-
-    Ok(())
+    work_loop(config)
 }
 
 /// Starts the daemon.
@@ -97,12 +118,7 @@ fn start_daemon(config: &Settings) -> Result<()> {
     log::info!("Starting daemon...");
     daemonize.start().context("Failed to start the daemon")?;
 
-    // Load BPF and policy, then start work loop
-    let mut context = BpfcontainContext::new(config)?;
-    context.load_policy_from_dir(PathBuf::from(&config.policy.dir))?;
-    context.work_loop();
-
-    Ok(())
+    work_loop(config)
 }
 
 /// Stops the daemon by parsing the daemon's [`PIDFILE`] and sending a `SIGTERM`
