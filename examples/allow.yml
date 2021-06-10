@@ -1,0 +1,7 @@
+name: allow
+
+# Spawn untainted so we allow everything
+defaultTaint: false
+
+rights:
+  - capability: [setUid, setGid]
