@@ -8,11 +8,11 @@ defaultTaint: false
 # A set of rights to grant, OPTIONAL
 rights:
   - device: terminal
-  - fs: {pathname: /, access: rxm}
+  - fs: {type: ext4, access: rxm}
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
-  - fs: {path: /, access: wa}
+  - fs: {type: ext4, access: wa}
 
 taints:
-  - fs: {path: /tmp, access: wa}
+  - fs: {type: tempfs, access: wa}

@@ -8,6 +8,8 @@
 //! Definitions for policy rules and their translations into eBPF maps. Uses the
 //! `enum_dispatch` crate.
 
+mod filesystem;
+
 use std::convert::{From, Into, TryFrom, TryInto};
 use std::path::PathBuf;
 
@@ -23,6 +25,8 @@ use crate::bpf::{BpfcontainMapsMut, BpfcontainSkel as Skel};
 use crate::policy::helpers::*;
 use crate::policy::Policy;
 use crate::utils::path_to_dev_ino;
+
+pub use self::filesystem::*;
 
 // ============================================================================
 // Rule Type and LoadRule Interface
@@ -128,53 +132,6 @@ pub enum Rule {
 // ============================================================================
 // File/Filesystem/Device Rules
 // ============================================================================
-
-/// Represents a set of filesystem access flags.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-struct FileAccess(String);
-
-/// Represents a filesystem rule.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct FilesystemRule {
-    #[serde(alias = "path")]
-    pathname: String,
-    access: FileAccess,
-}
-
-impl LoadRule for FilesystemRule {
-    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
-        maps.fs_policy()
-    }
-
-    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
-        // Look up device ID of the filesystem
-        let (st_dev, _) = path_to_dev_ino(&PathBuf::from(&self.pathname))
-            .context(format!("Failed to get information for {}", &self.pathname))?;
-
-        // Construct the key
-        let key = keys::FsPolicyKey {
-            policy_id: policy.policy_id(),
-            device_id: st_dev as u32,
-        };
-
-        Ok(unsafe { as_bytes(&key).into() })
-    }
-
-    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
-        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
-
-        let mut value = values::FilePolicyVal::default();
-        match decision {
-            PolicyDecision::Allow => value.allow = access.bits(),
-            PolicyDecision::Taint => value.taint = access.bits(),
-            PolicyDecision::Deny => value.deny = access.bits(),
-        }
-
-        Ok(unsafe { as_bytes(&value).into() })
-    }
-}
 
 /// Represents a file rule.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
@@ -577,102 +534,5 @@ impl From<PolicyDecision> for bitflags::PolicyDecision {
             PolicyDecision::Allow => Self::ALLOW,
             PolicyDecision::Taint => Self::TAINT,
         }
-    }
-}
-
-// ============================================================================
-// Tests
-// ============================================================================
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// A smoke test for deserializing filesystem rules.
-    #[test]
-    fn test_fs_deserialize_smoke() {
-        let s = "filesystem: {pathname: /tmp, access: readOnly}";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Filesystem(_)));
-    }
-
-    /// A smoke test for deserializing file rules.
-    #[test]
-    fn test_file_deserialize_smoke() {
-        let s = "file: {pathname: /foo/bar, access: readWrite}";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::File(_)))
-    }
-
-    /// A smoke test for deserializing numbered device rules.
-    #[test]
-    fn test_numbered_dev_deserialize_smoke() {
-        let s = "numberedDevice: {major: 136, minor: 2, access: readOnly}";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::NumberedDevice(_)))
-    }
-
-    /// A smoke test for deserializing normal device rules.
-    #[test]
-    fn test_dev_deserialize_smoke() {
-        let s = "device: terminal";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Device(_)));
-
-        let s = "device: null";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Device(_)));
-
-        let s = "device: random";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Device(_)))
-    }
-
-    ///// A smoke test for deserializing terminal rules.
-    //#[test]
-    //fn test_terminal_deserialize_smoke() {
-    //    let s = "terminal:";
-    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-    //    assert!(matches!(rule, Rule::Terminal(_)))
-    //}
-
-    ///// A smoke test for deserializing devrandom rules.
-    //#[test]
-    //fn test_devrandom_deserialize_smoke() {
-    //    let s = "devRandom:";
-    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-    //    assert!(matches!(rule, Rule::DevRandom(_)))
-    //}
-
-    ///// A smoke test for deserializing devfake rules.
-    //#[test]
-    //fn test_devfake_deserialize_smoke() {
-    //    let s = "devFake:";
-    //    let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-    //    assert!(matches!(rule, Rule::DevFake(_)))
-    //}
-
-    /// A smoke test for deserializing capability rules.
-    #[test]
-    fn test_capability_deserialize_smoke() {
-        let s = "capability: dacOverride";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Capability(_)))
-    }
-
-    /// A smoke test for deserializing ipc rules.
-    #[test]
-    fn test_ipc_deserialize_smoke() {
-        let s = "ipc: foobar";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Ipc(_)))
-    }
-
-    /// A smoke test for deserializing net rules.
-    #[test]
-    fn test_net_deserialize_smoke() {
-        let s = "net: [client, send]";
-        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
-        assert!(matches!(rule, Rule::Net(_)))
     }
 }

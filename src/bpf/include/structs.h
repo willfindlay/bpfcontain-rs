@@ -141,11 +141,16 @@ typedef enum {
 /**
  * fs_policy_key_t - Key into the filesystem policy map
  * @policy_id: The policy id of this policy
- * @device_id: The device id of the filesystem
+ * @magic: The filesystem magic number
+ *
+ * TODO: We need a member here to discriminate devtempfs from tempfs... Probably
+ * just a boolean? Then need to figure out how we can distinguish devtempfs from
+ * tempfs in the kernel... Perhaps it could be as simple as comparing superblock
+ * device names (i.e. check the first three characters for "dev")
  */
 typedef struct {
     u64 policy_id;
-    u32 device_id;
+    u64 magic;
 } __PACKED fs_policy_key_t;
 
 typedef struct {

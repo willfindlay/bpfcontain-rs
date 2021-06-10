@@ -13,10 +13,10 @@ rights:
   - dev: random
   # Grants readonly access to devices with major number 12
   - numberedDevice: {major: 12, access: readOnly}
-  # Grants read-only access to /dev/**
-  - fs: {path: /dev, access: readOnly}
-  # Grants read-only access to /**
-  - fs: {path: /, access: readOnly}
+  # Grants read-only access to devfs
+  - fs: {type: devtempfs, access: readOnly}
+  # Grants read and write access to overlayfs
+  - fs: {type: overlayfs, access: readWrite}
   # Grants access to CAP_DAC_OVERRIDE and CAP_DAC_READ_SEARCH
   - capability: [dacOverride, dacReadSearch]
   # Grants ipc access with the policy named bar (this must be mutually granted by bar)
@@ -26,8 +26,8 @@ rights:
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
 restrictions:
-  # Explicitly denies write/append access to /**
-  - fs: {path: /, access: wa}
+  # Explicitly denies write/append access to ext4 filesystems
+  - fs: {type: ext4, access: wa}
   # Explicitly deny server network operations
   - net: server
 

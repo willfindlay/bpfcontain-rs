@@ -762,9 +762,9 @@ static inline u32 new_encode_dev(dev_t dev)
 #define AFS_SUPER_MAGIC 0x5346414F
 #define AUTOFS_SUPER_MAGIC 0x0187
 #define CODA_SUPER_MAGIC 0x73757245
-#define CRAMFS_MAGIC 0x28cd3d45 /* some random number */
-/* magic number with the wrong endianess */
-#define CRAMFS_MAGIC_WEND 0x453dcd28
+#define CRAMFS_MAGIC 0x28cd3d45      /* some random number */
+#define CRAMFS_MAGIC_WEND 0x453dcd28 /* magic number with the wrong endianess  \
+                                      */
 #define DEBUGFS_MAGIC 0x64626720
 #define SECURITYFS_MAGIC 0x73636673
 #define SELINUX_MAGIC 0xf97cff8c
@@ -808,8 +808,8 @@ static inline u32 new_encode_dev(dev_t dev)
 #define AFS_FS_MAGIC 0x6B414653
 
 #define REISERFS_SUPER_MAGIC 0x52654973 /* used by gcc */
-/* used by file system utilities that
-   look at the superblock, etc.  */
+                                        /* used by file system utilities that
+                                           look at the superblock, etc.  */
 #define REISERFS_SUPER_MAGIC_STRING "ReIsErFs"
 #define REISER2FS_SUPER_MAGIC_STRING "ReIsEr2Fs"
 #define REISER2FS_JR_SUPER_MAGIC_STRING "ReIsEr3Fs"

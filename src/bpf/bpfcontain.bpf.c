@@ -516,6 +516,17 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
 //    return lower_inode;
 //}
 
+/**
+ * inode_magic() - Get the magic number of an inode's filesystem
+ * @inode: Pointer to an inode
+ *
+ * return: The inode's magic number
+ * */
+static __always_inline u64 inode_magic(struct inode *inode)
+{
+    return inode->i_sb->s_magic;
+}
+
 /* Filter an inode by the filesystem magic number of its superblock.
  *
  * @inode: Pointer to the inode.
@@ -727,7 +738,7 @@ static __always_inline int do_fs_permission(container_t *container,
     fs_policy_key_t key = {};
 
     key.policy_id = container->policy_id;
-    key.device_id = new_encode_dev(inode->i_sb->s_dev);
+    key.magic = inode_magic(inode);
 
     file_policy_val_t *val = bpf_map_lookup_elem(&fs_policy, &key);
     // Entire access must match to allow
@@ -801,9 +812,7 @@ static __always_inline int do_dev_permission(container_t *container,
         return BPFCON_NO_DECISION;
     }
 
-    /*
-     * Try with minor = -1 first (wildcard)
-     */
+    // Try with minor = -1 first (wildcard)
     key.minor = MINOR_WILDCARD;
 
     file_policy_val_t *val = bpf_map_lookup_elem(&dev_policy, &key);
@@ -817,9 +826,7 @@ static __always_inline int do_dev_permission(container_t *container,
     if (val && (val->deny & access))
         decision |= BPFCON_DENY;
 
-    /*
-     * Try with minor = i_rdev's minor second
-     */
+    // Try with minor = i_rdev's minor second
     key.minor = MINOR(inode->i_rdev);
 
     val = bpf_map_lookup_elem(&dev_policy, &key);
@@ -856,7 +863,7 @@ static __always_inline int do_procfs_permission(container_t *container,
         return BPFCON_NO_DECISION;
 
     // Not in procfs
-    if (!filter_inode_by_magic(inode, PROC_SUPER_MAGIC))
+    if (inode_magic(inode) != PROC_SUPER_MAGIC)
         return BPFCON_NO_DECISION;
 
     // Get the pid from procfs
@@ -890,7 +897,7 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
         return BPFCON_NO_DECISION;
 
     // Not in an overlayfs
-    if (!filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC))
+    if (inode_magic(inode) != OVERLAYFS_SUPER_MAGIC)
         return BPFCON_NO_DECISION;
 
     u32 overlayfs_user_ns_id = BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum);
@@ -966,7 +973,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
 
     // TODO we want to use this to get the underlying inode in overlay
     // filesystems
-    if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
+    if (inode_magic(inode) == OVERLAYFS_SUPER_MAGIC) {
         // TODO
     }
 
