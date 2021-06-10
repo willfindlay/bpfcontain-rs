@@ -13,43 +13,40 @@
 #include "structs.h"
 
 /* Ring buffer for passing logging events to userspace */
-BPF_RINGBUF(__audit_buf, 16, LIBBPF_PIN_BY_NAME);
+BPF_RINGBUF(__audit_buf, 16, 0);
 
 /* Active (containerized) processes */
-BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, LIBBPF_PIN_BY_NAME,
-         0);
-BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0, 0);
+BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0, 0);
 
 /* Files and directories which have been created by a containerized process */
-BPF_INODE_STORAGE(task_inodes, container_id_t, LIBBPF_PIN_BY_NAME, 0);
+BPF_INODE_STORAGE(task_inodes, container_id_t, 0, 0);
 
 /* Common policy */
-BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY, 0, 0);
 
 /* Filesystem policy */
-BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0,
+         0);
 
 /* File policy */
 BPF_HASH(file_policy, file_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+         0, 0);
 
 /* Device policy */
-BPF_HASH(dev_policy, dev_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(dev_policy, dev_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0,
+         0);
 
 /* Capability policy */
-BPF_HASH(cap_policy, cap_policy_key_t, cap_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(cap_policy, cap_policy_key_t, cap_policy_val_t, BPFCON_MAX_POLICY, 0,
+         0);
 
 /* Network policy */
-BPF_HASH(net_policy, net_policy_key_t, net_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(net_policy, net_policy_key_t, net_policy_val_t, BPFCON_MAX_POLICY, 0,
+         0);
 
 /* IPC policy */
-BPF_HASH(ipc_policy, ipc_policy_key_t, ipc_policy_val_t, BPFCON_MAX_POLICY,
-         LIBBPF_PIN_BY_NAME, 0);
+BPF_HASH(ipc_policy, ipc_policy_key_t, ipc_policy_val_t, BPFCON_MAX_POLICY, 0,
+         0);
 
 #endif /* ifndef MAP_DEFS_H */

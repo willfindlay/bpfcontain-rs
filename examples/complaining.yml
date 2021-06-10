@@ -1,0 +1,7 @@
+name: complaining
+
+# Spawn tainted so we can complain about everything
+defaultTaint: true
+
+# Spawn in complaining mode
+complain: true

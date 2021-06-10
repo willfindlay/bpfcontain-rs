@@ -404,6 +404,8 @@ pub enum Capability {
     NetBroadcast,
     DacOverride,
     DacReadSearch,
+    SetUid,
+    SetGid,
     // TODO: Others here
 }
 
@@ -415,6 +417,8 @@ impl From<Capability> for bitflags::Capability {
             Capability::NetBroadcast => Self::NET_BROADCAST,
             Capability::DacOverride => Self::DAC_OVERRIDE,
             Capability::DacReadSearch => Self::DAC_READ_SEARCH,
+            Capability::SetUid => Self::SETUID,
+            Capability::SetGid => Self::SETGID,
         }
     }
 }
