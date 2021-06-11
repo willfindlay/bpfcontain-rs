@@ -216,10 +216,9 @@ static __always_inline int do_update_policy(void *map, const void *key,
  * return: Converted access mask.
  */
 static __always_inline int do_policy_decision(container_t *container,
-                                              policy_decision_t decision,
-                                              u8 ignore_taint)
+                                              policy_decision_t decision)
 {
-    bool tainted = container->tainted || ignore_taint;
+    bool tainted = container->tainted;
 
     // Taint container
     if (decision & BPFCON_TAINT) {
@@ -991,7 +990,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     if (super_allow)
         decision &= (~BPFCON_DENY);
 
-    ret = do_policy_decision(container, decision, 0);
+    ret = do_policy_decision(container, decision);
 
     // Submit an audit event
     audit_data_t *event = alloc_audit_event(
@@ -1422,7 +1421,7 @@ static int bpfcontain_net_perm(container_t *container, u8 category, u32 access,
     else if (category == BPFCON_NET_IPC)
         decision = bpfcontain_net_ipc_perm(container, access, sock);
 
-    return do_policy_decision(container, decision, 0);
+    return do_policy_decision(container, decision);
 }
 
 SEC("lsm/socket_create")
@@ -1771,9 +1770,12 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
     // Any part of access must match to deny
     if (val && (val->deny & access))
         decision |= BPFCON_DENY;
+    // Capability should be implicitly denied
+    if (access & CAP_IMPLICIT_DENY_MASK)
+        decision |= BPFCON_DENY;
 
 out:
-    ret = do_policy_decision(container, decision, 1);
+    ret = do_policy_decision(container, decision);
 
     // Submit an audit event
     audit_data_t *event =
