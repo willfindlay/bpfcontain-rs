@@ -221,6 +221,11 @@ typedef enum {
     BPFCON_CAP_CHECKPOINT_RESTORE = 0x0000010000000000,
 } capability_t;
 
+#define CAP_IMPLICIT_DENY_MASK                                                 \
+    (BPFCON_CAP_SYS_MODULE | BPFCON_CAP_SYS_BOOT | BPFCON_CAP_SYS_PTRACE |     \
+     BPFCON_CAP_MAC_ADMIN | BPFCON_CAP_MAC_OVERRIDE | BPFCON_CAP_BPF |         \
+     BPFCON_CAP_PERFMON | BPFCON_CAP_AUDIT_READ | BPFCON_CAP_AUDIT_CONTROL)
+
 typedef struct {
     u64 policy_id;
 } __PACKED cap_policy_key_t;
