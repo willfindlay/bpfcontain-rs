@@ -859,19 +859,17 @@ static __always_inline int do_procfs_permission(container_t *container,
     if (!filter_inode_by_magic(inode, PROC_SUPER_MAGIC))
         return BPFCON_NO_DECISION;
 
+    // Get the pid from procfs
     u32 pid = get_proc_pid(inode);
     if (!pid)
         return BPFCON_NO_DECISION;
 
-    // Does it belong to our policy?
+    // Does it belong to our container?
     container_t *inode_container = get_container_by_host_pid(pid);
     if (inode_container &&
-        inode_container->container_id == container->container_id) {
-        // Apply PROC_INODE_PERM_MASK for implicit privileges
-        if ((access & PROC_INODE_PERM_MASK) == access)
-            decision |= BPFCON_ALLOW;
-    } else {
-        decision |= BPFCON_DENY;
+        inode_container->container_id == container->container_id &&
+        (access & PROC_INODE_PERM_MASK) == access) {
+        decision |= BPFCON_ALLOW;
     }
 
     return decision;
