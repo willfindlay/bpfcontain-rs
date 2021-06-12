@@ -16,6 +16,7 @@ path = "tests/lib.rs"
 name = "bpfcontain"
 
 [dependencies]
+bpfcontain_uprobes = { path = "./bpfcontain_uprobes" }
 anyhow = "1.0.36"
 libbpf-rs = "0.10.0"
 clap = "2.33.3"

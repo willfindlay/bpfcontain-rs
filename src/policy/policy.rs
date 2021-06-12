@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::str::FromStr;
 
-use anyhow::{Context, Error, Result};
+use anyhow::{bail, Context, Error, Result};
 use glob::glob;
 use libbpf_rs::MapFlags;
 use plain::as_bytes;
@@ -35,6 +35,7 @@ pub struct Policy {
     pub cmd: Option<String>,
     /// Whether the container should spawn in a tainted state. Otherwise, taint rules will
     /// specify when the container should become tainted.
+    #[serde(default = "default_true")]
     default_taint: bool,
     /// Whether the policy should complain (log) instead of deny.
     #[serde(default = "default_false")]
@@ -52,6 +53,10 @@ pub struct Policy {
 
 fn default_false() -> bool {
     false
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl Policy {
@@ -167,6 +172,23 @@ impl Policy {
             .context("Failed to delete from policy map")?;
 
         Ok(())
+    }
+
+    /// Place the current process into a container that obeys this policy.
+    pub fn containerize(&self) -> Result<()> {
+        use bpfcontain_uprobes::do_containerize;
+
+        let mut ret: i32 = -libc::EAGAIN;
+
+        do_containerize(&mut ret as *mut i32, self.policy_id());
+
+        match ret {
+            0 => Ok(()),
+            n if n == -libc::EAGAIN => bail!("Failed to call into uprobe"),
+            n if n == -libc::ENOENT => bail!("No such container with ID {}", self.policy_id()),
+            n if n == -libc::EINVAL => bail!("Process is already containerized or no room in map"),
+            n => bail!("Unknown error {}", n),
+        }
     }
 }
 
