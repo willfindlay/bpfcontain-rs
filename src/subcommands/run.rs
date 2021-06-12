@@ -16,7 +16,6 @@ use clap::ArgMatches;
 
 use crate::config::Settings;
 use crate::policy::Policy;
-use crate::uprobes::containerize;
 
 /// Main entrypoint into launching a container.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -49,9 +48,6 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 /// Run a container according to the corresponding `policy`, overriding cmd if `cmd` is
 /// provided.
 pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()> {
-    // Containerize
-    containerize(&policy).context("Failed to containerize")?;
-
     // Use provided command or command specified in policy
     let cmd = {
         if let Some(cmd) = cmd {
@@ -71,9 +67,19 @@ pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()>
 
     // Parse out args
     let args: Vec<_> = cmd.iter().skip(1).collect();
-    let err = Command::new(cmd.get(0).context("Failed to get command")?)
-        .args(args)
-        .exec();
+
+    // Spawn process
+    let policy = policy.to_owned();
+    let err = unsafe {
+        Command::new(cmd.get(0).context("Failed to get command")?)
+            .args(args)
+            .pre_exec(move || {
+                // Place this process into a BPFContain container
+                policy.containerize().expect("Failed to containerize");
+                Ok(())
+            })
+    }
+    .exec();
 
     bail!("Failed to run {}: {:?}", cmd.get(0).unwrap(), err);
 }

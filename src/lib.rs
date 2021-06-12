@@ -18,6 +18,5 @@ pub mod utils;
 mod bindings;
 mod ns;
 mod uprobe_ext;
-mod uprobes;
 
-pub use uprobes::containerize;
+pub use policy::Policy;
