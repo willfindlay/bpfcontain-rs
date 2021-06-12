@@ -8,17 +8,17 @@
 //! Main entrypoint for BPFContain, uses the multiple subcommands pattern.
 
 use ::anyhow::{bail, Context as _, Result};
-use ::clap::{App, AppSettings, Arg, SubCommand};
+use ::clap::{crate_authors, crate_name, crate_version, App, AppSettings, Arg, SubCommand};
 
 use bpfcontain::config;
 use bpfcontain::subcommands::daemon;
 use bpfcontain::subcommands::run;
 
 fn main() -> Result<()> {
-    let app = App::new("BPFContain")
-        .version("0.0.1")
+    let app = App::new(crate_name!())
+        .version(crate_version!())
         .about("Container security with eBPF")
-        .author("William Findlay <william@williamfindlay.com>")
+        .author(crate_authors!())
         // If the user supplies no arguments, print help
         .setting(AppSettings::ArgRequiredElseHelp)
         // Make all commands print colored help if available
