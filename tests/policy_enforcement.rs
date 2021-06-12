@@ -11,7 +11,6 @@ use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use bpfcontain::containerize;
 use bpfcontain::policy::Policy;
 use lazy_static::lazy_static;
 
@@ -72,7 +71,8 @@ fn test_taints() {
     tx.send(policy.clone()).unwrap();
 
     let handler = thread::spawn(move || {
-        containerize(&rx.recv().unwrap()).unwrap();
+        let policy = &rx.recv().unwrap();
+        policy.containerize().unwrap();
         // fileA should be fine while untainted
         File::open("/tmp/bpfcontain/fileA").unwrap();
         // fileB should always be off limits
@@ -118,7 +118,8 @@ fn test_complain() {
     tx.send(policy.clone()).unwrap();
 
     let handler = thread::spawn(move || {
-        containerize(&rx.recv().unwrap()).unwrap();
+        let policy = &rx.recv().unwrap();
+        policy.containerize().unwrap();
 
         // Even though fileA should be denied explicitly and fileB should be denied
         // implicitly, both should be fine because we are in complaining mode
