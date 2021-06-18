@@ -5,6 +5,7 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
+use std::env;
 use std::fs::{remove_file, File};
 use std::io::{BufWriter, Write};
 use std::os::unix::fs::symlink;
@@ -32,6 +33,8 @@ fn main() {
 }
 
 fn generate_bindings() {
+    let out_path = PathBuf::from(format!("{}/bindings.rs", env::var("OUT_DIR").unwrap()));
+
     // Generate
     let bindings = bindgen::builder()
         .header("bindings.h")
@@ -56,7 +59,7 @@ fn generate_bindings() {
 
     // Save bindings
     bindings
-        .write_to_file("src/bindings/generated/generated.rs")
+        .write_to_file(out_path)
         .expect("Failed to save bindings");
 }
 
