@@ -26,7 +26,13 @@ fn main() {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 
-    // Generate bindings
+    generate_bindings();
+    generate_vmlinux();
+    generate_skeleton();
+}
+
+fn generate_bindings() {
+    // Generate
     let bindings = bindgen::builder()
         .header("bindings.h")
         .derive_default(true)
@@ -52,7 +58,19 @@ fn main() {
     bindings
         .write_to_file("src/bindings/generated/generated.rs")
         .expect("Failed to save bindings");
+}
 
+fn generate_skeleton() {
+    match SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
+        .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
+        .generate("src/bpf/mod.rs")
+    {
+        Ok(_) => {}
+        Err(e) => panic!("Failed to generate skeleton: {}", e),
+    }
+}
+
+fn generate_vmlinux() {
     // Determine pathname for vmlinux header
     let kernel_release = uname().expect("Failed to fetch system information").release;
     let vmlinux_path = PathBuf::from(format!("src/bpf/include/vmlinux_{}.h", kernel_release));
@@ -91,13 +109,4 @@ fn main() {
     // Create a new symlink
     symlink(vmlinux_path.file_name().unwrap(), vmlinux_link_path)
         .expect("Failed to symlink vmlinux.h");
-
-    // Generate skeleton
-    match SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
-        .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
-        .generate("src/bpf/mod.rs")
-    {
-        Ok(_) => {}
-        Err(e) => panic!("Failed to generate skeleton: {}", e),
-    }
 }
