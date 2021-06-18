@@ -178,39 +178,6 @@ check_ipc_access(container_t *container, container_t *other_container)
     return decision;
 }
 
-/* Update a policy map from the eBPF side. This will update the map using the
- * bitwise OR of the value and any existing value with the same key.
- *
- * TODO: Call this function when we start updating policy via uprobes.
- *
- * @map: Pointer to the eBPF policy map.
- * @key: Pointer to the key.
- * @value: Pointer to the desired value.
- *
- * return: Converted access mask.
- */
-static __always_inline int do_update_policy(void *map, const void *key,
-                                            const u32 *value)
-{
-    u32 new_value = 0;
-
-    if (!map || !value || !key)
-        return -EINVAL;
-
-    u32 *old_value = bpf_map_lookup_elem(map, key);
-
-    if (old_value) {
-        new_value = *value | *old_value;
-    } else {
-        new_value = *value;
-    }
-
-    if (!bpf_map_update_elem(map, key, &new_value, 0))
-        return -ENOMEM;
-
-    return 0;
-}
-
 /* Convert a policy decision into an appropriate action.
  *
  * return: Converted access mask.
