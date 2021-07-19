@@ -21,6 +21,9 @@ BPF_HASH(containers, container_id_t, container_t, BPFCON_MAX_CONTAINERS, 0, 0);
 
 /* Files and directories which have been created by a containerized process */
 BPF_INODE_STORAGE(task_inodes, container_id_t, 0, 0);
+// TODO IPC storage when this comes out
+/* Maps sysv ipc ids to container ids */
+BPF_HASH(ipc_handles, int, u64, BPFCON_MAX_PROCESSES, 0, 0);
 
 /* Common policy */
 BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY, 0, 0);
