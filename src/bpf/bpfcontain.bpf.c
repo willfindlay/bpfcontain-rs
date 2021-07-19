@@ -136,6 +136,10 @@ check_ipc_access(container_t *container, container_t *other_container)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
+    // Processes are in the same container, so allow
+    if (container->policy_id == other_container->policy_id)
+        return BPFCON_ALLOW;
+
     ipc_policy_key_t key = {};
 
     key.policy_id = container->policy_id;
@@ -1553,9 +1557,160 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
     return bpfcontain_net_perm(container, category, BPFCON_NET_SHUTDOWN, sock);
 }
 
-/* ========================================================================= *
- * Capability Policy                                                         *
- * ========================================================================= */
+/* =========================================================================
+ * SysV IPC
+ * =========================================================================
+ */
+
+static int bpfcontain_ipc_perm(container_t *container, container_t *other)
+{
+    policy_decision_t decision = BPFCON_NO_DECISION;
+
+    if (!container && !other) {
+        decision = BPFCON_ALLOW;
+    } else if (!other) {
+        decision = BPFCON_DENY;
+    } else {
+        decision = check_ipc_access(container, other);
+    }
+
+    return do_policy_decision(container, decision);
+}
+
+SEC("lsm/ipc_permission")
+int BPF_PROG(ipc_permission, struct kern_ipc_perm *ipcp, short flag)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    container_t *other = NULL;
+
+    // Look up other container id
+    int ipc_id = ipcp->id;
+    u64 *ipc_obj_container_id = bpf_map_lookup_elem(&ipc_handles, &ipc_id);
+
+    // Look up other container
+    if (ipc_obj_container_id) {
+        other = bpf_map_lookup_elem(&containers, ipc_obj_container_id);
+    }
+
+    return bpfcontain_ipc_perm(container, other);
+}
+
+SEC("lsm/msg_queue_alloc_security")
+int BPF_PROG(msg_queue_alloc_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_update_elem(&ipc_handles, &id, &container->container_id,
+                        BPF_NOEXIST);
+
+    return 0;
+}
+
+SEC("lsm/msg_queue_free_security")
+int BPF_PROG(msg_queue_free_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_delete_elem(&ipc_handles, &id);
+
+    return 0;
+}
+
+SEC("lsm/shm_alloc_security")
+int BPF_PROG(shm_alloc_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_update_elem(&ipc_handles, &id, &container->container_id,
+                        BPF_NOEXIST);
+
+    return 0;
+}
+
+SEC("lsm/shm_free_security")
+int BPF_PROG(shm_free_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_delete_elem(&ipc_handles, &id);
+
+    return 0;
+}
+
+SEC("lsm/sem_alloc_security")
+int BPF_PROG(sem_alloc_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_update_elem(&ipc_handles, &id, &container->container_id,
+                        BPF_NOEXIST);
+
+    return 0;
+}
+
+SEC("lsm/sem_free_security")
+int BPF_PROG(sem_free_security, struct kern_ipc_perm *ipcp)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    int id = ipcp->id;
+    bpf_map_delete_elem(&ipc_handles, &id);
+
+    return 0;
+}
+
+/* =========================================================================
+ * Capability Policy
+ * =========================================================================
+ */
 
 /* Convert a POSIX capability into an "access vector".
  *
