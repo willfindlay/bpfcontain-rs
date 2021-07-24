@@ -441,6 +441,11 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
     return container_of(dentry, struct path, dentry);
 }
 
+static __always_inline bool inode_is_device(const struct inode *inode)
+{
+    return MAJOR(inode->i_rdev) ? true : false;
+}
+
 /* Get the overlayfs inode associated with an inode in an overlayfs.
  *
  * @inode: Pointer to the inode.
@@ -778,30 +783,36 @@ static __always_inline int do_dev_permission(container_t *container,
     key.minor = MINOR_WILDCARD;
 
     file_policy_val_t *val = bpf_map_lookup_elem(&dev_policy, &key);
+    if (!val)
+        goto use_minor;
+
     // Entire access must match to allow
-    if (val && (val->allow & access) == access)
+    if ((val->allow & access) == access)
         decision |= BPFCON_ALLOW;
     // Any part of access must match to taint
-    if (val && (val->taint & access))
+    if ((val->taint & access))
         decision |= BPFCON_TAINT;
     // Any part of access must match to deny
-    if (val && (val->deny & access))
+    if ((val->deny & access))
         decision |= BPFCON_DENY;
 
     /*
      * Try with minor = i_rdev's minor second
      */
+use_minor:
     key.minor = MINOR(inode->i_rdev);
-
     val = bpf_map_lookup_elem(&dev_policy, &key);
+    if (!val)
+        return BPFCON_DENY;
+
     // Entire access must match to allow
-    if (val && (val->allow & access) == access)
+    if ((val->allow & access) == access)
         decision |= BPFCON_ALLOW;
     // Any part of access must match to taint
-    if (val && (val->taint & access))
+    if ((val->taint & access))
         decision |= BPFCON_TAINT;
     // Any part of access must match to deny
-    if (val && (val->deny & access))
+    if ((val->deny & access))
         decision |= BPFCON_DENY;
 
     return decision;
@@ -867,6 +878,8 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
     u32 overlayfs_user_ns_id = BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum);
 
     // TODO: check if we are in root user namespace (should be NO_DECISION)
+    if (overlayfs_user_ns_id == PROC_USER_INIT_INO)
+        return BPFCON_NO_DECISION;
 
     if (overlayfs_user_ns_id == container->user_ns_id)
         return BPFCON_ALLOW;
@@ -937,15 +950,19 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
 
     // TODO we want to use this to get the underlying inode in overlay
     // filesystems
-    if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
-        // TODO
+    // if (filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC)) {
+    //     // TODO
+    // }
+
+    if (inode_is_device(inode)) {
+        decision = do_dev_permission(container, inode, access);
+        return do_policy_decision(container, decision);
     }
 
     // per-file allow should override per filesystem deny
     decision |= do_procfs_permission(container, inode, access);
     decision |= do_task_inode_permission(container, inode, access);
     decision |= do_file_permission(container, inode, access);
-    decision |= do_dev_permission(container, inode, access);
 
     // per-file allow should override per filesystem deny
     if ((decision & BPFCON_ALLOW) && !(decision & BPFCON_DENY))
