@@ -187,9 +187,10 @@ check_ipc_access(container_t *container, container_t *other_container)
  * return: Converted access mask.
  */
 static __always_inline int do_policy_decision(container_t *container,
-                                              policy_decision_t decision)
+                                              policy_decision_t decision,
+                                              bool ignore_taint)
 {
-    bool tainted = container->tainted;
+    bool tainted = container->tainted | ignore_taint;
 
     // Taint container
     if (decision & BPFCON_TAINT) {
@@ -441,31 +442,79 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
     return container_of(dentry, struct path, dentry);
 }
 
+/* Returns true if @inode is a device.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a device
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_device(const struct inode *inode)
 {
     return S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode);
 }
 
+/* Returns true if @inode is a socket.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a socket
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_sock(const struct inode *inode)
 {
     return S_ISSOCK(inode->i_mode);
 }
 
+/* Returns true if @inode is a directory.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a directory
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_dir(const struct inode *inode)
 {
     return S_ISDIR(inode->i_mode);
 }
 
+/* Returns true if @inode is a fifo.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a fifo
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_fifo(const struct inode *inode)
 {
     return S_ISFIFO(inode->i_mode);
 }
 
+/* Returns true if @inode is a symbolic link.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a symbolic link
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_symlink(const struct inode *inode)
 {
     return S_ISLNK(inode->i_mode);
 }
 
+/* Returns true if @inode is a regular file.
+ *
+ * @inode: Pointer to the inode struct.
+ *
+ * return:
+ *   True if inode is a regular file
+ *   Otherwise false
+ */
 static __always_inline bool inode_is_regular(const struct inode *inode)
 {
     return S_ISREG(inode->i_mode);
@@ -982,14 +1031,14 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     // device-specific permissions
     if (inode_is_device(inode)) {
         decision = do_dev_permission(container, inode, access);
-        return do_policy_decision(container, decision);
+        return do_policy_decision(container, decision, true);
     }
 
     // ipc and network permissions will catch this,
     // so we can allow reads, writes, and appends on sockets here
     if (inode_is_sock(inode) && (access & ~(BPFCON_MAY_READ | BPFCON_MAY_WRITE |
                                             BPFCON_MAY_APPEND)) == 0) {
-        return do_policy_decision(container, BPFCON_ALLOW);
+        return do_policy_decision(container, BPFCON_ALLOW, false);
     }
 
     // per-file allow should override per filesystem deny
@@ -1009,7 +1058,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     if (super_allow)
         decision &= (~BPFCON_DENY);
 
-    ret = do_policy_decision(container, decision);
+    ret = do_policy_decision(container, decision, false);
 
     // Submit an audit event
     audit_data_t *event = alloc_audit_event(
@@ -1441,7 +1490,7 @@ static int bpfcontain_net_perm(container_t *container, u8 category, u32 access,
     else if (category == BPFCON_NET_IPC)
         decision = bpfcontain_net_ipc_perm(container, access, sock);
 
-    return do_policy_decision(container, decision);
+    return do_policy_decision(container, decision, true);
 }
 
 SEC("lsm/socket_create")
@@ -1625,7 +1674,7 @@ static int bpfcontain_ipc_perm(container_t *container, container_t *other)
         decision = check_ipc_access(container, other);
     }
 
-    return do_policy_decision(container, decision);
+    return do_policy_decision(container, decision, true);
 }
 
 SEC("lsm/ipc_permission")
@@ -1946,7 +1995,7 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_DENY;
 
 out:
-    ret = do_policy_decision(container, decision);
+    ret = do_policy_decision(container, decision, true);
 
     // Submit an audit event
     audit_data_t *event =
