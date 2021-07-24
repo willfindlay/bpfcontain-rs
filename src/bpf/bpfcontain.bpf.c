@@ -443,7 +443,32 @@ static __always_inline struct path *get_dentry_path(const struct dentry *dentry)
 
 static __always_inline bool inode_is_device(const struct inode *inode)
 {
-    return MAJOR(inode->i_rdev) ? true : false;
+    return S_ISBLK(inode->i_mode) || S_ISCHR(inode->i_mode);
+}
+
+static __always_inline bool inode_is_sock(const struct inode *inode)
+{
+    return S_ISSOCK(inode->i_mode);
+}
+
+static __always_inline bool inode_is_dir(const struct inode *inode)
+{
+    return S_ISDIR(inode->i_mode);
+}
+
+static __always_inline bool inode_is_fifo(const struct inode *inode)
+{
+    return S_ISFIFO(inode->i_mode);
+}
+
+static __always_inline bool inode_is_symlink(const struct inode *inode)
+{
+    return S_ISLNK(inode->i_mode);
+}
+
+static __always_inline bool inode_is_regular(const struct inode *inode)
+{
+    return S_ISREG(inode->i_mode);
 }
 
 /* Get the overlayfs inode associated with an inode in an overlayfs.
@@ -954,9 +979,17 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     //     // TODO
     // }
 
+    // device-specific permissions
     if (inode_is_device(inode)) {
         decision = do_dev_permission(container, inode, access);
         return do_policy_decision(container, decision);
+    }
+
+    // ipc and network permissions will catch this,
+    // so we can allow reads, writes, and appends on sockets here
+    if (inode_is_sock(inode) && (access & ~(BPFCON_MAY_READ | BPFCON_MAY_WRITE |
+                                            BPFCON_MAY_APPEND)) == 0) {
+        return do_policy_decision(container, BPFCON_ALLOW);
     }
 
     // per-file allow should override per filesystem deny
