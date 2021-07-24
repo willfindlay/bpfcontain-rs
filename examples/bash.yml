@@ -6,13 +6,14 @@ cmd: /bin/bash
 defaultTaint: false
 
 # A set of rights to grant, OPTIONAL
-rights:
+allow:
   - device: terminal
+  - device: null
   - fs: {pathname: /, access: rxm}
 
 # A set of restrictions (rights to explicitly revoke), OPTIONAL
-restrictions:
+deny:
   - fs: {path: /, access: wa}
 
-taints:
+taint:
   - fs: {path: /tmp, access: wa}
