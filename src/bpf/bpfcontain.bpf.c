@@ -1380,7 +1380,8 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
             submit_audit_event(event);
         }
     } else {
-        // TODO: handle no other container
+        // Deny when there is no container peer, for now...
+        decision = BPFCON_DENY;
     }
 
     return decision;
