@@ -1808,6 +1808,38 @@ int BPF_PROG(sem_free_security, struct kern_ipc_perm *ipcp)
 }
 
 /* =========================================================================
+ * Signals
+ * =========================================================================
+ */
+
+SEC("lsm/task_kill")
+int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
+             int sig, const struct cred *cred)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+    policy_decision_t decision = BPFCON_NO_DECISION;
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    // Look up the other container
+    // If it's the same one, allow the access
+    container_t *other = get_container_by_host_pid(target->pid);
+    if (!other) {
+        decision |= BPFCON_DENY;
+    } else if (container->container_id == other->container_id) {
+        decision |= BPFCON_ALLOW;
+    } else {
+        // TODO: signal policy here
+    }
+
+    return do_policy_decision(container, decision, true);
+}
+
+/* =========================================================================
  * Capability Policy
  * =========================================================================
  */
