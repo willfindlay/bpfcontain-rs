@@ -122,6 +122,7 @@ typedef enum {
     BPFCON_MAY_DELETE = 0x20,
     BPFCON_MAY_EXEC_MMAP = 0x40,
     BPFCON_MAY_LINK = 0x80,
+    BPFCON_MAY_IOCTL = 0x100,
 } file_permission_t;
 
 #define BPFCON_ALL_FS_PERM_MASK                                                \

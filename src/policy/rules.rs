@@ -275,7 +275,7 @@ impl Device {
     /// Get the access vector that should be associated with this device.
     pub fn access(&self) -> bitflags::FileAccess {
         match self {
-            Device::Terminal => "rwa".try_into().unwrap(),
+            Device::Terminal => "rwai".try_into().unwrap(),
             Device::Null => "rwa".try_into().unwrap(),
             Device::Random => "r".try_into().unwrap(),
         }
