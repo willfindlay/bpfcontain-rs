@@ -106,6 +106,7 @@ pub mod bitflags {
             const MAY_CHMOD     = raw::file_permission_t::BPFCON_MAY_CHMOD;
             const MAY_EXEC_MMAP = raw::file_permission_t::BPFCON_MAY_EXEC_MMAP;
             const MAY_LINK      = raw::file_permission_t::BPFCON_MAY_LINK;
+            const MAY_IOCTL     = raw::file_permission_t::BPFCON_MAY_IOCTL;
         }
     }
 
@@ -142,6 +143,7 @@ pub mod bitflags {
                     "c" => access |= Self::MAY_CHMOD,
                     "l" => access |= Self::MAY_LINK,
                     "m" => access |= Self::MAY_EXEC_MMAP,
+                    "i" => access |= Self::MAY_IOCTL,
                     _ => bail!("Unknown access flag {}", c),
                 };
             }

@@ -1388,6 +1388,20 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
                            !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0);
 }
 
+SEC("lsm/file_ioctl")
+int BPF_PROG(file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
+{
+    // Look up the container using the current PID
+    u32 pid = bpf_get_current_pid_tgid();
+    container_t *container = get_container_by_host_pid(pid);
+
+    // Unconfined
+    if (!container)
+        return 0;
+
+    return bpfcontain_inode_perm(container, file->f_inode, BPFCON_MAY_IOCTL);
+}
+
 /* ========================================================================= *
  * Network Policy                                                            *
  * ========================================================================= */
