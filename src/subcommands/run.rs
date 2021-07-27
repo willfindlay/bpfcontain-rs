@@ -83,3 +83,9 @@ pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()>
 
     bail!("Failed to run {}: {:?}", cmd.get(0).unwrap(), err);
 }
+
+/// Assoicate a running Docker container with an ID of `container_id` with a `policy`.
+#[allow(unused_variables)]
+pub fn associate_docker_container_with_policy(policy: &Policy, container_id: &str) -> Result<()> {
+    todo!("Implement me")
+}
