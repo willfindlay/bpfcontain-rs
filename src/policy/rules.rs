@@ -121,7 +121,7 @@ pub enum Rule {
     #[serde(alias = "IPC")]
     Ipc(IpcRule),
     // Net policy
-    #[serde(alias = "net")]
+    #[serde(alias = "network")]
     Net(NetRule),
 }
 
