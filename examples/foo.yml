@@ -18,7 +18,7 @@ rights:
   # Grants read-only access to /**
   - fs: {path: /, access: readOnly}
   # Grants access to CAP_DAC_OVERRIDE and CAP_DAC_READ_SEARCH
-  - capability: [dacOverride, dacReadSearch]
+  - capability: [dacoverride, dacreadsearch]
   # Grants ipc access with the policy named bar (this must be mutually granted by bar)
   - ipc: bar
   # Grants client send/recv access
