@@ -20,20 +20,16 @@
 static audit_level_t decision_to_audit_level(policy_decision_t decision,
                                              bool default_deny)
 {
-    switch (decision) {
-    case BPFCON_ALLOW:
-        return AUDIT_ALLOW;
-    case BPFCON_TAINT:
-        return AUDIT_TAINT;
-    case BPFCON_DENY:
+    if (decision & BPFCON_DENY) {
         return AUDIT_DENY;
-    case BPFCON_NO_DECISION:
-        if (default_deny)
-            return AUDIT_DENY;
-        return AUDIT__NONE;
-    default:
-        return AUDIT__NONE;
+    } else if (decision & BPFCON_TAINT) {
+        return AUDIT_TAINT;
+    } else if (decision & BPFCON_ALLOW) {
+        return AUDIT_ALLOW;
+    } else if (default_deny) {
+        return AUDIT_DENY;
     }
+    return AUDIT__NONE;
 }
 
 /**

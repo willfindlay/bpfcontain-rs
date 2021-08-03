@@ -1010,6 +1010,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
 {
     bool super_allow = false;
     int ret = 0;
+    audit_data_t *event;
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     if (!inode)
@@ -1031,14 +1032,16 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     // device-specific permissions
     if (inode_is_device(inode)) {
         decision = do_dev_permission(container, inode, access);
-        return do_policy_decision(container, decision, true);
+        ret = do_policy_decision(container, decision, true);
+        goto out;
     }
 
     // ipc and network permissions will catch this,
     // so we can allow reads, writes, and appends on sockets here
     if (inode_is_sock(inode) && (access & ~(BPFCON_MAY_READ | BPFCON_MAY_WRITE |
                                             BPFCON_MAY_APPEND)) == 0) {
-        return do_policy_decision(container, BPFCON_ALLOW, false);
+        ret = do_policy_decision(container, BPFCON_ALLOW, false);
+        goto out;
     }
 
     // per-file allow should override per filesystem deny
@@ -1060,8 +1063,9 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
 
     ret = do_policy_decision(container, decision, false);
 
+out:
     // Submit an audit event
-    audit_data_t *event = alloc_audit_event(
+    event = alloc_audit_event(
         container->policy_id, AUDIT_TYPE_FILE,
         decision_to_audit_level(decision, container->tainted));
     if (event) {
@@ -1416,6 +1420,7 @@ static u8 family_to_category(int family)
         break;
     case AF_INET:
     case AF_INET6:
+    case AF_UNSPEC:
         return BPFCON_NET_WWW;
         break;
     default:
@@ -1461,6 +1466,11 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     u32 other_pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
+
+    // We want to allow creating and listening over Unix sockets
+    if ((access & (BPFCON_NET_CREATE | BPFCON_NET_LISTEN | BPFCON_NET_BIND)) ==
+        access)
+        return BPFCON_ALLOW;
 
     container_t *other_container = get_container_by_host_pid(other_pid);
     if (other_container) {

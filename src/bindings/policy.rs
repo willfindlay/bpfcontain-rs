@@ -99,7 +99,7 @@ pub mod bitflags {
         #[derive(Default)]
         pub struct FileAccess :raw::file_permission_t::Type {
             const MAY_READ      = raw::file_permission_t::BPFCON_MAY_READ;
-            const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE;
+            const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE | raw::file_permission_t::BPFCON_MAY_APPEND;
             const MAY_EXEC      = raw::file_permission_t::BPFCON_MAY_EXEC;
             const MAY_APPEND    = raw::file_permission_t::BPFCON_MAY_APPEND;
             const MAY_DELETE    = raw::file_permission_t::BPFCON_MAY_DELETE;
@@ -122,6 +122,7 @@ pub mod bitflags {
                 "readAppend" => return Ok(Self::MAY_READ | Self::MAY_APPEND),
                 "library" => return Ok(Self::MAY_READ | Self::MAY_EXEC_MMAP),
                 "exec" => return Ok(Self::MAY_READ | Self::MAY_EXEC),
+                "any" => return Ok(Self::all()),
                 _ => {}
             };
 
