@@ -1,0 +1,55 @@
+name: mysqld
+cmd: 'mysqld --user=root'
+defaultTaint: false
+
+allow:
+  # Access to log files
+  - file: {pathname: /var/log/mysqld, access: rw}
+  - file: {pathname: /var/log/mysqld/*log, access: ra}
+
+  # Access to /var/lib/mysql
+  - file: {pathname: /var/lib/mysql, access: rw}
+  - file: {pathname: /var/lib/mysql/**/*, access: rwd}
+
+  # Access to /etc/mysql
+  - file: {pathname: /etc/mysql, access: r}
+  - file: {pathname: /etc/mysql/**/*, access: r}
+
+  # Create pidfile and socket
+  - file: {pathname: /run/mysqld, access: rw}
+  - file: {pathname: /run/mysqld/**/*, access: rwd}
+
+  # Read configuration
+  - file: {pathname: /etc/mysql, access: r}
+  - file: {pathname: /etc/mysql, access: r}
+  - file: {pathname: /usr/share/zoneinfo, access: r}
+  - file: {pathname: /usr/share/zoneinfo/**/*, access: r}
+
+  # Shared libraries loaded at runtime
+  - file: {pathname: /var/lib/mysql/plugin/*.so, access: mr}
+  - file: {pathname: /usr/lib/libnss_files-*.*.so, access: mr}
+
+  # Allow ipc with httpd
+  - ipc: httpd
+
+  # Allow sending signals to existing mysqld instances
+  - ipc: mysqld
+
+  # Allow mysqld to create a new network socket
+  # (Necessary to pass assertions)
+  - net: server
+
+  # Needed to run as root
+  - capability:
+    - dacoverride
+    - dacreadsearch
+
+taint:
+  # Taint when performing ipc with httpd
+  - ipc: httpd
+  # Taint when sending or receiving any network traffic
+  - net: [send, recv]
+
+deny:
+  # Explicitly deny sending or receiving any network traffic
+  - net: [send, recv]
