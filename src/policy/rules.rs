@@ -397,28 +397,95 @@ impl LoadRule for DeviceRule {
 
 /// Represents a capability.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 pub enum Capability {
-    NetBindService,
-    NetRaw,
-    NetBroadcast,
+    Chown,
     DacOverride,
     DacReadSearch,
-    SetUid,
+    FOwner,
+    FSetId,
+    Kill,
     SetGid,
-    // TODO: Others here
+    SetUid,
+    SetPCap,
+    LinuxImmutable,
+    NetBindService,
+    NetBroadcast,
+    NetAdmin,
+    NetRaw,
+    IpcLock,
+    IpcOwner,
+    SysModule,
+    SysRawio,
+    SysChroot,
+    SysPtrace,
+    SysPacct,
+    SysAdmin,
+    SysBoot,
+    SysNice,
+    SysResource,
+    SysTime,
+    SysTtyConfig,
+    Mknod,
+    Lease,
+    AuditWrite,
+    AuditControl,
+    SetFCap,
+    MacOverride,
+    MacAdmin,
+    SysLog,
+    WakeAlarm,
+    BlockSuspend,
+    AuditRead,
+    PerfMon,
+    Bpf,
+    CheckpointRestore,
 }
 
 impl From<Capability> for bitflags::Capability {
     fn from(value: Capability) -> Self {
         match value {
-            Capability::NetBindService => Self::NET_BIND_SERVICE,
-            Capability::NetRaw => Self::NET_RAW,
-            Capability::NetBroadcast => Self::NET_BROADCAST,
+            Capability::Chown => Self::CHOWN,
             Capability::DacOverride => Self::DAC_OVERRIDE,
             Capability::DacReadSearch => Self::DAC_READ_SEARCH,
-            Capability::SetUid => Self::SETUID,
+            Capability::FOwner => Self::FOWNER,
+            Capability::FSetId => Self::FSETID,
+            Capability::Kill => Self::KILL,
             Capability::SetGid => Self::SETGID,
+            Capability::SetUid => Self::SETUID,
+            Capability::SetPCap => Self::SETPCAP,
+            Capability::LinuxImmutable => Self::LINUX_IMMUTABLE,
+            Capability::NetBindService => Self::NET_BIND_SERVICE,
+            Capability::NetBroadcast => Self::NET_BROADCAST,
+            Capability::NetAdmin => Self::NET_ADMIN,
+            Capability::NetRaw => Self::NET_RAW,
+            Capability::IpcLock => Self::IPC_LOCK,
+            Capability::IpcOwner => Self::IPC_OWNER,
+            Capability::SysModule => Self::SYS_MODULE,
+            Capability::SysRawio => Self::SYS_RAWIO,
+            Capability::SysChroot => Self::SYS_CHROOT,
+            Capability::SysPtrace => Self::SYS_PTRACE,
+            Capability::SysPacct => Self::SYS_PACCT,
+            Capability::SysAdmin => Self::SYS_ADMIN,
+            Capability::SysBoot => Self::SYS_BOOT,
+            Capability::SysNice => Self::SYS_NICE,
+            Capability::SysResource => Self::SYS_RESOURCE,
+            Capability::SysTime => Self::SYS_TIME,
+            Capability::SysTtyConfig => Self::SYS_TTY_CONFIG,
+            Capability::Mknod => Self::MKNOD,
+            Capability::Lease => Self::LEASE,
+            Capability::AuditWrite => Self::AUDIT_WRITE,
+            Capability::AuditControl => Self::AUDIT_CONTROL,
+            Capability::SetFCap => Self::SETFCAP,
+            Capability::MacOverride => Self::MAC_OVERRIDE,
+            Capability::MacAdmin => Self::MAC_ADMIN,
+            Capability::SysLog => Self::SYSLOG,
+            Capability::WakeAlarm => Self::WAKE_ALARM,
+            Capability::BlockSuspend => Self::BLOCK_SUSPEND,
+            Capability::AuditRead => Self::AUDIT_READ,
+            Capability::PerfMon => Self::PERFMON,
+            Capability::Bpf => Self::BPF,
+            Capability::CheckpointRestore => Self::CHECKPOINT_RESTORE,
         }
     }
 }
@@ -655,7 +722,7 @@ mod tests {
     /// A smoke test for deserializing capability rules.
     #[test]
     fn test_capability_deserialize_smoke() {
-        let s = "capability: dacOverride";
+        let s = "capability: dacoverride";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
         assert!(matches!(rule, Rule::Capability(_)))
     }

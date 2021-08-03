@@ -4,4 +4,4 @@ name: allow
 defaultTaint: false
 
 rights:
-  - capability: [setUid, setGid]
+  - capability: [setuid, setgid]
