@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use enum_dispatch::enum_dispatch;
+use glob::glob;
 use libbpf_rs::Map;
 use libbpf_rs::MapFlags;
 use plain::as_bytes;
@@ -108,7 +109,7 @@ pub enum Rule {
     // File policies
     #[serde(alias = "fs")]
     Filesystem(FilesystemRule),
-    File(FileRule),
+    File(GlobRule),
     // Device policies
     #[serde(alias = "numberedDev")]
     NumberedDevice(NumberedDeviceRule),
@@ -216,6 +217,74 @@ impl LoadRule for FileRule {
         }
 
         Ok(unsafe { as_bytes(&value).into() })
+    }
+}
+
+/// Represents a globbing pattern for file rules
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GlobRule {
+    #[serde(alias = "path")]
+    pathname: String,
+    access: FileAccess,
+}
+
+impl LoadRule for GlobRule {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
+        maps.file_policy()
+    }
+
+    fn key(&self, _policy: &Policy) -> Result<Vec<u8>> {
+        panic!("`GlobRule`s defer to `FileRule`s for loading/unloading.");
+    }
+
+    fn value(&self, _decision: &PolicyDecision) -> Result<Vec<u8>> {
+        panic!("`GlobRule`s defer to `FileRule`s for loading/unloading.");
+    }
+    /// This is a reimplementation of LoadRule::load(), the only difference being that we
+    /// want to unload _multiple_ key, value pairs from the kernel.
+    fn unload<'a: 'a>(&self, policy: &Policy, skel: &'a mut Skel) -> Result<()> {
+        for path in glob(&self.pathname)
+            .context("Failed to glob")?
+            .filter_map(Result::ok)
+        {
+            let file_rule = FileRule {
+                pathname: path.to_string_lossy().to_string(),
+                access: self.access.clone(),
+            };
+
+            file_rule.unload(policy, skel)?;
+        }
+
+        Ok(())
+    }
+
+    /// This is a reimplementation of LoadRule::load(), the only difference being that we
+    /// want to load _multiple_ key, value pairs into the kernel.
+    fn load<'a: 'a>(
+        &self,
+        policy: &Policy,
+        skel: &'a mut Skel,
+        decision: PolicyDecision,
+    ) -> Result<()> {
+        for path in glob(&self.pathname).context("Failed to glob")? {
+            let path = match path {
+                Ok(path) => path,
+                Err(e) => {
+                    println!("{}", e);
+                    continue;
+                }
+            };
+            let file_rule = FileRule {
+                pathname: path.to_string_lossy().to_string(),
+                access: self.access.clone(),
+            };
+
+            log::trace!("loading file rule {:?}", file_rule);
+            file_rule.load(policy, skel, decision.clone())?;
+        }
+
+        Ok(())
     }
 }
 

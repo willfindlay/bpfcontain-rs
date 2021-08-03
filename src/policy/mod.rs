@@ -225,7 +225,7 @@ pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
         {
             Ok(policy) => policy,
             Err(e) => {
-                log::warn!("{}", e);
+                log::warn!("{:?}", e);
                 continue;
             }
         };
@@ -237,7 +237,7 @@ pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
         )) {
             Ok(_) => {}
             Err(e) => {
-                log::warn!("{}", e);
+                log::warn!("{:?}", e);
                 continue;
             }
         }
