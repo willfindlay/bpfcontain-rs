@@ -1092,8 +1092,8 @@ int BPF_PROG(inode_init_security, struct inode *inode, struct inode *dir,
         return 0;
 
     // Add the newly created inode to the container's list of inodes.
-    // This will then be used as a sensible default when computing permissions.
-    add_inode_to_container(container, inode);
+    // This will then be used as a sensible default when computing
+    // permissions.add_inode_to_container(container, inode);
 
     return 0;
 }
