@@ -50,10 +50,10 @@ static audit_data_t *__alloc_audit_event(u64 policy_id, audit_type_t type,
 
     bpf_get_current_comm(&event->comm, sizeof(event->comm));
     event->policy_id = policy_id;
-    event->tgid = bpf_get_current_pid_tgid();
-    event->pid = bpf_get_current_pid_tgid() >> 32;
-    event->level = level;
-    event->type = type;
+    event->tgid      = bpf_get_current_pid_tgid();
+    event->pid       = bpf_get_current_pid_tgid() >> 32;
+    event->level     = level;
+    event->type      = type;
 
     return event;
 }
