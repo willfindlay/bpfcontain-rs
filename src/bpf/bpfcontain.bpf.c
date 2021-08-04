@@ -1803,6 +1803,21 @@ int BPF_PROG(sem_free_security, struct kern_ipc_perm *ipcp)
  * =========================================================================
  */
 
+/* Convert a POSIX signal into an "access vector". Only works for x86 currently.
+ * TODO: Support other architectures...
+ *
+ * @sig: The signal number
+ *
+ * return: Converted access vector.
+ */
+static __always_inline signal_operation_t sig_to_access(int sig)
+{
+    // CORRECTNESS: Numbered signals in the kernel start at 1 and increment by
+    // 1, ignoring equivalence classes. A signal number of zero checks process
+    // liveness, and is mapped to the first entry in `enum signal_operation_t`.
+    return (1ULL << sig);
+}
+
 SEC("lsm/task_kill")
 int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
              int sig, const struct cred *cred)
@@ -1843,6 +1858,9 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
  */
 static __always_inline capability_t cap_to_access(int cap)
 {
+    // CORRECTNESS: CAP_CHOWN starts at 0, then every signal increments by 1
+    // (ignoring equivalence classes, which are not included in `enum
+    // capability_t`).
     return (1ULL << cap);
 }
 

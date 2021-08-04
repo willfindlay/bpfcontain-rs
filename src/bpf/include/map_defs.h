@@ -52,4 +52,8 @@ BPF_HASH(net_policy, net_policy_key_t, net_policy_val_t, BPFCON_MAX_POLICY, 0,
 BPF_HASH(ipc_policy, ipc_policy_key_t, ipc_policy_val_t, BPFCON_MAX_POLICY, 0,
          0);
 
+/* Signal policy */
+BPF_HASH(signal_policy, signal_policy_key_t, signal_policy_val_t,
+         BPFCON_MAX_POLICY, 0, 0);
+
 #endif /* ifndef MAP_DEFS_H */

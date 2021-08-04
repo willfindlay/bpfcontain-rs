@@ -505,8 +505,9 @@ static inline u32 new_encode_dev(dev_t dev)
  * arch/x86/include/uapi/asm/signal.h                                        *
  * ========================================================================= */
 
-/* Signal numbers TODO: handle other archs
+/* Signal numbers (on x86)
  * https://elixir.bootlin.com/linux/v5.10/source/arch/x86/include/uapi/asm/signal.h#L23
+ * TODO: Support other architectures...
  */
 #define SIGHUP 1
 #define SIGINT 2
