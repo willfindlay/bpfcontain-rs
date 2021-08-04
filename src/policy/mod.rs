@@ -10,6 +10,8 @@
 mod helpers;
 mod rules;
 
+use std::ffi::OsStr;
+use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -72,9 +74,23 @@ impl Policy {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         use std::fs::File;
 
-        let reader = File::open(&path).context("Failed to open policy file for reading")?;
+        let mut reader = File::open(&path).context("Failed to open policy file for reading")?;
 
-        serde_yaml::from_reader(reader).context("Failed to parse policy file")
+        match path.as_ref().extension().and_then(OsStr::to_str) {
+            Some("toml") => {
+                let mut s = String::new();
+                reader.read_to_string(&mut s)?;
+                toml::from_str(&s).context("Failed to parse policy file as TOML")
+            }
+            Some("json") => {
+                serde_json::from_reader(reader).context("Failed to parse policy file as JSON")
+            }
+            Some("yml") | Some("yaml") => {
+                serde_yaml::from_reader(reader).context("Failed to parse policy file as YAML")
+            }
+            Some(ext) => bail!("Unrecognized file extension {:?}", ext),
+            None => bail!("No file extension specified"),
+        }
     }
 
     /// Compute the policy id for self
