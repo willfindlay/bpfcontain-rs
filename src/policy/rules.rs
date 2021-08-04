@@ -633,6 +633,128 @@ impl LoadRule for IpcRule {
 }
 
 // ============================================================================
+// Signal Rules
+// ============================================================================
+
+/// Represents a signal type
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum Signal {
+    Chk,
+    Hup,
+    Int,
+    Quit,
+    Ill,
+    Trap,
+    Abrt,
+    Bus,
+    Fpe,
+    Kill,
+    Usr1,
+    Segv,
+    Usr2,
+    Pipe,
+    Alrm,
+    Term,
+    Stkflt,
+    Chld,
+    Cont,
+    Stop,
+    Tstp,
+    Ttin,
+    Ttou,
+    Urg,
+    Xcpu,
+    Xfsz,
+    Vtalrm,
+    Prof,
+    Winch,
+    Io,
+    Pwr,
+    Sys,
+}
+
+impl From<Signal> for bitflags::Signal {
+    fn from(sig: Signal) -> Self {
+        match sig {
+            Signal::Chk => Self::SIGCHK,
+            Signal::Hup => Self::SIGHUP,
+            Signal::Int => Self::SIGINT,
+            Signal::Quit => Self::SIGQUIT,
+            Signal::Ill => Self::SIGILL,
+            Signal::Trap => Self::SIGTRAP,
+            Signal::Abrt => Self::SIGABRT,
+            Signal::Bus => Self::SIGBUS,
+            Signal::Fpe => Self::SIGFPE,
+            Signal::Kill => Self::SIGKILL,
+            Signal::Usr1 => Self::SIGUSR1,
+            Signal::Segv => Self::SIGSEGV,
+            Signal::Usr2 => Self::SIGUSR2,
+            Signal::Pipe => Self::SIGPIPE,
+            Signal::Alrm => Self::SIGALRM,
+            Signal::Term => Self::SIGTERM,
+            Signal::Stkflt => Self::SIGSTKFLT,
+            Signal::Chld => Self::SIGCHLD,
+            Signal::Cont => Self::SIGCONT,
+            Signal::Stop => Self::SIGSTOP,
+            Signal::Tstp => Self::SIGTSTP,
+            Signal::Ttin => Self::SIGTTIN,
+            Signal::Ttou => Self::SIGTTOU,
+            Signal::Urg => Self::SIGURG,
+            Signal::Xcpu => Self::SIGXCPU,
+            Signal::Xfsz => Self::SIGXFSZ,
+            Signal::Vtalrm => Self::SIGVTALRM,
+            Signal::Prof => Self::SIGPROF,
+            Signal::Winch => Self::SIGWINCH,
+            Signal::Io => Self::SIGIO,
+            Signal::Pwr => Self::SIGPWR,
+            Signal::Sys => Self::SIGSYS,
+        }
+    }
+}
+
+/// Represents a signal rule, allowing a container to send or receive signals to/from
+/// other containers
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SignalRule(String, SingleOrVec<Signal>);
+
+impl LoadRule for SignalRule {
+    fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
+        maps.signal_policy()
+    }
+
+    fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
+        let key = keys::SignalPolicyKey {
+            sender_id: policy.policy_id(),
+            receiver_id: Policy::policy_id_for_name(&self.0),
+        };
+
+        Ok(unsafe { as_bytes(&key).into() })
+    }
+
+    fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
+        let mut value = values::SignalPolicyVal::default();
+
+        let signal_mask = self
+            .1
+            .clone()
+            .into_iter()
+            .map(bitflags::Signal::from)
+            .reduce(|a, b| a | b)
+            .unwrap();
+
+        match decision {
+            PolicyDecision::Allow => value.allow = signal_mask.bits(),
+            PolicyDecision::Deny => value.deny = signal_mask.bits(),
+            PolicyDecision::Taint => value.taint = signal_mask.bits(),
+        };
+
+        Ok(unsafe { as_bytes(&value).into() })
+    }
+}
+
+// ============================================================================
 // Net Rules
 // ============================================================================
 

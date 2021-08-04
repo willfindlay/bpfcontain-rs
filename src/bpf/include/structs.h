@@ -286,6 +286,58 @@ typedef struct {
 } __PACKED ipc_policy_val_t;
 
 /* ========================================================================= *
+ * Signal Policy                                                             *
+ * ========================================================================= */
+
+/* Signal Operations access vector for x86
+ * TODO: Support other architectures... */
+typedef enum {
+    BPFCON_SIGCHK    = (1ULL << 0),
+    BPFCON_SIGHUP    = (1ULL << 1),
+    BPFCON_SIGINT    = (1ULL << 2),
+    BPFCON_SIGQUIT   = (1ULL << 3),
+    BPFCON_SIGILL    = (1ULL << 4),
+    BPFCON_SIGTRAP   = (1ULL << 5),
+    BPFCON_SIGABRT   = (1ULL << 6), // SIGIOT has the same number as SIGABRT
+    BPFCON_SIGBUS    = (1ULL << 7),
+    BPFCON_SIGFPE    = (1ULL << 8),
+    BPFCON_SIGKILL   = (1ULL << 9),
+    BPFCON_SIGUSR1   = (1ULL << 10),
+    BPFCON_SIGSEGV   = (1ULL << 11),
+    BPFCON_SIGUSR2   = (1ULL << 12),
+    BPFCON_SIGPIPE   = (1ULL << 13),
+    BPFCON_SIGALRM   = (1ULL << 14),
+    BPFCON_SIGTERM   = (1ULL << 15),
+    BPFCON_SIGSTKFLT = (1ULL << 16),
+    BPFCON_SIGCHLD   = (1ULL << 17),
+    BPFCON_SIGCONT   = (1ULL << 18),
+    BPFCON_SIGSTOP   = (1ULL << 19),
+    BPFCON_SIGTSTP   = (1ULL << 20),
+    BPFCON_SIGTTIN   = (1ULL << 21),
+    BPFCON_SIGTTOU   = (1ULL << 22),
+    BPFCON_SIGURG    = (1ULL << 23),
+    BPFCON_SIGXCPU   = (1ULL << 24),
+    BPFCON_SIGXFSZ   = (1ULL << 25),
+    BPFCON_SIGVTALRM = (1ULL << 26),
+    BPFCON_SIGPROF   = (1ULL << 27),
+    BPFCON_SIGWINCH  = (1ULL << 28),
+    BPFCON_SIGIO     = (1ULL << 29), // SIGPOLL has the same number as SIGIO
+    BPFCON_SIGPWR    = (1ULL << 30),
+    BPFCON_SIGSYS    = (1ULL << 31),
+} signal_operation_t;
+
+typedef struct {
+    u64 sender_id;
+    u64 receiver_id;
+} __PACKED signal_policy_key_t;
+
+typedef struct {
+    signal_operation_t allow;
+    signal_operation_t taint;
+    signal_operation_t deny;
+} __PACKED signal_policy_val_t;
+
+/* ========================================================================= *
  * Audit Types                                                               *
  * ========================================================================= */
 
@@ -305,7 +357,6 @@ typedef enum {
     AUDIT__UNKNOWN = (1U << 6),
 } audit_level_t;
 
-#define DEFAULT_AUDIT_LEVEL AUDIT_DENY | AUDIT_TAINT | AUDIT_INFO | AUDIT_WARN
 #define should_audit(level) (level & audit_level)
 
 /**

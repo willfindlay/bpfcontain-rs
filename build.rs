@@ -48,6 +48,7 @@ fn generate_bindings() {
         .constified_enum_module("file_permission_t")
         .constified_enum_module("capability_t")
         .constified_enum_module("net_operation_t")
+        .constified_enum_module("signal_operation_t")
         .bitfield_enum("audit_level_t")
         .clang_arg("-Isrc/bpf/include")
         .clang_arg("-Wno-unknown-attributes")

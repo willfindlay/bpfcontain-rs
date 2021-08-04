@@ -25,3 +25,15 @@ impl<T> From<SingleOrVec<T>> for Vec<T> {
         }
     }
 }
+
+impl<T> IntoIterator for SingleOrVec<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Single(item) => vec![item].into_iter(),
+            Self::Vec(items) => items.into_iter(),
+        }
+    }
+}

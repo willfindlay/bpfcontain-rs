@@ -50,6 +50,9 @@ pub mod keys {
     /// Represents a IPC policy key on the BPF side.
     pub type IpcPolicyKey = raw::ipc_policy_key_t;
     unsafe impl Plain for IpcPolicyKey {}
+
+    pub type SignalPolicyKey = raw::signal_policy_key_t;
+    unsafe impl Plain for SignalPolicyKey {}
 }
 
 /// Values for policy maps
@@ -75,6 +78,9 @@ pub mod values {
     /// Represents a file policy value on the BPF side.
     pub type IpcPolicyVal = raw::ipc_policy_val_t;
     unsafe impl Plain for IpcPolicyVal {}
+
+    pub type SignalPolicyVal = raw::signal_policy_val_t;
+    unsafe impl Plain for SignalPolicyVal {}
 }
 
 /// Biflags representing policy decisions and access vectors.
@@ -208,6 +214,45 @@ pub mod bitflags {
             const PERFMON = raw::capability_t::BPFCON_CAP_PERFMON;
             const BPF = raw::capability_t::BPFCON_CAP_BPF;
             const CHECKPOINT_RESTORE = raw::capability_t::BPFCON_CAP_CHECKPOINT_RESTORE;
+        }
+    }
+
+    bitflags! {
+        /// Represents the signals bitmask on the BPF side.
+        #[derive(Default)]
+        pub struct Signal :raw::signal_operation_t::Type {
+            const SIGCHK = raw::signal_operation_t::BPFCON_SIGCHK;
+            const SIGHUP = raw::signal_operation_t::BPFCON_SIGHUP;
+            const SIGINT = raw::signal_operation_t::BPFCON_SIGINT;
+            const SIGQUIT = raw::signal_operation_t::BPFCON_SIGQUIT;
+            const SIGILL = raw::signal_operation_t::BPFCON_SIGILL;
+            const SIGTRAP = raw::signal_operation_t::BPFCON_SIGTRAP;
+            const SIGABRT = raw::signal_operation_t::BPFCON_SIGABRT;
+            const SIGBUS = raw::signal_operation_t::BPFCON_SIGBUS;
+            const SIGFPE = raw::signal_operation_t::BPFCON_SIGFPE;
+            const SIGKILL = raw::signal_operation_t::BPFCON_SIGKILL;
+            const SIGUSR1 = raw::signal_operation_t::BPFCON_SIGUSR1;
+            const SIGSEGV = raw::signal_operation_t::BPFCON_SIGSEGV;
+            const SIGUSR2 = raw::signal_operation_t::BPFCON_SIGUSR2;
+            const SIGPIPE = raw::signal_operation_t::BPFCON_SIGPIPE;
+            const SIGALRM = raw::signal_operation_t::BPFCON_SIGALRM;
+            const SIGTERM = raw::signal_operation_t::BPFCON_SIGTERM;
+            const SIGSTKFLT = raw::signal_operation_t::BPFCON_SIGSTKFLT;
+            const SIGCHLD = raw::signal_operation_t::BPFCON_SIGCHLD;
+            const SIGCONT = raw::signal_operation_t::BPFCON_SIGCONT;
+            const SIGSTOP = raw::signal_operation_t::BPFCON_SIGSTOP;
+            const SIGTSTP = raw::signal_operation_t::BPFCON_SIGTSTP;
+            const SIGTTIN = raw::signal_operation_t::BPFCON_SIGTTIN;
+            const SIGTTOU = raw::signal_operation_t::BPFCON_SIGTTOU;
+            const SIGURG = raw::signal_operation_t::BPFCON_SIGURG;
+            const SIGXCPU = raw::signal_operation_t::BPFCON_SIGXCPU;
+            const SIGXFSZ = raw::signal_operation_t::BPFCON_SIGXFSZ;
+            const SIGVTALRM = raw::signal_operation_t::BPFCON_SIGVTALRM;
+            const SIGPROF = raw::signal_operation_t::BPFCON_SIGPROF;
+            const SIGWINCH = raw::signal_operation_t::BPFCON_SIGWINCH;
+            const SIGIO = raw::signal_operation_t::BPFCON_SIGIO;
+            const SIGPWR = raw::signal_operation_t::BPFCON_SIGPWR;
+            const SIGSYS = raw::signal_operation_t::BPFCON_SIGSYS;
         }
     }
 
