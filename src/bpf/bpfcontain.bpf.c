@@ -2032,8 +2032,13 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         goto out;
     }
 
-    cap_policy_key_t key = {};
+    // Capability should be implicitly denied
+    if (access & CAP_IMPLICIT_DENY_MASK) {
+        decision = BPFCON_DENY;
+        goto out;
+    }
 
+    cap_policy_key_t key = {};
     key.policy_id = container->policy_id;
 
     cap_policy_val_t *val = bpf_map_lookup_elem(&cap_policy, &key);
@@ -2045,9 +2050,6 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_TAINT;
     // Any part of access must match to deny
     if (val && (val->deny & access))
-        decision |= BPFCON_DENY;
-    // Capability should be implicitly denied
-    if (access & CAP_IMPLICIT_DENY_MASK)
         decision |= BPFCON_DENY;
 
 out:
