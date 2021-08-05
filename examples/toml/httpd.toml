@@ -1,0 +1,70 @@
+name = 'httpd-toml'
+cmd = 'httpd'
+defaultTaint = false
+
+allow = [
+  # /dev/urandom, /dev/random, /dev/null
+  {dev = 'random'},
+  {dev = 'null'},
+
+  # Access to log files
+  {file = {pathname = '/var/log/httpd', access = 'rw'}},
+  {file = {pathname = '/var/log/httpd/*log', access = 'ra'}},
+
+  # Create pidfile, delete or modify an existing pid file if necessary
+  {file = {pathname = '/run/httpd', access = 'rw'}},
+  {file = {pathname = '/run/httpd/**/*', access = 'rwd'}},
+
+  # Read configuration
+  {file = {pathname = '/usr/share/httpd/**/*', access = 'r'}},
+  {file = {pathname = '/etc/httpd', access = 'r'}},
+  {file = {pathname = '/etc/httpd/conf/**/*', access = 'r'}},
+  {file = {pathname = '/usr/share/zoneinfo/**/*', access = 'r'}},
+
+  # Serve files
+  {file = {pathname = '/srv', access = 'r'}},
+  {file = {pathname = '/srv/html', access = 'r'}},
+  {file = {pathname = '/srv/html/**', access = 'r'}},
+
+  # Read hostname information
+  {file = {pathname = '/etc/resolv.conf', access = 'r'}},
+  {file = {pathname = '/etc/host*', access = 'r'}},
+
+  # Shared libraries loaded at runtime
+  {file = {pathname = '/usr/lib/httpd/modules/*.so', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libnss*.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libgcc_s.so.*', access = 'mr'}},
+
+  # Execute suexec and python
+  {file = {pathname = '/usr/bin/suexec', access = 'rx'}},
+  {file = {pathname = '/usr/bin/python', access = 'rx'}},
+
+  # Shared libraries required for suexec and python
+  # This is unfortunately required since BPFContain currently
+  # has no notion of untainting like BPFBox
+  {file = {pathname = '/usr/lib/libpython*.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libc.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libpthread.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libdl.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libutil.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib/libm.so.*', access = 'mr'}},
+  {file = {pathname = '/usr/lib64/ld-linux-x86-64.so.*', access = 'mr'}},
+
+  # Allow ipc with mysql
+  {ipc = 'mysqld'},
+
+  # Allow sending signals to existing httpd instances
+  {ipc = 'httpd'},
+
+  # Bind to privileged ports, change uid and gid
+  {capability = ['netbindservice', 'setuid', 'setgid']},
+
+  # Use networking
+  {net = ['server', 'send', 'recv']},
+]
+
+taint = [
+  # Taint when performing any ipc or networking
+  {net = ['send', 'recv']},
+  {ipc = 'mysqld'},
+]
