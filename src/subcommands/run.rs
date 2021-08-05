@@ -75,7 +75,10 @@ pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()>
             .args(args)
             .pre_exec(move || {
                 // Place this process into a BPFContain container
-                policy.containerize().expect("Failed to containerize");
+                match policy.containerize() {
+                    Ok(_) => {}
+                    Err(err) => panic!("Failed to containerize: {:?}", err),
+                }
                 Ok(())
             })
     }
