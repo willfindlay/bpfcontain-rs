@@ -277,12 +277,18 @@ mod tests {
             .to_str()
             .expect("Failed to convert examples_path to string")
             .to_string();
-        examples_str.push_str("/**/*.yml");
+        examples_str.push_str("/**/*");
 
         for path in glob::glob(&examples_str)
             .expect("Failed to glob")
             .filter_map(Result::ok)
         {
+            match path.extension().and_then(OsStr::to_str) {
+                Some("md") => continue,
+                None => continue,
+                _ => {}
+            };
+
             Policy::from_path(&path)
                 .context(format!("Failed to parse policy from path {:?}", path))?;
         }

@@ -1,7 +1,6 @@
 name: httpd
 cmd: 'httpd'
 defaultTaint: false
-complain: true
 
 allow:
   # /dev/urandom, /dev/random, /dev/null
