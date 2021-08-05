@@ -232,8 +232,8 @@ static __always_inline struct mount *get_real_mount(const struct vfsmount *mnt)
  */
 static __always_inline u32 get_current_mnt_ns_id()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return BPF_CORE_READ(task, nsproxy, mnt_ns, ns.inum);
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    return task->nsproxy->mnt_ns->ns.inum;
 }
 
 /* Get the pid namespace id for the current task.
@@ -242,8 +242,8 @@ static __always_inline u32 get_current_mnt_ns_id()
  */
 static __always_inline u32 get_current_pid_ns_id()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return BPF_CORE_READ(task, thread_pid, numbers[0].ns, ns.inum);
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    return task->thread_pid->numbers[0].ns->ns.inum;
 }
 
 /* Get the user namespace id for the current task.
@@ -252,15 +252,25 @@ static __always_inline u32 get_current_pid_ns_id()
  */
 static __always_inline u32 get_current_user_ns_id()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    return BPF_CORE_READ(task, cred, user_ns, ns.inum);
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+    return task->cred->user_ns->ns.inum;
+}
+
+/* Get the user namespace id for an inode.
+ *
+ * return: user namespace id or 0 if we couldn't find it.
+ */
+static __always_inline u32 get_inode_user_ns_id(struct inode *inode)
+{
+    return inode->i_sb->s_user_ns->ns.inum;
 }
 
 /* Get the uts namespace name for the current task. */
 static __always_inline void get_current_uts_name(char *dest, size_t size)
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-    char *uts_name = BPF_CORE_READ(task, nsproxy, uts_ns, name.nodename);
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
+
+    char *uts_name = task->nsproxy->uts_ns->name.nodename;
     if (uts_name)
         bpf_probe_read_str(dest, size, uts_name);
 }
@@ -273,7 +283,7 @@ static __always_inline void get_current_uts_name(char *dest, size_t size)
  */
 static __always_inline u32 get_file_mnt_ns_id(const struct file *file)
 {
-    struct vfsmount *vfsmnt = BPF_CORE_READ(file, f_path.mnt);
+    struct vfsmount *vfsmnt = file->f_path.mnt;
     if (!vfsmnt)
         return 0;
 
@@ -281,7 +291,7 @@ static __always_inline u32 get_file_mnt_ns_id(const struct file *file)
     if (!mnt)
         return 0;
 
-    return BPF_CORE_READ(mnt, mnt_ns, ns.inum);
+    return mnt->mnt_ns->ns.inum;
 }
 
 /* Get the mount namespace id for @path.
@@ -292,7 +302,7 @@ static __always_inline u32 get_file_mnt_ns_id(const struct file *file)
  */
 static __always_inline u32 get_path_mnt_ns_id(const struct path *path)
 {
-    struct vfsmount *vfsmnt = BPF_CORE_READ(path, mnt);
+    struct vfsmount *vfsmnt = path->mnt;
     if (!vfsmnt)
         return 0;
 
@@ -300,7 +310,7 @@ static __always_inline u32 get_path_mnt_ns_id(const struct path *path)
     if (!mnt)
         return 0;
 
-    return BPF_CORE_READ(mnt, mnt_ns, ns.inum);
+    return mnt->mnt_ns->ns.inum;
 }
 
 /* Get a pointer to the proc_inode struct associated with inode.
@@ -344,7 +354,7 @@ static __always_inline u32 get_proc_pid(struct inode *inode)
  */
 static __always_inline u32 get_task_ns_pid(struct task_struct *task)
 {
-    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    u32 level = task->nsproxy->pid_ns_for_children->level;
     return (BPF_CORE_READ(task, thread_pid, numbers[level].nr));
 }
 
@@ -359,7 +369,7 @@ static __always_inline u32 get_task_ns_pid(struct task_struct *task)
  */
 static __always_inline u32 get_task_ns_tgid(struct task_struct *task)
 {
-    u32 level = BPF_CORE_READ(task, nsproxy, pid_ns_for_children, level);
+    u32 level = task->nsproxy->pid_ns_for_children->level;
     return (BPF_CORE_READ(task, group_leader, thread_pid, numbers[level].nr));
 }
 
@@ -385,7 +395,7 @@ static __always_inline u64 get_task_ns_pid_tgid(struct task_struct *task)
  */
 static __always_inline u32 get_current_ns_pid()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     return get_task_ns_pid(task);
 }
 
@@ -397,7 +407,7 @@ static __always_inline u32 get_current_ns_pid()
  */
 static __always_inline u32 get_current_ns_tgid()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     return get_task_ns_tgid(task);
 }
 
@@ -409,7 +419,7 @@ static __always_inline u32 get_current_ns_tgid()
  */
 static __always_inline u64 get_current_ns_pid_tgid()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     return get_task_ns_pid_tgid(task);
 }
 
@@ -425,7 +435,7 @@ static __always_inline u64 get_current_ns_pid_tgid()
  */
 static __always_inline bool under_init_nsproxy()
 {
-    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     return (long)&init_nsproxy == (long)task->nsproxy;
 }
 
@@ -949,7 +959,7 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
     if (!filter_inode_by_magic(inode, OVERLAYFS_SUPER_MAGIC))
         return BPFCON_NO_DECISION;
 
-    u32 overlayfs_user_ns_id = BPF_CORE_READ(inode, i_sb, s_user_ns, ns.inum);
+    u32 overlayfs_user_ns_id = get_inode_user_ns_id(inode);
 
     // TODO: check if we are in root user namespace (should be NO_DECISION)
     if (overlayfs_user_ns_id == PROC_USER_INIT_INO)
