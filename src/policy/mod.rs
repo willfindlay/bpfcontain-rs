@@ -209,10 +209,14 @@ impl Policy {
 
         match ret {
             0 => Ok(()),
-            n if n == -libc::EAGAIN => bail!("Failed to call into uprobe"),
-            n if n == -libc::ENOENT => bail!("No such container with ID {}", self.policy_id()),
+            n if n == -libc::EAGAIN => bail!("Failed to call into uprobe. Is BPFContain running?"),
+            n if n == -libc::ENOENT => bail!(
+                "No such policy {}:{}. Has your policy been loaded?",
+                self.name,
+                self.policy_id()
+            ),
             n if n == -libc::EINVAL => bail!("Process is already containerized or no room in map"),
-            n => bail!("Unknown error {}", n),
+            n => bail!("Unknown error: {}", n),
         }
     }
 }
