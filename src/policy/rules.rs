@@ -267,14 +267,10 @@ impl LoadRule for GlobRule {
         skel: &'a mut Skel,
         decision: PolicyDecision,
     ) -> Result<()> {
-        for path in glob(&self.pathname).context("Failed to glob")? {
-            let path = match path {
-                Ok(path) => path,
-                Err(e) => {
-                    println!("{}", e);
-                    continue;
-                }
-            };
+        for path in glob(&self.pathname)
+            .context("Failed to glob")?
+            .filter_map(Result::ok)
+        {
             let file_rule = FileRule {
                 pathname: path.to_string_lossy().to_string(),
                 access: self.access.clone(),

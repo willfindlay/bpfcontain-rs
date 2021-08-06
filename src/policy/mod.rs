@@ -16,7 +16,6 @@ use std::path::Path;
 use std::str::FromStr;
 
 use anyhow::{bail, Context, Error, Result};
-use glob::glob;
 use libbpf_rs::MapFlags;
 use plain::as_bytes;
 use serde::Deserialize;
@@ -230,48 +229,11 @@ impl FromStr for Policy {
     }
 }
 
-/// Recursively load YAML policy into the kernel from `policy_dir`.
-pub fn load_policy_recursive(skel: &mut Skel, policy_dir: &str) -> Result<()> {
-    log::info!("Loading policy from {}...", policy_dir);
-
-    // Use glob to match all YAML files in the policy directory tree
-    for path in glob(&format!("{}/**/*.yml", policy_dir))
-        .context("Failed to glob policy directory")?
-        .filter_map(Result::ok)
-    {
-        // Parse the policy
-        let policy = match Policy::from_path(&path)
-            .context(format!("Failed to parse policy for {}", path.display()))
-        {
-            Ok(policy) => policy,
-            Err(e) => {
-                log::warn!("{:?}", e);
-                continue;
-            }
-        };
-
-        // Load the policy
-        match policy.load(skel).context(format!(
-            "Failed to load policy {} into the kernel",
-            policy.name
-        )) {
-            Ok(_) => {}
-            Err(e) => {
-                log::warn!("{:?}", e);
-                continue;
-            }
-        }
-    }
-
-    log::info!("Done loading policy!");
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::utils::get_project_path;
+    use glob::glob;
 
     /// Make sure policy in examples/*.yml parses
     #[test]
@@ -283,7 +245,7 @@ mod tests {
             .to_string();
         examples_str.push_str("/**/*");
 
-        for path in glob::glob(&examples_str)
+        for path in glob(&examples_str)
             .expect("Failed to glob")
             .filter_map(Result::ok)
         {

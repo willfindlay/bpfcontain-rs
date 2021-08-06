@@ -21,6 +21,7 @@ use nix::unistd::Pid;
 
 use crate::bpf_program::BpfcontainContext;
 use crate::config::Settings;
+use crate::log::log_error;
 
 /// Main entrypoint into the daemon.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
@@ -44,7 +45,7 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
 
     // Log results and exit with error code
     if let Err(e) = result {
-        log::error!("{:?}", e);
+        log_error(e, None);
         std::process::exit(1);
     }
 
