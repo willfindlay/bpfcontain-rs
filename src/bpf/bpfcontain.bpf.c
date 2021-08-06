@@ -620,9 +620,8 @@ static __always_inline void add_inode_to_container(const container_t *container,
  *    A pointer to the newly created process, if successful
  *    Otherwise, NULL
  */
-static __always_inline process_t *
-add_process_to_container(container_t *container, u64 host_pid_tgid,
-                         u64 pid_tgid)
+static process_t *add_process_to_container(container_t *container,
+                                           u64 host_pid_tgid, u64 pid_tgid)
 {
     // Null check on container
     if (!container)
@@ -659,8 +658,7 @@ add_process_to_container(container_t *container, u64 host_pid_tgid,
  *    @container: A pointer to the container.
  *    @host_pid: Host pid of the process.
  */
-static __always_inline void
-remove_process_from_container(container_t *container, u32 host_pid)
+static void remove_process_from_container(container_t *container, u32 host_pid)
 {
     // Null check on container
     if (!container)
@@ -687,8 +685,7 @@ remove_process_from_container(container_t *container, u32 host_pid)
  *    A pointer to the newly created container, if successful
  *    Otherwise, NULL
  */
-static __always_inline container_t *start_container(policy_id_t policy_id,
-                                                    bool tainted)
+static container_t *start_container(policy_id_t policy_id, bool tainted)
 {
     // Allocate a new container
     container_t *container = new_container_t();
@@ -779,8 +776,8 @@ static __always_inline container_t *get_container_by_host_pid(u32 pid)
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_fs_permission(container_t *container,
-                                            struct inode *inode, u32 access)
+static int do_fs_permission(container_t *container, struct inode *inode,
+                            u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -812,8 +809,8 @@ static __always_inline int do_fs_permission(container_t *container,
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_file_permission(container_t *container,
-                                              struct inode *inode, u32 access)
+static int do_file_permission(container_t *container, struct inode *inode,
+                              u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -845,8 +842,8 @@ static __always_inline int do_file_permission(container_t *container,
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_dev_permission(container_t *container,
-                                             struct inode *inode, u32 access)
+static int do_dev_permission(container_t *container, struct inode *inode,
+                             u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -913,8 +910,8 @@ use_minor:
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_procfs_permission(container_t *container,
-                                                struct inode *inode, u32 access)
+static int do_procfs_permission(container_t *container, struct inode *inode,
+                                u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -949,8 +946,8 @@ static __always_inline int do_procfs_permission(container_t *container,
  *
  * return: A BPFContain decision
  */
-static __always_inline int
-do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
+static int do_overlayfs_permission(container_t *container, struct inode *inode,
+                                   u32 access)
 {
     if (!inode)
         return BPFCON_NO_DECISION;
@@ -980,9 +977,8 @@ do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
  *
  * return: A BPFContain decision
  */
-static __always_inline int do_task_inode_permission(container_t *container,
-                                                    struct inode *inode,
-                                                    u32 access)
+static int do_task_inode_permission(container_t *container, struct inode *inode,
+                                    u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -1346,10 +1342,8 @@ int BPF_PROG(path_chmod, const struct path *path)
  *
  * return: Converted access mask.
  */
-static __always_inline int mmap_permission(container_t *container,
-                                           struct file *file,
-                                           unsigned long prot,
-                                           unsigned long flags)
+static int mmap_permission(container_t *container, struct file *file,
+                           unsigned long prot, unsigned long flags)
 {
     u32 access = 0;
 
