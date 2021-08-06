@@ -1038,7 +1038,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     // device-specific permissions
     if (inode_is_device(inode)) {
         decision = do_dev_permission(container, inode, access);
-        ret      = do_policy_decision(container, decision, true);
+        ret      = do_policy_decision(container, decision, false);
         goto out;
     }
 
@@ -1046,7 +1046,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     // so we can allow reads, writes, and appends on sockets here
     if (inode_is_sock(inode) && (access & ~(BPFCON_MAY_READ | BPFCON_MAY_WRITE |
                                             BPFCON_MAY_APPEND)) == 0) {
-        ret = do_policy_decision(container, BPFCON_ALLOW, true);
+        ret = do_policy_decision(container, BPFCON_ALLOW, false);
         goto out;
     }
 
@@ -1067,7 +1067,7 @@ static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
     if (super_allow)
         decision &= (~BPFCON_DENY);
 
-    ret = do_policy_decision(container, decision, true);
+    ret = do_policy_decision(container, decision, false);
 
 out:
     // Submit an audit event
@@ -1518,7 +1518,7 @@ static int bpfcontain_net_perm(container_t *container, u8 category, u32 access,
     else if (category == BPFCON_NET_IPC)
         decision = bpfcontain_net_ipc_perm(container, access, sock);
 
-    return do_policy_decision(container, decision, true);
+    return do_policy_decision(container, decision, false);
 }
 
 SEC("lsm/socket_create")
@@ -1702,7 +1702,7 @@ static int bpfcontain_ipc_perm(container_t *container, container_t *other)
         decision = check_ipc_access(container, other);
     }
 
-    return do_policy_decision(container, decision, true);
+    return do_policy_decision(container, decision, false);
 }
 
 SEC("lsm/ipc_permission")
@@ -1864,7 +1864,7 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
         // TODO: signal policy here
     }
 
-    return do_policy_decision(container, decision, true);
+    return do_policy_decision(container, decision, false);
 }
 
 /* =========================================================================
@@ -2057,12 +2057,12 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         decision |= BPFCON_DENY;
 
 out:
-    ret = do_policy_decision(container, decision, true);
+    ret = do_policy_decision(container, decision, false);
 
     // Submit an audit event
     audit_data_t *event =
         alloc_audit_event(container->policy_id, AUDIT_TYPE_CAP,
-                          decision_to_audit_level(decision, true));
+                          decision_to_audit_level(decision, false));
     if (event) {
         event->cap.cap = access;
         submit_audit_event(event);
