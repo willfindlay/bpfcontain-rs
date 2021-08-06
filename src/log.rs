@@ -7,12 +7,35 @@
 
 //! Logger configuration logic.
 
-use anyhow::{Context as _, Result};
-use log::LevelFilter;
+use anyhow::{Context as _, Error, Result};
+use log::{Level, LevelFilter};
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
+
+/// Log an error
+pub fn log_error(err: Error, level: Option<Level>) {
+    let chain = err.chain();
+
+    for (i, err) in chain.enumerate() {
+        // Treat first element in chain differently.
+        // There might be a more Rusty way to do this, but whatever...
+        if i == 0 {
+            if let Some(level) = level {
+                log::log!(level, "{}", err)
+            } else {
+                log::error!("{}", err)
+            }
+            continue;
+        }
+        if let Some(level) = level {
+            log::log!(level, "\t| {}", err)
+        } else {
+            log::error!("\t| {}", err)
+        }
+    }
+}
 
 /// Configure logging
 pub fn configure(log_level: LevelFilter, log_file: Option<&str>) -> Result<()> {

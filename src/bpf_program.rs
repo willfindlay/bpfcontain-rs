@@ -14,10 +14,12 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
+use log::Level;
 
 use crate::bindings::audit;
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::config::Settings;
+use crate::log::log_error;
 use crate::ns;
 use crate::policy::Policy;
 use crate::uprobe_ext::FindSymbolUprobeExt;
@@ -80,7 +82,7 @@ impl<'a> BpfcontainContext<'a> {
 
     /// Load policy from a file
     pub fn load_policy_from_file<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<()> {
-        log::debug!(
+        log::info!(
             "Loading policy from file {}...",
             policy_path.as_ref().display()
         );
@@ -98,13 +100,16 @@ impl<'a> BpfcontainContext<'a> {
             policy_dir.as_ref().display()
         );
 
-        // Use glob to match all YAML files in the policy directory tree
+        // Use glob to match all YAML/TOML/JSON files in the policy directory tree
         for path in glob(&format!("{}/**/*.yml", policy_dir.as_ref().display()))
-            .context("Failed to glob policy directory")?
+            .unwrap()
+            .chain(glob(&format!("{}/**/*.yaml", policy_dir.as_ref().display())).unwrap())
+            .chain(glob(&format!("{}/**/*.toml", policy_dir.as_ref().display())).unwrap())
+            .chain(glob(&format!("{}/**/*.json", policy_dir.as_ref().display())).unwrap())
             .filter_map(Result::ok)
         {
             if let Err(e) = self.load_policy_from_file(path) {
-                log::warn!("{}", e);
+                log_error(e, Some(Level::Warn));
             }
         }
 

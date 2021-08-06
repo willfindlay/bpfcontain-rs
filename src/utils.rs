@@ -13,6 +13,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use glob::glob;
+use log::Level;
+
+use crate::log::log_error;
 
 /// Bump the rlimit for memlock up to full capacity.
 /// This is required to load even reasonably sized eBPF maps.
@@ -49,7 +52,13 @@ pub fn glob_to_dev_ino(pattern: &str) -> Result<Vec<(u64, u64)>> {
     {
         match path_to_dev_ino(&path) {
             Ok(res) => results.push(res),
-            Err(e) => log::warn!("Unable to get information for {:?}: {}", path, e),
+            Err(e) => log_error(
+                e.context(format!(
+                    "Unable to get device information for {}",
+                    path.display()
+                )),
+                Some(Level::Warn),
+            ),
         }
     }
 
