@@ -620,8 +620,9 @@ static __always_inline void add_inode_to_container(const container_t *container,
  *    A pointer to the newly created process, if successful
  *    Otherwise, NULL
  */
-static process_t *add_process_to_container(container_t *container,
-                                           u64 host_pid_tgid, u64 pid_tgid)
+static __always_inline process_t *
+add_process_to_container(container_t *container, u64 host_pid_tgid,
+                         u64 pid_tgid)
 {
     // Null check on container
     if (!container)
@@ -658,7 +659,8 @@ static process_t *add_process_to_container(container_t *container,
  *    @container: A pointer to the container.
  *    @host_pid: Host pid of the process.
  */
-static void remove_process_from_container(container_t *container, u32 host_pid)
+static __always_inline void
+remove_process_from_container(container_t *container, u32 host_pid)
 {
     // Null check on container
     if (!container)
@@ -685,7 +687,8 @@ static void remove_process_from_container(container_t *container, u32 host_pid)
  *    A pointer to the newly created container, if successful
  *    Otherwise, NULL
  */
-static container_t *start_container(policy_id_t policy_id, bool tainted)
+static __always_inline container_t *start_container(policy_id_t policy_id,
+                                                    bool tainted)
 {
     // Allocate a new container
     container_t *container = new_container_t();
@@ -776,8 +779,8 @@ static __always_inline container_t *get_container_by_host_pid(u32 pid)
  *
  * return: A BPFContain decision
  */
-static int do_fs_permission(container_t *container, struct inode *inode,
-                            u32 access)
+static __always_inline int do_fs_permission(container_t *container,
+                                            struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -809,8 +812,8 @@ static int do_fs_permission(container_t *container, struct inode *inode,
  *
  * return: A BPFContain decision
  */
-static int do_file_permission(container_t *container, struct inode *inode,
-                              u32 access)
+static __always_inline int do_file_permission(container_t *container,
+                                              struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -842,8 +845,8 @@ static int do_file_permission(container_t *container, struct inode *inode,
  *
  * return: A BPFContain decision
  */
-static int do_dev_permission(container_t *container, struct inode *inode,
-                             u32 access)
+static __always_inline int do_dev_permission(container_t *container,
+                                             struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -910,8 +913,8 @@ use_minor:
  *
  * return: A BPFContain decision
  */
-static int do_procfs_permission(container_t *container, struct inode *inode,
-                                u32 access)
+static __always_inline int do_procfs_permission(container_t *container,
+                                                struct inode *inode, u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -946,8 +949,8 @@ static int do_procfs_permission(container_t *container, struct inode *inode,
  *
  * return: A BPFContain decision
  */
-static int do_overlayfs_permission(container_t *container, struct inode *inode,
-                                   u32 access)
+static __always_inline int
+do_overlayfs_permission(container_t *container, struct inode *inode, u32 access)
 {
     if (!inode)
         return BPFCON_NO_DECISION;
@@ -977,8 +980,9 @@ static int do_overlayfs_permission(container_t *container, struct inode *inode,
  *
  * return: A BPFContain decision
  */
-static int do_task_inode_permission(container_t *container, struct inode *inode,
-                                    u32 access)
+static __always_inline int do_task_inode_permission(container_t *container,
+                                                    struct inode *inode,
+                                                    u32 access)
 {
     int decision = BPFCON_NO_DECISION;
 
@@ -1011,8 +1015,8 @@ static int do_task_inode_permission(container_t *container, struct inode *inode,
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_inode_perm(container_t *container, struct inode *inode,
-                                 u32 access)
+static __always_inline int
+bpfcontain_inode_perm(container_t *container, struct inode *inode, u32 access)
 {
     bool super_allow = false;
     int ret          = 0;
@@ -1342,8 +1346,10 @@ int BPF_PROG(path_chmod, const struct path *path)
  *
  * return: Converted access mask.
  */
-static int mmap_permission(container_t *container, struct file *file,
-                           unsigned long prot, unsigned long flags)
+static __always_inline int mmap_permission(container_t *container,
+                                           struct file *file,
+                                           unsigned long prot,
+                                           unsigned long flags)
 {
     u32 access = 0;
 
@@ -1414,7 +1420,7 @@ int BPF_PROG(file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
  * Network Policy                                                            *
  * ========================================================================= */
 
-static u8 family_to_category(int family)
+static __always_inline u8 family_to_category(int family)
 {
     // Note: I think it makes sense to support these protocol families for
     // now. Support for others can be added in the future.
@@ -1432,8 +1438,8 @@ static u8 family_to_category(int family)
     }
 }
 
-static policy_decision_t bpfcontain_net_www_perm(container_t *container,
-                                                 u32 access)
+static __always_inline policy_decision_t
+bpfcontain_net_www_perm(container_t *container, u32 access)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
@@ -1464,7 +1470,7 @@ static policy_decision_t bpfcontain_net_www_perm(container_t *container,
     return decision;
 }
 
-static policy_decision_t
+static __always_inline policy_decision_t
 bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
@@ -1508,8 +1514,9 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
  *
  * return: -EACCES if access is denied or 0 if access is granted.
  */
-static int bpfcontain_net_perm(container_t *container, u8 category, u32 access,
-                               struct socket *sock)
+static __always_inline int bpfcontain_net_perm(container_t *container,
+                                               u8 category, u32 access,
+                                               struct socket *sock)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
@@ -1690,7 +1697,8 @@ int BPF_PROG(socket_shutdown, struct socket *sock, int how)
  * =========================================================================
  */
 
-static int bpfcontain_ipc_perm(container_t *container, container_t *other)
+static __always_inline int bpfcontain_ipc_perm(container_t *container,
+                                               container_t *other)
 {
     policy_decision_t decision = BPFCON_NO_DECISION;
 
