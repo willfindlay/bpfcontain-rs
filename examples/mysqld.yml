@@ -41,8 +41,8 @@ allow:
 
   # Needed to run as root
   - capability:
-    - dacoverride
-    - dacreadsearch
+    - dacOverride
+    - dacReadSearch
 
 taint:
   # Taint when performing ipc with httpd
