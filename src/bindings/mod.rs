@@ -16,6 +16,7 @@ pub mod state;
 #[allow(non_snake_case)]
 #[allow(dead_code)]
 #[allow(unaligned_references)]
+#[allow(deref_nullptr)]
 mod raw {
     use std::env;
     use std::include;
