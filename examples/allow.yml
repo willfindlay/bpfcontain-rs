@@ -4,4 +4,7 @@ name: allow
 defaultTaint: false
 
 rights:
-  - capability: [setuid, setgid]
+  - capability: any
+  - dev: random
+  - dev: terminal
+  - dev: null

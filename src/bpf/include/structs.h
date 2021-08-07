@@ -82,10 +82,10 @@ typedef struct {
  * @BPFCON_TAINT: Taint the container
  */
 typedef enum {
-    BPFCON_NO_DECISION = 0x00,
-    BPFCON_ALLOW       = 0x01,
-    BPFCON_DENY        = 0x02,
-    BPFCON_TAINT       = 0x04,
+    BPFCON_NO_DECISION = 0U,
+    BPFCON_ALLOW       = (1U << 0),
+    BPFCON_DENY        = (1U << 1),
+    BPFCON_TAINT       = (1U << 2),
 } policy_decision_t;
 
 /**
@@ -114,15 +114,15 @@ typedef struct {
  * @BPFCON_MAY_LINK: Create a hard link to the file
  */
 typedef enum {
-    BPFCON_MAY_EXEC      = 0x01,
-    BPFCON_MAY_WRITE     = 0x02,
-    BPFCON_MAY_READ      = 0x04,
-    BPFCON_MAY_APPEND    = 0x08,
-    BPFCON_MAY_CHMOD     = 0x10,
-    BPFCON_MAY_DELETE    = 0x20,
-    BPFCON_MAY_EXEC_MMAP = 0x40,
-    BPFCON_MAY_LINK      = 0x80,
-    BPFCON_MAY_IOCTL     = 0x100,
+    BPFCON_MAY_EXEC      = (1U << 0),
+    BPFCON_MAY_WRITE     = (1U << 1),
+    BPFCON_MAY_READ      = (1U << 2),
+    BPFCON_MAY_APPEND    = (1U << 3),
+    BPFCON_MAY_CHMOD     = (1U << 4),
+    BPFCON_MAY_DELETE    = (1U << 5),
+    BPFCON_MAY_EXEC_MMAP = (1U << 6),
+    BPFCON_MAY_LINK      = (1U << 7),
+    BPFCON_MAY_IOCTL     = (1U << 8),
 } file_permission_t;
 
 #define BPFCON_ALL_FS_PERM_MASK                                                \
@@ -179,47 +179,47 @@ typedef struct {
 
 /* Tunable capabilities */
 typedef enum {
-    BPFCON_CAP_CHOWN              = 0x0000000000000001,
-    BPFCON_CAP_DAC_OVERRIDE       = 0x0000000000000002,
-    BPFCON_CAP_DAC_READ_SEARCH    = 0x0000000000000004,
-    BPFCON_CAP_FOWNER             = 0x0000000000000008,
-    BPFCON_CAP_FSETID             = 0x0000000000000010,
-    BPFCON_CAP_KILL               = 0x0000000000000020,
-    BPFCON_CAP_SETGID             = 0x0000000000000040,
-    BPFCON_CAP_SETUID             = 0x0000000000000080,
-    BPFCON_CAP_SETPCAP            = 0x0000000000000100,
-    BPFCON_CAP_LINUX_IMMUTABLE    = 0x0000000000000200,
-    BPFCON_CAP_NET_BIND_SERVICE   = 0x0000000000000400,
-    BPFCON_CAP_NET_BROADCAST      = 0x0000000000000800,
-    BPFCON_CAP_NET_ADMIN          = 0x0000000000001000,
-    BPFCON_CAP_NET_RAW            = 0x0000000000002000,
-    BPFCON_CAP_IPC_LOCK           = 0x0000000000004000,
-    BPFCON_CAP_IPC_OWNER          = 0x0000000000008000,
-    BPFCON_CAP_SYS_MODULE         = 0x0000000000010000,
-    BPFCON_CAP_SYS_RAWIO          = 0x0000000000020000,
-    BPFCON_CAP_SYS_CHROOT         = 0x0000000000040000,
-    BPFCON_CAP_SYS_PTRACE         = 0x0000000000080000,
-    BPFCON_CAP_SYS_PACCT          = 0x0000000000100000,
-    BPFCON_CAP_SYS_ADMIN          = 0x0000000000200000,
-    BPFCON_CAP_SYS_BOOT           = 0x0000000000400000,
-    BPFCON_CAP_SYS_NICE           = 0x0000000000800000,
-    BPFCON_CAP_SYS_RESOURCE       = 0x0000000001000000,
-    BPFCON_CAP_SYS_TIME           = 0x0000000002000000,
-    BPFCON_CAP_SYS_TTY_CONFIG     = 0x0000000004000000,
-    BPFCON_CAP_MKNOD              = 0x0000000008000000,
-    BPFCON_CAP_LEASE              = 0x0000000010000000,
-    BPFCON_CAP_AUDIT_WRITE        = 0x0000000020000000,
-    BPFCON_CAP_AUDIT_CONTROL      = 0x0000000040000000,
-    BPFCON_CAP_SETFCAP            = 0x0000000080000000,
-    BPFCON_CAP_MAC_OVERRIDE       = 0x0000000100000000,
-    BPFCON_CAP_MAC_ADMIN          = 0x0000000200000000,
-    BPFCON_CAP_SYSLOG             = 0x0000000400000000,
-    BPFCON_CAP_WAKE_ALARM         = 0x0000000800000000,
-    BPFCON_CAP_BLOCK_SUSPEND      = 0x0000001000000000,
-    BPFCON_CAP_AUDIT_READ         = 0x0000002000000000,
-    BPFCON_CAP_PERFMON            = 0x0000004000000000,
-    BPFCON_CAP_BPF                = 0x0000008000000000,
-    BPFCON_CAP_CHECKPOINT_RESTORE = 0x0000010000000000,
+    BPFCON_CAP_CHOWN              = (1ULL << 0),
+    BPFCON_CAP_DAC_OVERRIDE       = (1ULL << 1),
+    BPFCON_CAP_DAC_READ_SEARCH    = (1ULL << 2),
+    BPFCON_CAP_FOWNER             = (1ULL << 3),
+    BPFCON_CAP_FSETID             = (1ULL << 4),
+    BPFCON_CAP_KILL               = (1ULL << 5),
+    BPFCON_CAP_SETGID             = (1ULL << 6),
+    BPFCON_CAP_SETUID             = (1ULL << 7),
+    BPFCON_CAP_SETPCAP            = (1ULL << 8),
+    BPFCON_CAP_LINUX_IMMUTABLE    = (1ULL << 9),
+    BPFCON_CAP_NET_BIND_SERVICE   = (1ULL << 10),
+    BPFCON_CAP_NET_BROADCAST      = (1ULL << 11),
+    BPFCON_CAP_NET_ADMIN          = (1ULL << 12),
+    BPFCON_CAP_NET_RAW            = (1ULL << 13),
+    BPFCON_CAP_IPC_LOCK           = (1ULL << 14),
+    BPFCON_CAP_IPC_OWNER          = (1ULL << 15),
+    BPFCON_CAP_SYS_MODULE         = (1ULL << 16),
+    BPFCON_CAP_SYS_RAWIO          = (1ULL << 17),
+    BPFCON_CAP_SYS_CHROOT         = (1ULL << 18),
+    BPFCON_CAP_SYS_PTRACE         = (1ULL << 19),
+    BPFCON_CAP_SYS_PACCT          = (1ULL << 20),
+    BPFCON_CAP_SYS_ADMIN          = (1ULL << 21),
+    BPFCON_CAP_SYS_BOOT           = (1ULL << 22),
+    BPFCON_CAP_SYS_NICE           = (1ULL << 23),
+    BPFCON_CAP_SYS_RESOURCE       = (1ULL << 24),
+    BPFCON_CAP_SYS_TIME           = (1ULL << 25),
+    BPFCON_CAP_SYS_TTY_CONFIG     = (1ULL << 26),
+    BPFCON_CAP_MKNOD              = (1ULL << 27),
+    BPFCON_CAP_LEASE              = (1ULL << 28),
+    BPFCON_CAP_AUDIT_WRITE        = (1ULL << 29),
+    BPFCON_CAP_AUDIT_CONTROL      = (1ULL << 30),
+    BPFCON_CAP_SETFCAP            = (1ULL << 31),
+    BPFCON_CAP_MAC_OVERRIDE       = (1ULL << 32),
+    BPFCON_CAP_MAC_ADMIN          = (1ULL << 33),
+    BPFCON_CAP_SYSLOG             = (1ULL << 34),
+    BPFCON_CAP_WAKE_ALARM         = (1ULL << 35),
+    BPFCON_CAP_BLOCK_SUSPEND      = (1ULL << 36),
+    BPFCON_CAP_AUDIT_READ         = (1ULL << 37),
+    BPFCON_CAP_PERFMON            = (1ULL << 38),
+    BPFCON_CAP_BPF                = (1ULL << 39),
+    BPFCON_CAP_CHECKPOINT_RESTORE = (1ULL << 40),
 } capability_t;
 
 #define CAP_IMPLICIT_DENY_MASK                                                 \
@@ -243,20 +243,20 @@ typedef struct {
 
 /* Network categories */
 typedef enum {
-    BPFCON_NET_WWW = 0x01,
-    BPFCON_NET_IPC = 0x02,
+    BPFCON_NET_WWW = (1U << 0),
+    BPFCON_NET_IPC = (1U << 1),
 } net_category_t;
 
 /* Network operations */
 typedef enum {
-    BPFCON_NET_CONNECT  = 0x01,
-    BPFCON_NET_BIND     = 0x02,
-    BPFCON_NET_ACCEPT   = 0x04,
-    BPFCON_NET_LISTEN   = 0x08,
-    BPFCON_NET_SEND     = 0x10,
-    BPFCON_NET_RECV     = 0x20,
-    BPFCON_NET_CREATE   = 0x40,
-    BPFCON_NET_SHUTDOWN = 0x80,
+    BPFCON_NET_CONNECT  = (1U << 0),
+    BPFCON_NET_BIND     = (1U << 1),
+    BPFCON_NET_ACCEPT   = (1U << 2),
+    BPFCON_NET_LISTEN   = (1U << 3),
+    BPFCON_NET_SEND     = (1U << 4),
+    BPFCON_NET_RECV     = (1U << 5),
+    BPFCON_NET_CREATE   = (1U << 6),
+    BPFCON_NET_SHUTDOWN = (1U << 7),
 } net_operation_t;
 
 typedef struct {
@@ -293,13 +293,13 @@ typedef struct {
  * @FIXME: Add documentation
  */
 typedef enum {
-    AUDIT__NONE    = 0x0,
-    AUDIT_ALLOW    = 0x1, // Audit policy allows
-    AUDIT_DENY     = 0x2, // Audit policy denials
-    AUDIT_TAINT    = 0x4, // Audit policy taints
-    AUDIT_INFO     = 0x6, // Audit info
-    AUDIT_WARN     = 0x8, // Audit warnings
-    AUDIT__UNKNOWN = 0x10,
+    AUDIT__NONE    = (1U << 0),
+    AUDIT_ALLOW    = (1U << 1), // Audit policy allows
+    AUDIT_DENY     = (1U << 2), // Audit policy denials
+    AUDIT_TAINT    = (1U << 3), // Audit policy taints
+    AUDIT_INFO     = (1U << 4), // Audit info
+    AUDIT_WARN     = (1U << 5), // Audit warnings
+    AUDIT__UNKNOWN = (1U << 6),
 } audit_level_t;
 
 #define DEFAULT_AUDIT_LEVEL AUDIT_DENY | AUDIT_TAINT | AUDIT_INFO | AUDIT_WARN

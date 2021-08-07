@@ -462,15 +462,18 @@ impl LoadRule for DeviceRule {
 
 /// Represents a capability.
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum Capability {
     Chown,
     DacOverride,
     DacReadSearch,
     FOwner,
+    #[serde(alias = "fSetID")]
     FSetId,
     Kill,
+    #[serde(alias = "setGID")]
     SetGid,
+    #[serde(alias = "setUID")]
     SetUid,
     SetPCap,
     LinuxImmutable,
@@ -490,6 +493,7 @@ pub enum Capability {
     SysNice,
     SysResource,
     SysTime,
+    #[serde(alias = "sysTTYConfig")]
     SysTtyConfig,
     Mknod,
     Lease,
@@ -503,8 +507,10 @@ pub enum Capability {
     BlockSuspend,
     AuditRead,
     PerfMon,
+    #[serde(alias = "BPF")]
     Bpf,
     CheckpointRestore,
+    Any,
 }
 
 impl From<Capability> for bitflags::Capability {
@@ -551,6 +557,7 @@ impl From<Capability> for bitflags::Capability {
             Capability::PerfMon => Self::PERFMON,
             Capability::Bpf => Self::BPF,
             Capability::CheckpointRestore => Self::CHECKPOINT_RESTORE,
+            Capability::Any => Self::all(),
         }
     }
 }
@@ -787,7 +794,7 @@ mod tests {
     /// A smoke test for deserializing capability rules.
     #[test]
     fn test_capability_deserialize_smoke() {
-        let s = "capability: dacoverride";
+        let s = "capability: dacOverride";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
         assert!(matches!(rule, Rule::Capability(_)))
     }

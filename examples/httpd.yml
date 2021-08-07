@@ -57,7 +57,7 @@ allow:
   - ipc: httpd
 
   # Bind to privileged ports, change uid and gid
-  - capability: [netbindservice, setuid, setgid]
+  - capability: [netBindService, setUID, setGID]
 
   # Use networking
   - net: [server, send, recv]
