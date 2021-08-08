@@ -44,6 +44,11 @@ pub struct Policy {
     /// Defaults to false.
     #[serde(default = "default_false")]
     complain: bool,
+    /// Whether the policy should be in privileged mode,
+    /// granting extra capabilities when untainted.
+    /// Defaults to false.
+    #[serde(default = "default_false")]
+    privileged: bool,
     /// The rights (allow-rules) associated with the policy.
     #[serde(default)]
     #[serde(alias = "allow")]
@@ -150,6 +155,7 @@ impl Policy {
         let mut value = Value::default();
         value.set_default_taint(self.default_taint as u8);
         value.set_complain(self.complain as u8);
+        value.set_privileged(self.privileged as u8);
         let value = unsafe { as_bytes(&value) };
 
         map.update(key, value, MapFlags::ANY)

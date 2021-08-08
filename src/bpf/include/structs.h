@@ -66,6 +66,8 @@ typedef struct {
     u8 tainted : 1;
     // Is the container in complain mode?
     u8 complain : 1;
+    // Is the container in privileged mode?
+    u8 privileged : 1;
     // often corresponds with container id on the docker side
     char uts_name[16];
 } container_t;
@@ -96,6 +98,7 @@ typedef enum {
 typedef struct {
     u8 default_taint : 1;
     u8 complain : 1;
+    u8 privileged : 1;
 } __PACKED policy_common_t;
 
 /* ========================================================================= *
