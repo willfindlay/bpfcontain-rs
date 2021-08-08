@@ -726,6 +726,8 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     container->tainted = tainted || common->default_taint;
     // Is the container in complaining mode?
     container->complain = common->complain;
+    // Is the container in privileged mode?
+    container->privileged = common->privileged;
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id.
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
@@ -887,7 +889,7 @@ use_minor:
     key.minor = MINOR(inode->i_rdev);
     val       = bpf_map_lookup_elem(&dev_policy, &key);
     if (!val)
-        return BPFCON_DENY;
+        return container->privileged ? BPFCON_NO_DECISION : BPFCON_DENY;
 
     // Entire access must match to allow
     if ((val->allow & access) == access)
