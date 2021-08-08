@@ -5,7 +5,7 @@
 BPFContain is a container security daemon for GNU/Linux leveraging the power and
 safety of eBPF and Rust.
 
-**Disclaimer:** BPFContain is still in active development and is not yet feature-complete.
+**Disclaimer:** BPFContain is still in active development and is not yet feature-complete. In particular: Docker support is a work in progress; the policy language may change at any time; and the enforcement engine is not optimized.
 
 <!--
 ## About
@@ -35,7 +35,7 @@ You can try out BPFContain using [Vagrant](https://www.vagrantup.com/) along wit
 
 ### Requirements
 
-To compile and run bpfcontain:
+To compile and run BPFContain:
 
 * __Linux kernel version >= 5.10__
     * Kernel should be compiled with __at least the following build flags__:
@@ -51,6 +51,7 @@ To compile and run bpfcontain:
     CONFIG_LSM="bpf"
     ```
     * Kernel should be compiled with __pahole >= 0.16__ installed to generate BTF info
+* An up-to-date version of Clang and LLVM (BPFContain is tested on version 12.0 and up)
 * Latest version of __stable Rust__ and __Cargo__ (`curl https://sh.rustup.rs -sSf | sh`)
 * Other dependencies should be handled by Cargo
 
@@ -59,13 +60,13 @@ If you want/need to generate a new `vmlinux.h` (e.g. to support a non-standard k
 * You must install `bpftool` from your kernel sources
     * Available in [tools/bpf/bpftool](https://github.com/torvalds/linux/tree/master/tools/bpf/bpftool)
       in Linus' source tree
-* You can run `make vmlinux` to update your `vmlinux.h` with `bpftool`
+* The build script that comes with BPFContain should generate the correct `vmlinux.h` before compiling the BPF programs
 
 ### Installation
 
 1. Make sure you have all the dependencies above.
 1. Clone this repo: `git clone https://github.com/willfindlay/bpfcontain-rs/ && cd bpfcontain-rs`
-1. Install bpfcontain: `cargo install --path .`
+1. Install BPFContain: `cargo install --path .`
 1. Add `$HOME/.cargo/bin` to your `$PATH`
 
 ## Usage
