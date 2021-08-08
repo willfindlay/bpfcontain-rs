@@ -26,8 +26,6 @@
  * ========================================================================= */
 
 // Settings
-// TODO: change this to audit_level_t when we add
-// support for enums in libbpf-rs
 const volatile u32 audit_level;
 
 // Constants
@@ -35,6 +33,7 @@ const volatile u32 bpfcontain_pid;
 const volatile u32 host_mnt_ns_id;
 const volatile u32 host_pid_ns_id;
 
+// Kernel symbols
 extern const void init_nsproxy __ksym;
 extern const void init_user_ns __ksym;
 
@@ -529,52 +528,6 @@ static __always_inline bool inode_is_regular(const struct inode *inode)
 {
     return S_ISREG(inode->i_mode);
 }
-
-/* Get the overlayfs inode associated with an inode in an overlayfs.
- *
- * @inode: Pointer to the inode.
- *
- * return:
- *   A pointer to the overlay_inode, if one exists
- *   Otherwise, returns NULL
- */
-// static __always_inline struct ovl_inode *
-// get_overlayfs_inode(struct inode *inode)
-//{
-//    int zero = 0;
-//
-//    struct ovl_inode *_ovl_inode =
-//        container_of(inode, struct ovl_inode, vfs_inode);
-//
-//    struct ovl_inode *ovl_inode = bpf_map_lookup_elem(&__ovl_inode_init,
-//    &zero);
-//
-//    if (!ovl_inode)
-//        return NULL;
-//
-//    bpf_probe_read(ovl_inode, sizeof(struct ovl_inode), _ovl_inode);
-//
-//    return ovl_inode;
-//}
-
-// FIXME: This is causing verifier to complain about !read_ok
-// static __always_inline struct inode *
-// get_overlayfs_lower_inode(struct inode *inode)
-//{
-//    int zero = 0;
-//
-//    struct ovl_inode *ovl_inode = get_overlayfs_inode(inode);
-//    if (!ovl_inode)
-//        return NULL;
-//
-//    struct inode *lower_inode = bpf_map_lookup_elem(&__inode_init, &zero);
-//    if (!lower_inode)
-//        return NULL;
-//
-//    bpf_probe_read(lower_inode, sizeof(struct inode), ovl_inode->lower);
-//
-//    return lower_inode;
-//}
 
 /* Filter an inode by the filesystem magic number of its superblock.
  *
