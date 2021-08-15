@@ -20,16 +20,13 @@
 static audit_level_t decision_to_audit_level(policy_decision_t decision,
                                              bool default_deny)
 {
-    if (decision & BPFCON_DENY) {
-        return AUDIT_DENY;
-    } else if (decision & BPFCON_TAINT) {
-        return AUDIT_TAINT;
-    } else if (decision & BPFCON_ALLOW) {
-        return AUDIT_ALLOW;
-    } else if (default_deny) {
-        return AUDIT_DENY;
-    }
-    return AUDIT__NONE;
+    if (!(decision & BPFCON_ALLOW) && default_deny)
+        decision |= BPFCON_DENY;
+    // CORRECTNESS: This type cast is correct since we assume that
+    // the first three members of audit_level_t cleanly map to the
+    // only three members of policy_decision_t. If this assumption
+    // somehow later becomes invalid, this will need to be revisited.
+    return (audit_level_t)decision;
 }
 
 /**
