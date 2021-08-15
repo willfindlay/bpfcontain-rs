@@ -14,4 +14,4 @@ policy:
 
 bpf:
   # Possible values: [allow, deny, taint, info, warn]
-  auditLevel: [deny, taint]
+  auditLevel: [deny, taint, info, warn]
