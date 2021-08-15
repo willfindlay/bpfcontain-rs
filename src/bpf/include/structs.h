@@ -369,6 +369,7 @@ typedef enum {
     AUDIT_TYPE_CAP,
     AUDIT_TYPE_NET,
     AUDIT_TYPE_IPC,
+    AUDIT_TYPE_SIGNAL,
     AUDIT_TYPE__UNKOWN,
 } audit_type_t;
 
@@ -417,9 +418,19 @@ typedef struct {
  * @FIXME: Add documentation
  */
 typedef struct {
-    u64 other_policy_id;
-    u8 sender; // 1 if we are the sender, 0 otherwise
+    u64 other_policy_id; // The other policy ID
+    u8 sender;           // 1 if we are the sender, 0 otherwise
 } audit_ipc_t;
+
+/**
+ * struct audit_signal_t - Audit data representing signal access.
+ *
+ * @FIXME: Add documentation
+ */
+typedef struct {
+    u64 other_policy_id;       // The other policy ID
+    signal_operation_t signal; // The signal number, encoded as an access vector
+} audit_signal_t;
 
 /**
  * struct audit_data_t - Common audit data.
@@ -438,6 +449,7 @@ typedef struct {
         audit_cap_t cap;
         audit_net_t net;
         audit_ipc_t ipc;
+        audit_signal_t signal;
     };
 } audit_data_t;
 
