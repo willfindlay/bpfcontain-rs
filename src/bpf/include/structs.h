@@ -348,13 +348,13 @@ typedef struct {
  * @FIXME: Add documentation
  */
 typedef enum {
-    AUDIT__NONE    = (1U << 0),
-    AUDIT_ALLOW    = (1U << 1), // Audit policy allows
-    AUDIT_DENY     = (1U << 2), // Audit policy denials
-    AUDIT_TAINT    = (1U << 3), // Audit policy taints
-    AUDIT_INFO     = (1U << 4), // Audit info
-    AUDIT_WARN     = (1U << 5), // Audit warnings
-    AUDIT__UNKNOWN = (1U << 6),
+    AUDIT__NONE    = 0,
+    AUDIT_ALLOW    = (1U << 0), // Audit policy allows
+    AUDIT_DENY     = (1U << 1), // Audit policy denials
+    AUDIT_TAINT    = (1U << 2), // Audit policy taints
+    AUDIT_INFO     = (1U << 3), // Audit info
+    AUDIT_WARN     = (1U << 4), // Audit warnings
+    AUDIT__UNKNOWN = (1U << 5),
 } audit_level_t;
 
 #define should_audit(level) (level & audit_level)
