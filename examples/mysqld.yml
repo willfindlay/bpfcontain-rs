@@ -33,7 +33,7 @@ allow:
   - ipc: httpd
 
   # Allow sending signals to existing mysqld instances
-  - ipc: mysqld
+  - signal: {to: mysqld, signals: [check, superFatal]}
 
   # Allow mysqld to create a new network socket
   # (Necessary to pass assertions)

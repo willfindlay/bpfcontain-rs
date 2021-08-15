@@ -124,6 +124,9 @@ pub enum Rule {
     // Net policy
     #[serde(alias = "network")]
     Net(NetRule),
+    // Signal policy
+    #[serde(alias = "sig")]
+    Signal(SignalRule),
 }
 
 // ============================================================================
@@ -640,84 +643,101 @@ impl LoadRule for IpcRule {
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum Signal {
-    Chk,
-    Hup,
-    Int,
-    Quit,
-    Ill,
-    Trap,
-    Abrt,
-    Bus,
-    Fpe,
-    Kill,
-    Usr1,
-    Segv,
-    Usr2,
-    Pipe,
-    Alrm,
-    Term,
-    Stkflt,
-    Chld,
-    Cont,
+    SigChk,
+    SigHup,
+    SigInt,
+    SigQuit,
+    SigIll,
+    SigTrap,
+    SigAbrt,
+    SigBus,
+    SigFpe,
+    SigKill,
+    SigUsr1,
+    SigSegv,
+    SigUsr2,
+    SigPipe,
+    SigAlrm,
+    SigTerm,
+    SigStkFlt,
+    SigChld,
+    SigCont,
+    SigStop,
+    SigTstp,
+    SigTtin,
+    SigTtou,
+    SigUrg,
+    SigXcpu,
+    SigXfsz,
+    SigVtAlrm,
+    SigProf,
+    SigWinch,
+    SigIo,
+    SigPwr,
+    SigSys,
+    // Convenience aliases below this line
+    Any,
+    Check,
+    Fatal,
     Stop,
-    Tstp,
-    Ttin,
-    Ttou,
-    Urg,
-    Xcpu,
-    Xfsz,
-    Vtalrm,
-    Prof,
-    Winch,
-    Io,
-    Pwr,
-    Sys,
+    SuperFatal,
+    SuperStop,
 }
 
 impl From<Signal> for bitflags::Signal {
     fn from(sig: Signal) -> Self {
         match sig {
-            Signal::Chk => Self::SIGCHK,
-            Signal::Hup => Self::SIGHUP,
-            Signal::Int => Self::SIGINT,
-            Signal::Quit => Self::SIGQUIT,
-            Signal::Ill => Self::SIGILL,
-            Signal::Trap => Self::SIGTRAP,
-            Signal::Abrt => Self::SIGABRT,
-            Signal::Bus => Self::SIGBUS,
-            Signal::Fpe => Self::SIGFPE,
-            Signal::Kill => Self::SIGKILL,
-            Signal::Usr1 => Self::SIGUSR1,
-            Signal::Segv => Self::SIGSEGV,
-            Signal::Usr2 => Self::SIGUSR2,
-            Signal::Pipe => Self::SIGPIPE,
-            Signal::Alrm => Self::SIGALRM,
-            Signal::Term => Self::SIGTERM,
-            Signal::Stkflt => Self::SIGSTKFLT,
-            Signal::Chld => Self::SIGCHLD,
-            Signal::Cont => Self::SIGCONT,
+            Signal::SigChk => Self::SIGCHK,
+            Signal::SigHup => Self::SIGHUP,
+            Signal::SigInt => Self::SIGINT,
+            Signal::SigQuit => Self::SIGQUIT,
+            Signal::SigIll => Self::SIGILL,
+            Signal::SigTrap => Self::SIGTRAP,
+            Signal::SigAbrt => Self::SIGABRT,
+            Signal::SigBus => Self::SIGBUS,
+            Signal::SigFpe => Self::SIGFPE,
+            Signal::SigKill => Self::SIGKILL,
+            Signal::SigUsr1 => Self::SIGUSR1,
+            Signal::SigSegv => Self::SIGSEGV,
+            Signal::SigUsr2 => Self::SIGUSR2,
+            Signal::SigPipe => Self::SIGPIPE,
+            Signal::SigAlrm => Self::SIGALRM,
+            Signal::SigTerm => Self::SIGTERM,
+            Signal::SigStkFlt => Self::SIGSTKFLT,
+            Signal::SigChld => Self::SIGCHLD,
+            Signal::SigCont => Self::SIGCONT,
+            Signal::SigStop => Self::SIGSTOP,
+            Signal::SigTstp => Self::SIGTSTP,
+            Signal::SigTtin => Self::SIGTTIN,
+            Signal::SigTtou => Self::SIGTTOU,
+            Signal::SigUrg => Self::SIGURG,
+            Signal::SigXcpu => Self::SIGXCPU,
+            Signal::SigXfsz => Self::SIGXFSZ,
+            Signal::SigVtAlrm => Self::SIGVTALRM,
+            Signal::SigProf => Self::SIGPROF,
+            Signal::SigWinch => Self::SIGWINCH,
+            Signal::SigIo => Self::SIGIO,
+            Signal::SigPwr => Self::SIGPWR,
+            Signal::SigSys => Self::SIGSYS,
+            Signal::Any => Self::all(),
+            Signal::Check => Self::SIGCHK,
+            Signal::Fatal => Self::SIGTERM | Self::SIGINT,
             Signal::Stop => Self::SIGSTOP,
-            Signal::Tstp => Self::SIGTSTP,
-            Signal::Ttin => Self::SIGTTIN,
-            Signal::Ttou => Self::SIGTTOU,
-            Signal::Urg => Self::SIGURG,
-            Signal::Xcpu => Self::SIGXCPU,
-            Signal::Xfsz => Self::SIGXFSZ,
-            Signal::Vtalrm => Self::SIGVTALRM,
-            Signal::Prof => Self::SIGPROF,
-            Signal::Winch => Self::SIGWINCH,
-            Signal::Io => Self::SIGIO,
-            Signal::Pwr => Self::SIGPWR,
-            Signal::Sys => Self::SIGSYS,
+            Signal::SuperFatal => bitflags::Signal::from(Signal::Fatal) | Self::SIGKILL,
+            Signal::SuperStop => bitflags::Signal::from(Signal::Stop) | Self::SIGTSTP,
         }
     }
 }
 
-/// Represents a signal rule, allowing a container to send or receive signals to/from
-/// other containers
+/// Represents a signal rule, allowing a container to send signals to other containers
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct SignalRule(String, SingleOrVec<Signal>);
+pub struct SignalRule {
+    #[serde(alias = "receiver")]
+    to: String,
+    #[serde(alias = "signal")]
+    signals: SingleOrVec<Signal>,
+}
 
 impl LoadRule for SignalRule {
     fn map<'a: 'a>(&self, maps: &'a mut BpfcontainMapsMut) -> &'a mut Map {
@@ -727,7 +747,7 @@ impl LoadRule for SignalRule {
     fn key(&self, policy: &Policy) -> Result<Vec<u8>> {
         let key = keys::SignalPolicyKey {
             sender_id: policy.policy_id(),
-            receiver_id: Policy::policy_id_for_name(&self.0),
+            receiver_id: Policy::policy_id_for_name(&self.to),
         };
 
         Ok(unsafe { as_bytes(&key).into() })
@@ -737,7 +757,7 @@ impl LoadRule for SignalRule {
         let mut value = values::SignalPolicyVal::default();
 
         let signal_mask = self
-            .1
+            .signals
             .clone()
             .into_iter()
             .map(bitflags::Signal::from)
@@ -935,5 +955,13 @@ mod tests {
         let s = "net: [client, send]";
         let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
         assert!(matches!(rule, Rule::Net(_)))
+    }
+
+    /// A smoke test for deserializing signal rules.
+    #[test]
+    fn test_signal_deserialize_smoke() {
+        let s = "signal: {to: foobar, signals: [sigUsr1, sigTerm, sigKill, sigUsr2]}";
+        let rule: Rule = serde_yaml::from_str(s).expect("Failed to deserialize");
+        assert!(matches!(rule, Rule::Signal(_)))
     }
 }

@@ -54,7 +54,7 @@ allow:
   - ipc: mysqld
 
   # Allow sending signals to existing httpd instances
-  - ipc: httpd
+  - signal: {to: httpd, signals: [check, superFatal]}
 
   # Bind to privileged ports, change uid and gid
   - capability: [netBindService, setUID, setGID]
