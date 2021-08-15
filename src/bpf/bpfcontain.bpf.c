@@ -1437,22 +1437,22 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
         access)
         return BPFCON_ALLOW;
 
-    container_t *other_container = get_container_by_host_pid(other_pid);
-    if (other_container) {
-        decision |= check_ipc_access(container, other_container);
-
-        // Submit an audit event
-        audit_data_t *event = alloc_audit_event(
-            container->policy_id, AUDIT_TYPE_IPC,
-            decision_to_audit_level(decision, container->tainted));
-        if (event) {
-            event->ipc.other_policy_id = other_container->policy_id;
-            event->ipc.sender          = 1;
-            submit_audit_event(event);
-        }
+    container_t *other = get_container_by_host_pid(other_pid);
+    if (other) {
+        decision |= check_ipc_access(container, other);
     } else {
         // Deny when there is no container peer, for now...
         decision = BPFCON_DENY;
+    }
+
+    // Submit an audit event
+    audit_data_t *event = alloc_audit_event(
+        container->policy_id, AUDIT_TYPE_IPC,
+        decision_to_audit_level(decision, container->tainted));
+    if (event) {
+        event->ipc.other_policy_id = other ? other->policy_id : 0;
+        event->ipc.sender          = 1;
+        submit_audit_event(event);
     }
 
     return decision;
@@ -1826,6 +1826,7 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
     u32 pid                    = bpf_get_current_pid_tgid();
     container_t *container     = get_container_by_host_pid(pid);
     policy_decision_t decision = BPFCON_NO_DECISION;
+    signal_operation_t signal  = sig_to_access(sig);
 
     // Unconfined
     if (!container)
@@ -1839,7 +1840,26 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
     } else if (container->container_id == other->container_id) {
         decision |= BPFCON_ALLOW;
     } else {
-        // TODO: signal policy here
+        signal_policy_key_t key  = {};
+        key.sender_id            = container->policy_id;
+        key.receiver_id          = other->policy_id;
+        signal_policy_val_t *val = bpf_map_lookup_elem(&signal_policy, &key);
+
+        if (val && (val->allow & signal) == signal)
+            decision |= BPFCON_ALLOW;
+        if (val && (val->taint & signal))
+            decision |= BPFCON_TAINT;
+        if (val && (val->deny & signal))
+            decision |= BPFCON_DENY;
+    }
+
+    audit_data_t *event =
+        alloc_audit_event(container->policy_id, AUDIT_TYPE_SIGNAL,
+                          decision_to_audit_level(decision, true));
+    if (event) {
+        event->signal.other_policy_id = other ? other->policy_id : 0;
+        event->signal.signal          = signal;
+        submit_audit_event(event);
     }
 
     return do_policy_decision(container, decision, true);
