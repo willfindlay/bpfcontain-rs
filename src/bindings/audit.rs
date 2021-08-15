@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 
 use plain::Plain;
 
-use super::policy::bitflags::{Capability, FileAccess, NetOperation};
+use super::policy::bitflags::{Capability, FileAccess, NetOperation, Signal};
 use super::raw;
 
 /// Represents the common part of an audit event.
@@ -30,6 +30,7 @@ impl Display for AuditData {
                 AuditType::AUDIT_TYPE_CAP => self.__bindgen_anon_1.cap.to_string(),
                 AuditType::AUDIT_TYPE_NET => self.__bindgen_anon_1.net.to_string(),
                 AuditType::AUDIT_TYPE_IPC => self.__bindgen_anon_1.ipc.to_string(),
+                AuditType::AUDIT_TYPE_SIGNAL => self.__bindgen_anon_1.signal.to_string(),
                 AuditType::AUDIT_TYPE__UNKOWN => "UNKNOWN".to_string(),
             }
         };
@@ -52,7 +53,7 @@ impl Display for AuditFile {
         let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
         write!(
             f,
-            "st_ino={} st_dev={} access={:#?}",
+            "st_ino={} st_dev={} access={:?}",
             self.st_ino, self.st_dev, access
         )
     }
@@ -66,7 +67,7 @@ pub type AuditCap = raw::audit_cap_t;
 impl Display for AuditCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let cap = Capability::from_bits(self.cap).expect("Failed to convert capability");
-        write!(f, "cap={:#?}", cap)
+        write!(f, "cap={:?}", cap)
     }
 }
 
@@ -79,7 +80,7 @@ impl Display for AuditNet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let operation =
             NetOperation::from_bits(self.operation).expect("Failed to convert network operation");
-        write!(f, "operation={:#?}", operation)
+        write!(f, "operation={:?}", operation)
     }
 }
 
@@ -103,6 +104,21 @@ impl Display for AuditIpc {
 }
 
 unsafe impl Plain for AuditIpc {}
+
+pub type AuditSignal = raw::audit_signal_t;
+
+impl Display for AuditSignal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let access = Signal::from_bits(self.signal).expect("Failed to convert signal number");
+        write!(
+            f,
+            "signal={:?} receiver_policy_id={}",
+            access, self.other_policy_id
+        )
+    }
+}
+
+unsafe impl Plain for AuditSignal {}
 
 /// Callback to run when audit events are received
 pub fn audit_callback(data: &[u8]) -> i32 {
