@@ -7,5 +7,6 @@
 
 //! Defines subcommands to be run from `main`.
 
+pub mod confine;
 pub mod daemon;
 pub mod run;

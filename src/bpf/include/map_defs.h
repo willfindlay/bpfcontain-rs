@@ -32,6 +32,9 @@ BPF_HASH(policy_common, policy_id_t, policy_common_t, BPFCON_MAX_POLICY, 0, 0);
 BPF_HASH(fs_policy, fs_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0,
          0);
 
+/* Implict filesystem policy */
+BPF_HASH(fs_implict_policy, fs_implict_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY, 0, 0);
+
 /* File policy */
 BPF_HASH(file_policy, file_policy_key_t, file_policy_val_t, BPFCON_MAX_POLICY,
          0, 0);

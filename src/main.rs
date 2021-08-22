@@ -11,6 +11,7 @@ use ::anyhow::{bail, Context as _, Result};
 use ::clap::{crate_authors, crate_name, crate_version, App, AppSettings, Arg, SubCommand};
 
 use bpfcontain::config;
+use bpfcontain::subcommands::confine;
 use bpfcontain::subcommands::daemon;
 use bpfcontain::subcommands::run;
 
@@ -86,6 +87,20 @@ fn main() -> Result<()> {
                         .last(true)
                         .help("Override policy command"),
                 ),
+        )
+        .subcommand(
+            SubCommand::with_name("confine")
+                .about("Apply a policy to a container using it's pid")
+                .arg(
+                    Arg::with_name("pid")
+                        .required(true)
+                        .help("The containers root process pid"),
+                )
+                .arg(
+                    Arg::with_name("policy")
+                        .required(true)
+                        .help("The policy to use"),
+                ),
         );
 
     // Parse arguments
@@ -118,6 +133,7 @@ fn main() -> Result<()> {
     match args.subcommand() {
         ("daemon", Some(args)) => daemon::main(args, &config)?,
         ("run", Some(args)) => run::main(args, &config)?,
+        ("confine", Some(args)) => confine::main(args, &config)?,
         // TODO: match other subcommands
         (unknown, _) => bail!("Unknown subcommand {}", unknown),
     };
