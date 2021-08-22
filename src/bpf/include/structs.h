@@ -36,6 +36,18 @@ typedef struct {
 } process_t;
 
 /**
+ * container_status_t - Represents the state of a container
+ * @DEFAULT_SHIM: The built-in shim doesn't track state currently
+ * @DOCKER_INIT: Runc has started creating a new container
+ * @DOCKER_STARTED: Dockerd has reported that the container setup is finished
+ */
+typedef enum {
+    DEFAULT_SHIM = 0,
+    DOCKER_INIT = 1000,
+    DOCKER_STARTED = 1001,
+} container_status_t;
+
+/**
  * container_t - Represents per-container metadata
  * @policy_id: id of the policy associated with the container
  * @container_id: id of this container
@@ -70,6 +82,8 @@ typedef struct {
     u8 privileged : 1;
     // often corresponds with container id on the docker side
     char uts_name[16];
+    // Tracks the state of a container
+    container_status_t status;
 } container_t;
 
 /* ========================================================================= *
@@ -151,6 +165,11 @@ typedef struct {
     u64 policy_id;
     u32 device_id;
 } __PACKED fs_policy_key_t;
+
+typedef struct {
+    u64 container_id;
+    u32 device_id;
+} __PACKED fs_implict_policy_key_t;
 
 typedef struct {
     u64 policy_id;

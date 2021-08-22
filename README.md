@@ -87,6 +87,9 @@ If you want/need to generate a new `vmlinux.h` (e.g. to support a non-standard k
 1. Run confined programs:
     * `bpfcontain run <policy.yml>` where policy is the name of your policy
 
+## Docker usage
+[Docker README](DOCKER.md)
+
 ## Policy Language
 
 BPFContain policy is written in YAML. You can have a look at [the example policy](examples)

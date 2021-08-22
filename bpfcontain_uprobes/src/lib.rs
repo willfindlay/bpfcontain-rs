@@ -11,3 +11,7 @@
 #[no_mangle]
 #[inline(never)]
 pub extern "C" fn do_containerize(_retp: *mut i32, _policy_id: u64) {}
+
+#[no_mangle]
+#[inline(never)]
+pub extern "C" fn do_apply_policy_to_container(_retp: *mut i32, _pid: u64,_policy_id: u64) {}

@@ -353,7 +353,7 @@ impl Device {
     /// A minor number of None implies a wildcard (matching all minor numbers).
     pub fn device_numbers(&self) -> Vec<(u32, Option<u32>)> {
         match self {
-            Device::Terminal => vec![(136, None), (4, None)],
+            Device::Terminal => vec![(136, None), (4, None), (5, None)],
             Device::Null => vec![(1, Some(3)), (1, Some(5)), (1, Some(7))],
             Device::Random => vec![(1, Some(8)), (1, Some(9))],
         }
