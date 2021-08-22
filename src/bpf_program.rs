@@ -7,11 +7,15 @@
 
 //! Functionality related to BPF programs and maps.
 
+use std::fs;
 use std::path::Path;
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use object::Object;
+use object::ObjectSymbol;
+
+use anyhow::{anyhow, Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
@@ -24,6 +28,29 @@ use crate::ns;
 use crate::policy::Policy;
 use crate::uprobe_ext::FindSymbolUprobeExt;
 use crate::utils::bump_memlock_rlimit;
+
+// Taken from libbpf-bootstrap rust example tracecon
+// https://github.com/libbpf/libbpf-bootstrap/blob/master/examples/rust/tracecon/src/main.rs#L47
+// Authored by Magnus Kulke
+// You can achieve a similar result for testing using objdump -tT so_path | grep fn_name
+// Note get_symbol_address will return the deciaml number and objdump uses hex
+fn get_symbol_address(so_path: &str, fn_name: &str) -> Result<usize> {
+    let path = Path::new(so_path);
+    let buffer = fs::read(path)?;
+    let file = object::File::parse(buffer.as_slice())?;
+
+    let mut symbols = file.dynamic_symbols();
+    let symbol = symbols
+        .find(|symbol| {
+            if let Ok(name) = symbol.name() {
+                return name == fn_name;
+            }
+            false
+        })
+        .ok_or_else(|| anyhow!("symbol not found"))?;
+
+    Ok(symbol.address() as usize)
+}
 
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
@@ -162,6 +189,40 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
             -1,
             bpfcontain_uprobes::do_containerize as *const () as usize,
         )?
+        .into();
+
+    skel.links.do_apply_policy_to_container = skel
+        .progs_mut()
+        .do_apply_policy_to_container()
+        .attach_uprobe_addr(
+            false,
+            -1,
+            bpfcontain_uprobes::do_apply_policy_to_container as *const () as usize,
+        )?
+        .into();
+
+    // TODO: Dynamically lookup binary path
+    let runc_binary_path = "/usr/bin/runc";
+    let runc_func_name = "x_cgo_init";
+
+    let runc_init_address = get_symbol_address(runc_binary_path, runc_func_name)?;
+
+    skel.links.runc_x_cgo_init_enter = skel
+        .progs_mut()
+        .runc_x_cgo_init_enter()
+        .attach_uprobe(false, -1, runc_binary_path, runc_init_address)?
+        .into();
+
+    // TODO: Dynamically lookup binary path
+    let dockerd_binary_path = "/usr/bin/dockerd";
+    let dockerd_func_name = "github.com/docker/docker/container.(*State).SetRunning";
+
+    let dockerd_running_address = get_symbol_address(dockerd_binary_path, dockerd_func_name)?;
+
+    skel.links.dockerd_container_running_enter = skel
+        .progs_mut()
+        .dockerd_container_running_enter()
+        .attach_uprobe(false, -1, dockerd_binary_path, dockerd_running_address)?
         .into();
 
     Ok(())
