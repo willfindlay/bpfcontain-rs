@@ -16,6 +16,7 @@ use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
 
+use crate::api::ApiContext;
 use crate::bindings::audit;
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::config::Settings;
@@ -28,6 +29,7 @@ use crate::utils::bump_memlock_rlimit;
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
     pub ringbuf: RingBuffer,
+    api: ApiContext,
 }
 
 impl<'a> BpfcontainContext<'a> {
@@ -58,7 +60,11 @@ impl<'a> BpfcontainContext<'a> {
 
         let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
 
-        Ok(BpfcontainContext { skel, ringbuf })
+        Ok(BpfcontainContext {
+            skel,
+            ringbuf,
+            api: ApiContext::new(config),
+        })
     }
 
     /// Main BPFContain work loop
