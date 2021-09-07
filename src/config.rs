@@ -60,7 +60,6 @@ impl Settings {
 #[serde(rename_all = "camelCase")]
 pub struct Policy {
     #[serde(alias = "policyDir")]
-    #[serde(alias = "policy_dir")]
     pub dir: String,
 }
 
@@ -72,6 +71,8 @@ pub struct Daemon {
     pub log_file: String,
     pub pid_file: String,
     pub work_dir: String,
+    #[serde(alias = "websocketIP")]
+    pub websocket_ip: String,
     pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
 }
 

@@ -7,6 +7,7 @@
 
 //! Library functions for BPFContain.
 
+pub mod api;
 pub mod bpf;
 pub mod bpf_program;
 pub mod config;

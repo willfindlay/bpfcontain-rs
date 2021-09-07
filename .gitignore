@@ -5,3 +5,6 @@
 **/*.rs.bk
 
 .vagrant
+
+# Ignore .vscode
+.vscode

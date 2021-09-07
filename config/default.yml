@@ -5,6 +5,8 @@ daemon:
   pidFile: /run/bpfcontain.pid
   # Working directory
   workDir: /var/lib/bpfcontain
+  # IP address to use for websocket server
+  websocketIP: "0.0.0.0:3030"
   # Log level
   verbosity: INFO
 
