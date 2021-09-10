@@ -1,10 +1,11 @@
-use std::cell::RefCell;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use jsonrpc_core::serde::{Deserialize, Serialize};
-use jsonrpc_ws_server::jsonrpc_core::*;
+use jsonrpc_pubsub::{PubSubHandler, Session};
+use jsonrpc_ws_server::{jsonrpc_core::*, RequestContext};
 use jsonrpc_ws_server::{Server, ServerBuilder};
 
+use self::pubsub::{AuditEvent, PubSub, PubSubImpl, Subscriptions};
 use crate::config::Settings;
 
 mod pubsub;
@@ -13,39 +14,38 @@ mod rpc;
 #[derive(Default, Serialize, Deserialize)]
 pub struct ApiRequest {/* TODO */}
 
-#[derive(Serialize, Deserialize)]
-pub enum ApiResponse {
-    String(String),
-    SecurityEvent {
-        policy_id: u64,
-        container_id: u64,
-        comm: String,
-        msg: Option<String>,
-    },
-}
-
 /// Represents a running API server along with all the context
 /// it needs to operate normally.
 pub struct ApiContext {
     server: Server,
+    audit_subscribers: Subscriptions<AuditEvent>,
 }
 
 impl ApiContext {
     pub fn new(config: &Settings) -> Self {
-        let mut io = IoHandler::default();
-        // TODO: Register API endpoints here
+        let mut io = PubSubHandler::default();
+
+        // Register publish/subscribe API
+        let pubsub = PubSubImpl;
+        io.extend_with(pubsub.to_delegate());
+
+        // Set websocket server address
+        let addr = &config
+            .daemon
+            .websocket_ip
+            .parse()
+            .expect("Failed to parse websocket server IP");
 
         // Spawn the websocket server
-        let server = ServerBuilder::new(io)
-            .start(
-                &config
-                    .daemon
-                    .websocket_ip
-                    .parse()
-                    .expect("Failed to parse websocket server IP"),
-            )
-            .expect("Server must start with no issues");
+        let server = ServerBuilder::with_meta_extractor(io, |context: &RequestContext| {
+            Arc::new(Session::new(context.sender().clone()))
+        })
+        .start(addr)
+        .expect("Server must start with no issues");
 
-        Self { server }
+        Self {
+            server,
+            audit_subscribers: Subscriptions::default(),
+        }
     }
 }
