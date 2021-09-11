@@ -26,7 +26,8 @@ impl ApiContext {
         let mut io = PubSubHandler::default();
 
         // Register publish/subscribe API
-        let pubsub = PubSubImpl;
+        let pubsub = PubSubImpl::default();
+        let audit_subscribers = pubsub.audit_subscribers.clone();
         io.extend_with(pubsub.to_delegate());
 
         // Set websocket server address
@@ -43,9 +44,11 @@ impl ApiContext {
         .start(addr)
         .expect("Server must start with no issues");
 
+        log::info!("API server started, listing on websocket {}", addr);
+
         Self {
             server,
-            audit_subscribers: Subscriptions::default(),
+            audit_subscribers,
         }
     }
 }
