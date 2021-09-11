@@ -1965,8 +1965,14 @@ int BPF_PROG(locked_down, enum lockdown_reason what)
     container_t *container = get_container_by_host_pid(pid);
 
     // Unconfined
-    if (!container)
+    if (!container) {
         return 0;
+    }
+
+    // Support Linux 5.14+
+#ifndef LOCKDOWN_BPF_READ
+#define LOCKDOWN_BPF_READ LOCKDOWN_BPF_READ_KERNEL
+#endif
 
     // We need to allow LOCKDOWN_BPF_READ so our probes work
     if (what == LOCKDOWN_BPF_READ)
