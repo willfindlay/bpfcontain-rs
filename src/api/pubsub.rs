@@ -89,17 +89,69 @@ impl PubSub for PubSubImpl {
 //     },
 // }
 
+/// Used to filter over security events when calling `audit_subscribe`.
+/// TODO: This currently does nothing.
 #[derive(Serialize, Deserialize)]
 pub struct AuditFilter {
     policy_name: Option<String>,
+    container_id: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct AuditEvent {/* TODO */}
+pub struct AuditEvent {
+    policy_id: u64,
+    container_id: u64,
+    pid: u64,
+    ns_pid: u64,
+    decision: Option<u64>, // TODO: make this a decision enum
+    data: AuditEventData,
+}
 
-/// An extension trait enabling us to coerce the inner number out of a `SubscriptionId`.
+/// A security event that can be forwarded to audit subscribers.
+#[derive(Serialize, Deserialize)]
+pub enum AuditEventData {
+    String(String),
+    FileEvent {
+        st_ino: u64,
+        st_dev: u64,
+    },
+    FileSystemEvent {
+        st_dev: u64,
+        magic: u64,
+    },
+    DeviceEvent {
+        major: u64,
+        minor: u64,
+    },
+    IpcEvent {
+        other_policy_id: u64,
+        other_container_id: u64,
+        direction: u64, // TODO: make this a send/recv enum
+    },
+    SignalEvent {
+        other_policy_id: u64,
+        other_container_id: u64,
+    },
+    SocketEvent {
+        // TODO
+        operation: u64, // TODO: make this an operation enum
+    },
+    CapabilityEvent {
+        // TODO
+        capability: u64, // TODO: make this a capability enum
+    },
+    ImplicitPolicyEvent {
+        // TODO
+        kind: u64, // TODO: Make this an implicit policy enum
+    },
+    NewContainerEvent,
+}
+
+/// An extension trait enabling us to coerce the inner values out of a `SubscriptionId`,
+/// provided that the variant is known at compile-time.
 trait SubscriptionIdInnerNumberExt {
     fn number(&self) -> u64;
+    fn string(&self) -> &String;
 }
 
 impl SubscriptionIdInnerNumberExt for SubscriptionId {
@@ -109,6 +161,15 @@ impl SubscriptionIdInnerNumberExt for SubscriptionId {
         match self {
             SubscriptionId::Number(n) => n.to_owned(),
             _ => panic!("SubscriptionId is not a number!?"),
+        }
+    }
+
+    /// Convert a `SubscriptionId` to the inner string.
+    /// Panics if `SubscriptionId` is not `SubscriptionId::String` variant.
+    fn string(&self) -> &String {
+        match self {
+            SubscriptionId::String(s) => s,
+            _ => panic!("SubscriptionId is not a string!?"),
         }
     }
 }

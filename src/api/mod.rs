@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use jsonrpc_core::serde::{Deserialize, Serialize};
 use jsonrpc_pubsub::{PubSubHandler, Session};
-use jsonrpc_ws_server::{jsonrpc_core::*, RequestContext};
+use jsonrpc_ws_server::RequestContext;
 use jsonrpc_ws_server::{Server, ServerBuilder};
 
 use self::pubsub::{AuditEvent, PubSub, PubSubImpl, Subscriptions};
@@ -10,9 +9,6 @@ use crate::config::Settings;
 
 mod pubsub;
 mod rpc;
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct ApiRequest {/* TODO */}
 
 /// Represents a running API server along with all the context
 /// it needs to operate normally.
@@ -23,6 +19,7 @@ pub struct ApiContext {
 
 impl ApiContext {
     pub fn new(config: &Settings) -> Self {
+        // Create a new event handler using the pubub extensions
         let mut io = PubSubHandler::default();
 
         // Register publish/subscribe API
