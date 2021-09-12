@@ -60,11 +60,11 @@ impl<'a> BpfcontainContext<'a> {
 
         let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
 
-        Ok(BpfcontainContext {
-            skel,
-            ringbuf,
-            api: ApiContext::new(config),
-        })
+        log::info!("Initializing API server...");
+        let api = ApiContext::new(config);
+        log::info!("API server started successfully!");
+
+        Ok(BpfcontainContext { skel, ringbuf, api })
     }
 
     /// Main BPFContain work loop
@@ -79,7 +79,7 @@ impl<'a> BpfcontainContext<'a> {
 
     /// Load a policy object into the kernel
     pub fn load_policy(&mut self, policy: &Policy) -> Result<()> {
-        log::debug!("Loading policy {}...", policy.name);
+        log::info!("Loading policy {}...", policy.name);
 
         policy
             .load(&mut self.skel)
@@ -88,7 +88,7 @@ impl<'a> BpfcontainContext<'a> {
 
     /// Load policy from a file
     pub fn load_policy_from_file<P: AsRef<Path>>(&mut self, policy_path: P) -> Result<()> {
-        log::info!(
+        log::debug!(
             "Loading policy from file {}...",
             policy_path.as_ref().display()
         );
@@ -126,7 +126,7 @@ impl<'a> BpfcontainContext<'a> {
 
     /// Unload a policy from the kernel
     pub fn unload_policy(&mut self, policy: &Policy) -> Result<()> {
-        log::debug!("Unloading policy {}...", policy.name);
+        log::info!("Unloading policy {}...", policy.name);
 
         policy
             .unload(&mut self.skel)
