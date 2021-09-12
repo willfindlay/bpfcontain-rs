@@ -44,8 +44,6 @@ impl ApiContext {
         .start(addr)
         .expect("Server must start with no issues");
 
-        log::info!("API server started, listing on websocket {}", addr);
-
         Self {
             server,
             audit_subscribers,

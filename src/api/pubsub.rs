@@ -11,8 +11,6 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
-use super::ApiContext;
-
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
 
@@ -27,7 +25,7 @@ pub trait PubSub {
         &self,
         meta: Self::Metadata,
         subscriber: Subscriber<AuditEvent>,
-        filter: AuditFilter,
+        filter: Option<AuditFilter>,
     );
 
     /// Unsubscribe from a security audit event.
@@ -49,12 +47,28 @@ impl PubSub for PubSubImpl {
         &self,
         meta: Self::Metadata,
         subscriber: Subscriber<AuditEvent>,
-        filter: AuditFilter,
+        filter: Option<AuditFilter>,
     ) {
+        // Assign subscriber to a sink associated with a unique ID
         let id = SubscriptionId::Number(self.uid.fetch_add(1, Ordering::SeqCst) as u64);
         let sink = subscriber.assign_id(id.clone()).unwrap();
-        // TODO: use `filter` to discriminate based on
-        log::debug!("Hello pubsub!");
+
+        // Register a handler for dropped connections
+        let audit_subscribers_clone = self.audit_subscribers.clone();
+        let id_clone = id.clone();
+        meta.on_drop(move || {
+            audit_subscribers_clone.write().unwrap().remove(&id_clone);
+            log::warn!(
+                "Lost connection with subscriber {}, dropping subscription!",
+                id_clone.number()
+            )
+        });
+
+        log::debug!("Registering a subscriber with id {:?}", id);
+
+        // TODO: use `filter` to discriminate based on policy name, etc
+        // Map the subscriber's ID to the sink
+        self.audit_subscribers.write().unwrap().insert(id, sink);
     }
 
     fn audit_unsubscribe(&self, meta: Option<Self::Metadata>, id: SubscriptionId) -> Result<()> {
@@ -81,3 +95,19 @@ pub struct AuditFilter {
 
 #[derive(Serialize, Deserialize)]
 pub struct AuditEvent {/* TODO */}
+
+/// An extension trait enabling us to coerce the inner number out of a `SubscriptionId`.
+trait SubscriptionIdInnerNumberExt {
+    fn number(&self) -> u64;
+}
+
+impl SubscriptionIdInnerNumberExt for SubscriptionId {
+    /// Convert a `SubscriptionId` to the inner number.
+    /// Panics if `SubscriptionId` is not `SubscriptionId::Number` variant.
+    fn number(&self) -> u64 {
+        match self {
+            SubscriptionId::Number(n) => n.to_owned(),
+            _ => panic!("SubscriptionId is not a number!?"),
+        }
+    }
+}
