@@ -71,8 +71,9 @@ impl PubSub for PubSubImpl {
         self.audit_subscribers.write().unwrap().insert(id, sink);
     }
 
-    fn audit_unsubscribe(&self, meta: Option<Self::Metadata>, id: SubscriptionId) -> Result<()> {
-        log::debug!("Goodbye pubsub!");
+    fn audit_unsubscribe(&self, _meta: Option<Self::Metadata>, id: SubscriptionId) -> Result<()> {
+        self.audit_subscribers.write().unwrap().remove(&id);
+        log::debug!("Unsubscribing the subscriber with id {:?}", id);
         Ok(())
     }
 }
