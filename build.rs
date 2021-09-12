@@ -9,6 +9,7 @@ use std::env;
 use std::fs::{remove_file, File};
 use std::io::{BufWriter, Write};
 use std::os::unix::fs::symlink;
+use std::os::unix::prelude::MetadataExt;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -74,6 +75,15 @@ fn generate_skeleton() {
     }
 }
 
+/// Checks if a file exists and is non-empty
+fn nonempty_exists(path: &PathBuf) -> bool {
+    path.exists()
+        && File::open(path)
+            .and_then(|open_file| open_file.metadata())
+            .and_then(|metadata| Ok(metadata.size() != 0))
+            .unwrap_or(false)
+}
+
 fn generate_vmlinux() {
     // Determine pathname for vmlinux header
     let kernel_release = uname().expect("Failed to fetch system information").release;
@@ -81,7 +91,7 @@ fn generate_vmlinux() {
     let vmlinux_link_path = PathBuf::from("src/bpf/include/vmlinux.h");
 
     // Populate vmlinux_{kernel_release}.h with BTF info
-    if !vmlinux_path.exists() {
+    if !nonempty_exists(&vmlinux_path) {
         let mut vmlinux_writer = BufWriter::new(
             File::create(vmlinux_path.clone())
                 .expect("Failed to open vmlinux destination for writing"),
@@ -96,9 +106,15 @@ fn generate_vmlinux() {
             .arg("c")
             .stdout(Stdio::piped())
             .output()
-            .expect("Failed to run make");
+            .expect("Failed to run bpftool");
 
-        assert!(output.status.success());
+        // Make sure we were able to run bpftool successfully
+        assert!(output.status.success(), "Failed to get BTF info");
+        // Make sure we actually have something to write to vmlinux.h
+        assert!(
+            !output.stdout.is_empty(),
+            "bpftool codegen output was empty"
+        );
 
         vmlinux_writer
             .write_all(&output.stdout)
