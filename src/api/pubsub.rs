@@ -11,7 +11,7 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
-use crate::bindings::audit::AuditData;
+use crate::bindings::audit::{AuditData, AuditType};
 
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
@@ -92,16 +92,41 @@ pub struct AuditFilter {
 pub struct AuditEvent {
     policy_id: u64,
     container_id: u64,
-    pid: u64,
-    ns_pid: u64,
-    decision: Option<String>, // TODO: make this a decision enum
+    pid: u32,
+    ns_pid: u32,
+    decision: String, // TODO: make this a decision enum
     data: AuditEventData,
 }
 
 impl From<AuditData> for AuditEvent {
     fn from(data: AuditData) -> Self {
-        // TODO Convert AuditData into an AuditEvent that can be submitted
-        unimplemented!()
+        AuditEvent {
+            policy_id: data.policy_id,
+            container_id: 0, // TODO: data.container_id
+            pid: data.pid,
+            ns_pid: 0, // TODO: data.ns_pid
+            decision: data.level.to_string(),
+            data: match data.type_ {
+                AuditType::AUDIT_TYPE_FILE => {
+                    todo!()
+                }
+                AuditType::AUDIT_TYPE_CAP => {
+                    todo!()
+                }
+                AuditType::AUDIT_TYPE_NET => {
+                    todo!()
+                }
+                AuditType::AUDIT_TYPE_IPC => {
+                    todo!()
+                }
+                AuditType::AUDIT_TYPE_SIGNAL => {
+                    todo!()
+                }
+                AuditType::AUDIT_TYPE__UNKOWN => {
+                    AuditEventData::String("Unknown audit event".into())
+                }
+            },
+        }
     }
 }
 
