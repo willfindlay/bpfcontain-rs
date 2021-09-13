@@ -90,6 +90,7 @@ pub struct AuditFilter {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AuditEvent {
+    comm: String,
     policy_id: u64,
     container_id: u64,
     pid: u32,
@@ -101,26 +102,61 @@ pub struct AuditEvent {
 impl From<AuditData> for AuditEvent {
     fn from(data: AuditData) -> Self {
         AuditEvent {
+            comm: String::from_utf8_lossy(&data.comm).into(),
             policy_id: data.policy_id,
-            container_id: 0, // TODO: data.container_id
+            container_id: data.container_id,
             pid: data.pid,
-            ns_pid: 0, // TODO: data.ns_pid
-            decision: data.level.to_string(),
+            ns_pid: data.ns_pid,
+            decision: data.decision.to_string(),
             data: match data.type_ {
                 AuditType::AUDIT_TYPE_FILE => {
-                    todo!()
+                    // SAFETY: This relies on the correctness of `data.type_`,
+                    // which comes from the eBPF side
+                    let file_data = unsafe { data.__bindgen_anon_1.file };
+                    AuditEventData::FileEvent {
+                        st_ino: file_data.st_ino,
+                        st_dev: file_data.st_dev,
+                        access: file_data.access.to_string(),
+                    }
                 }
                 AuditType::AUDIT_TYPE_CAP => {
-                    todo!()
+                    // SAFETY: This relies on the correctness of `data.type_`,
+                    // which comes from the eBPF side
+                    let cap_data = unsafe { data.__bindgen_anon_1.cap };
+                    AuditEventData::CapabilityEvent {
+                        capability: cap_data.cap.to_string(),
+                    }
                 }
                 AuditType::AUDIT_TYPE_NET => {
-                    todo!()
+                    // SAFETY: This relies on the correctness of `data.type_`,
+                    // which comes from the eBPF side
+                    let net_data = unsafe { data.__bindgen_anon_1.net };
+                    AuditEventData::SocketEvent {
+                        operation: net_data.operation.to_string(),
+                    }
                 }
                 AuditType::AUDIT_TYPE_IPC => {
-                    todo!()
+                    // SAFETY: This relies on the correctness of `data.type_`,
+                    // which comes from the eBPF side
+                    let ipc_data = unsafe { data.__bindgen_anon_1.ipc };
+                    AuditEventData::IpcEvent {
+                        other_policy_id: ipc_data.other_policy_id,
+                        other_container_id: ipc_data.other_container_id,
+                        operation: match ipc_data.sender {
+                            0 => "recv".into(),
+                            _ => "send".into(),
+                        },
+                    }
                 }
                 AuditType::AUDIT_TYPE_SIGNAL => {
-                    todo!()
+                    // SAFETY: This relies on the correctness of `data.type_`,
+                    // which comes from the eBPF side
+                    let signal_data = unsafe { data.__bindgen_anon_1.signal };
+                    AuditEventData::SignalEvent {
+                        other_policy_id: signal_data.other_policy_id,
+                        other_container_id: signal_data.other_container_id,
+                        signal: signal_data.signal.to_string(),
+                    }
                 }
                 AuditType::AUDIT_TYPE__UNKOWN => {
                     AuditEventData::String("Unknown audit event".into())
@@ -136,11 +172,16 @@ pub enum AuditEventData {
     String(String),
     FileEvent {
         st_ino: u64,
-        st_dev: u64,
+        st_dev: u32,
+        access: String,
     },
     DeviceEvent {
         major: u64,
         minor: u64,
+    },
+    CapabilityEvent {
+        // TODO
+        capability: String, // TODO: make this a capability enum
     },
     IpcEvent {
         other_policy_id: u64,
@@ -150,14 +191,11 @@ pub enum AuditEventData {
     SignalEvent {
         other_policy_id: u64,
         other_container_id: u64,
+        signal: String,
     },
     SocketEvent {
         // TODO
         operation: String, // TODO: make this an operation enum
-    },
-    CapabilityEvent {
-        // TODO
-        capability: String, // TODO: make this a capability enum
     },
     ImplicitPolicyEvent {
         // TODO

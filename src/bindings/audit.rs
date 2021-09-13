@@ -37,8 +37,8 @@ impl Display for AuditData {
 
         write!(
             f,
-            "[{}] comm={} pid={} tid={} policy={} {}",
-            self.level, comm, self.tgid, self.pid, self.policy_id, inner_data_str
+            "[{}] comm={} pid={} ns_pid={} policy={} {}",
+            self.level, comm, self.pid, self.ns_pid, self.policy_id, inner_data_str
         )
     }
 }
