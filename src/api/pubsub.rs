@@ -11,6 +11,8 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
+use crate::bindings::audit::AuditData;
+
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
 
@@ -78,17 +80,6 @@ impl PubSub for PubSubImpl {
     }
 }
 
-// #[derive(Serialize, Deserialize)]
-// pub enum ApiResponse {
-//     String(String),
-//     SecurityEvent {
-//         policy_id: u64,
-//         container_id: u64,
-//         comm: String,
-//         msg: Option<String>,
-//     },
-// }
-
 /// Used to filter over security events when calling `audit_subscribe`.
 /// TODO: This currently does nothing.
 #[derive(Serialize, Deserialize)]
@@ -97,27 +88,30 @@ pub struct AuditFilter {
     container_id: Option<u64>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct AuditEvent {
     policy_id: u64,
     container_id: u64,
     pid: u64,
     ns_pid: u64,
-    decision: Option<u64>, // TODO: make this a decision enum
+    decision: Option<String>, // TODO: make this a decision enum
     data: AuditEventData,
 }
 
+impl From<AuditData> for AuditEvent {
+    fn from(data: AuditData) -> Self {
+        // TODO Convert AuditData into an AuditEvent that can be submitted
+        unimplemented!()
+    }
+}
+
 /// A security event that can be forwarded to audit subscribers.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub enum AuditEventData {
     String(String),
     FileEvent {
         st_ino: u64,
         st_dev: u64,
-    },
-    FileSystemEvent {
-        st_dev: u64,
-        magic: u64,
     },
     DeviceEvent {
         major: u64,
@@ -126,7 +120,7 @@ pub enum AuditEventData {
     IpcEvent {
         other_policy_id: u64,
         other_container_id: u64,
-        direction: u64, // TODO: make this a send/recv enum
+        operation: String, // TODO: make this a send/recv enum
     },
     SignalEvent {
         other_policy_id: u64,
@@ -134,22 +128,22 @@ pub enum AuditEventData {
     },
     SocketEvent {
         // TODO
-        operation: u64, // TODO: make this an operation enum
+        operation: String, // TODO: make this an operation enum
     },
     CapabilityEvent {
         // TODO
-        capability: u64, // TODO: make this a capability enum
+        capability: String, // TODO: make this a capability enum
     },
     ImplicitPolicyEvent {
         // TODO
-        kind: u64, // TODO: Make this an implicit policy enum
+        kind: String, // TODO: Make this an implicit policy enum
     },
     NewContainerEvent,
 }
 
-/// An extension trait enabling us to coerce the inner values out of a `SubscriptionId`,
-/// provided that the variant is known at compile-time.
-trait SubscriptionIdInnerNumberExt {
+/// An extension trait enabling us to coerce the inner values out of a
+/// `SubscriptionId`, provided that the variant is known at compile-time.
+pub trait SubscriptionIdInnerNumberExt {
     fn number(&self) -> u64;
     fn string(&self) -> &String;
 }

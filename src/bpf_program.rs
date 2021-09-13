@@ -8,6 +8,7 @@
 //! Functionality related to BPF programs and maps.
 
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -15,9 +16,10 @@ use anyhow::{Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
+use plain::Plain;
 
-use crate::api::ApiContext;
-use crate::bindings::audit;
+use crate::api::{pubsub::AuditEvent, ApiContext};
+use crate::bindings::audit::{self, AuditData};
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::config::Settings;
 use crate::log::log_error;
@@ -29,7 +31,7 @@ use crate::utils::bump_memlock_rlimit;
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
     pub ringbuf: RingBuffer,
-    api: ApiContext,
+    api: Arc<RwLock<ApiContext>>,
 }
 
 impl<'a> BpfcontainContext<'a> {
@@ -58,11 +60,11 @@ impl<'a> BpfcontainContext<'a> {
         skel.attach().context("Failed to attach BPF programs")?;
         attach_uprobes(&mut skel).context("Failed to attach uprobes")?;
 
-        let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
-
         log::info!("Initializing API server...");
-        let api = ApiContext::new(config);
+        let api = Arc::new(RwLock::new(ApiContext::new(config)));
         log::info!("API server started successfully!");
+
+        let ringbuf = configure_ringbuf(&mut skel, &api).context("Failed to configure ringbuf")?;
 
         Ok(BpfcontainContext { skel, ringbuf, api })
     }
@@ -174,12 +176,33 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
 }
 
 /// Configure ring buffers for logging
-fn configure_ringbuf(skel: &mut BpfcontainSkel) -> Result<RingBuffer> {
+fn configure_ringbuf(
+    skel: &mut BpfcontainSkel,
+    api: &Arc<RwLock<ApiContext>>,
+) -> Result<RingBuffer> {
     let mut ringbuf_builder = RingBufferBuilder::default();
 
+    // Register a handler on audit events
+    let api = api.clone();
     ringbuf_builder
-        .add(skel.maps().__audit_buf(), audit::audit_callback)
+        .add(skel.maps().__audit_buf(), move |data: &[u8]| {
+            let data =
+                AuditData::from_bytes(data).expect("Failed to convert audit data from raw bytes");
+
+            // Convert raw audit data into an `AuditEvent`
+            let event = AuditEvent::from(data.to_owned());
+            // ...and notify subscribers that the event has fired
+            api.read().unwrap().notify_audit_subscribers(event);
+
+            0
+        })
         .context("Failed to add callback")?;
+
+    // TODO Move the old audit::audit_callback functionality up into the above
+    // capturing closure
+    // ringbuf_builder
+    //     .add(skel.maps().__audit_buf(), audit::audit_callback)
+    //     .context("Failed to add callback")?;
 
     ringbuf_builder.build().context("Failed to create ringbuf")
 }

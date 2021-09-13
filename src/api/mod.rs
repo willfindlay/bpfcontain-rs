@@ -1,14 +1,15 @@
+pub mod pubsub;
+pub mod rpc;
+
 use std::sync::Arc;
 
 use jsonrpc_pubsub::{PubSubHandler, Session};
 use jsonrpc_ws_server::RequestContext;
 use jsonrpc_ws_server::{Server, ServerBuilder};
+use log::{debug, warn};
 
-use self::pubsub::{AuditEvent, PubSub, PubSubImpl, Subscriptions};
 use crate::config::Settings;
-
-mod pubsub;
-mod rpc;
+use pubsub::{AuditEvent, PubSub, PubSubImpl, SubscriptionIdInnerNumberExt as _, Subscriptions};
 
 /// Represents a running API server along with all the context
 /// it needs to operate normally.
@@ -44,6 +45,15 @@ impl ApiContext {
         Self {
             server,
             audit_subscribers,
+        }
+    }
+
+    pub fn notify_audit_subscribers(&self, event: AuditEvent) {
+        for (id, subscriber) in self.audit_subscribers.read().unwrap().iter() {
+            debug!("Notifying subscription id {}", id.number());
+            if let Err(e) = subscriber.notify(Ok(event.clone())) {
+                warn!("Failed to notify subscription id {}: {:?}", id.number(), e);
+            }
         }
     }
 }
