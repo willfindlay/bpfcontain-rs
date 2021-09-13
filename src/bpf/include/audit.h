@@ -17,11 +17,8 @@
  *
  * @FIXME: Add documentation
  */
-static audit_level_t decision_to_audit_level(policy_decision_t decision,
-                                             bool default_deny)
+static audit_level_t decision_to_audit_level(policy_decision_t decision)
 {
-    if (!(decision & BPFCON_ALLOW) && default_deny)
-        decision |= BPFCON_DENY;
     // CORRECTNESS: This type cast is correct since we assume that
     // the first three members of audit_level_t cleanly map to the
     // only three members of policy_decision_t. If this assumption
@@ -35,8 +32,10 @@ static audit_level_t decision_to_audit_level(policy_decision_t decision,
  *
  * @FIXME: Add documentation
  */
-static audit_data_t *__alloc_audit_event(u64 policy_id, audit_type_t type,
-                                         audit_level_t level)
+static audit_data_t *__alloc_audit_event(process_t *process,
+                                         container_t *container,
+                                         audit_type_t type, audit_level_t level,
+                                         policy_decision_t decision)
 {
     audit_data_t *event =
         bpf_ringbuf_reserve(&__audit_buf, sizeof(audit_data_t), 0);
@@ -46,11 +45,17 @@ static audit_data_t *__alloc_audit_event(u64 policy_id, audit_type_t type,
     }
 
     bpf_get_current_comm(&event->comm, sizeof(event->comm));
-    event->policy_id = policy_id;
-    event->tgid      = bpf_get_current_pid_tgid();
-    event->pid       = bpf_get_current_pid_tgid() >> 32;
-    event->level     = level;
-    event->type      = type;
+    if (container) {
+        event->container_id = container->container_id;
+        event->policy_id    = container->policy_id;
+    }
+    if (process) {
+        event->pid    = process->host_pid;
+        event->ns_pid = process->pid;
+    }
+    event->level    = level;
+    event->type     = type;
+    event->decision = decision;
 
     return event;
 }
@@ -61,11 +66,12 @@ static audit_data_t *__alloc_audit_event(u64 policy_id, audit_type_t type,
  *
  * @FIXME: Add documentation
  */
-#define alloc_audit_event(policy_id, type, level)                              \
+#define alloc_audit_event(process, container, type, level, decision)           \
     ({                                                                         \
         void *event = NULL;                                                    \
         if (should_audit(level) && level > AUDIT__NONE)                        \
-            event = __alloc_audit_event(policy_id, type, level);               \
+            event = __alloc_audit_event(process, container, type, level,       \
+                                        decision);                             \
         event;                                                                 \
     })
 

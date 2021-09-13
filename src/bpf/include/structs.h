@@ -418,8 +418,9 @@ typedef struct {
  * @FIXME: Add documentation
  */
 typedef struct {
-    u64 other_policy_id; // The other policy ID
-    u8 sender;           // 1 if we are the sender, 0 otherwise
+    u64 other_policy_id;    // The other policy ID
+    u64 other_container_id; // The other container ID
+    u8 sender;              // 1 if we are the sender, 0 otherwise
 } audit_ipc_t;
 
 /**
@@ -429,6 +430,7 @@ typedef struct {
  */
 typedef struct {
     u64 other_policy_id;       // The other policy ID
+    u64 other_container_id;    // The other container ID
     signal_operation_t signal; // The signal number, encoded as an access vector
 } audit_signal_t;
 
@@ -440,8 +442,10 @@ typedef struct {
 typedef struct {
     u8 comm[16];
     u64 policy_id;
+    u64 container_id;
     u32 pid;
-    u32 tgid;
+    u32 ns_pid;
+    policy_decision_t decision;
     audit_level_t level;
     audit_type_t type;
     union {
