@@ -103,6 +103,8 @@ pub struct AuditEvent {
     data: AuditEventData,
 }
 
+/// Enable conversion from the AuditData struct sent over the ringbuf to an AuditEvent
+/// that can be sent over our API.
 impl From<AuditData> for AuditEvent {
     fn from(data: AuditData) -> Self {
         AuditEvent {
