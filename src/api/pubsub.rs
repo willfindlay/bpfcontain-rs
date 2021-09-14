@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    ffi::CString,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, RwLock,
@@ -11,7 +12,10 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
-use crate::bindings::audit::{AuditData, AuditType};
+use crate::{
+    bindings::audit::{AuditData, AuditType},
+    utils::byte_array_to_string,
+};
 
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
@@ -102,7 +106,7 @@ pub struct AuditEvent {
 impl From<AuditData> for AuditEvent {
     fn from(data: AuditData) -> Self {
         AuditEvent {
-            comm: String::from_utf8_lossy(&data.comm).into(),
+            comm: byte_array_to_string(&data.comm),
             policy_id: data.policy_id,
             container_id: data.container_id,
             pid: data.pid,
