@@ -74,3 +74,10 @@ pub fn get_project_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .canonicalize()
         .expect("Failed to canonicalize path")
 }
+
+/// Convert a null terminated byte array to a string, discarding all trailing null
+/// characters
+pub fn byte_array_to_string(bytes: &[u8]) -> String {
+    let s = String::from_utf8_lossy(bytes);
+    s.trim_matches(char::from(0)).into()
+}
