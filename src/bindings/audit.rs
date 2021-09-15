@@ -53,7 +53,7 @@ impl Display for AuditFile {
         let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
         write!(
             f,
-            "st_ino={} st_dev={} access={:?}",
+            "kind=file st_ino={} st_dev={} access={:?}",
             self.st_ino, self.st_dev, access
         )
     }
@@ -67,7 +67,7 @@ pub type AuditCap = raw::audit_cap_t;
 impl Display for AuditCap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let cap = Capability::from_bits(self.cap).expect("Failed to convert capability");
-        write!(f, "cap={:?}", cap)
+        write!(f, "kind=capability cap={:?}", cap)
     }
 }
 
@@ -80,7 +80,7 @@ impl Display for AuditNet {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let operation =
             NetOperation::from_bits(self.operation).expect("Failed to convert network operation");
-        write!(f, "operation={:?}", operation)
+        write!(f, "kind=network operation={:?}", operation)
     }
 }
 
@@ -97,7 +97,7 @@ impl Display for AuditIpc {
         };
         write!(
             f,
-            "operation={} other_id={}",
+            "kind=ipc operation={} other_id={}",
             operation, self.other_policy_id
         )
     }
@@ -112,7 +112,7 @@ impl Display for AuditSignal {
         let access = Signal::from_bits(self.signal).expect("Failed to convert signal number");
         write!(
             f,
-            "signal={:?} receiver_policy_id={}",
+            "kind=signal signal={:?} receiver_policy_id={}",
             access, self.other_policy_id
         )
     }

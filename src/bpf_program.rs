@@ -191,6 +191,8 @@ fn configure_ringbuf(
             let data =
                 AuditData::from_bytes(data).expect("Failed to convert audit data from raw bytes");
 
+            log::info!("{}", data);
+
             // Convert raw audit data into an `AuditEvent`
             let event = AuditEvent::from(data.to_owned());
             // ...and notify subscribers that the event has fired
@@ -199,12 +201,6 @@ fn configure_ringbuf(
             0
         })
         .context("Failed to add callback")?;
-
-    // TODO Move the old audit::audit_callback functionality up into the above
-    // capturing closure
-    // ringbuf_builder
-    //     .add(skel.maps().__audit_buf(), audit::audit_callback)
-    //     .context("Failed to add callback")?;
 
     ringbuf_builder.build().context("Failed to create ringbuf")
 }
