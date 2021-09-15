@@ -14,6 +14,8 @@ use pubsub::{AuditEvent, PubSub, PubSubImpl, SubscriptionIdInnerNumberExt as _, 
 /// Represents a running API server along with all the context
 /// it needs to operate normally.
 pub struct ApiContext {
+    #[allow(dead_code)]
+    // TODO: We may need to read this at some point in the future. If not, we can prefix with an underscore
     server: Server,
     audit_subscribers: Subscriptions<AuditEvent>,
 }
@@ -37,7 +39,7 @@ impl ApiContext {
 
         // Spawn the websocket server
         let server = ServerBuilder::with_meta_extractor(io, |context: &RequestContext| {
-            Arc::new(Session::new(context.sender().clone()))
+            Arc::new(Session::new(context.sender()))
         })
         .start(addr)
         .expect("Server must start with no issues");

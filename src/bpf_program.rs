@@ -31,6 +31,8 @@ use crate::utils::bump_memlock_rlimit;
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
     pub ringbuf: RingBuffer,
+    #[allow(dead_code)]
+    // TODO: We may need to read this at some point in the future. If not, we can prefix with an underscore
     api: Arc<RwLock<ApiContext>>,
 }
 

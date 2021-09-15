@@ -120,14 +120,6 @@ impl Display for AuditSignal {
 
 unsafe impl Plain for AuditSignal {}
 
-/// Callback to run when audit events are received
-pub fn audit_callback(data: &[u8]) -> i32 {
-    let data = AuditData::from_bytes(data).expect("Failed to convert audit data from raw bytes");
-    log::info!("{}", data);
-
-    0
-}
-
 pub type AuditType = raw::audit_type_t;
 
 pub type AuditLevel = raw::audit_level_t;

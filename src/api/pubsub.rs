@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ffi::CString,
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc, RwLock,
@@ -49,6 +48,7 @@ pub struct PubSubImpl {
 impl PubSub for PubSubImpl {
     type Metadata = Arc<Session>;
 
+    #[allow(unused_variables)]
     fn audit_subscribe(
         &self,
         meta: Self::Metadata,
