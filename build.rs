@@ -10,7 +10,7 @@ use std::fs::{remove_file, File};
 use std::io::{BufWriter, Write};
 use std::os::unix::fs::symlink;
 use std::os::unix::prelude::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use libbpf_cargo::SkeletonBuilder;
@@ -76,11 +76,11 @@ fn generate_skeleton() {
 }
 
 /// Checks if a file exists and is non-empty
-fn nonempty_exists(path: &PathBuf) -> bool {
+fn nonempty_exists(path: &Path) -> bool {
     path.exists()
         && File::open(path)
             .and_then(|open_file| open_file.metadata())
-            .and_then(|metadata| Ok(metadata.size() != 0))
+            .map(|metadata| metadata.size() != 0)
             .unwrap_or(false)
 }
 
