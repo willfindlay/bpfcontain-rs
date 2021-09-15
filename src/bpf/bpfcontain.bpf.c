@@ -15,6 +15,7 @@
 
 #include <allocator.h>
 #include <audit.h>
+#include <compat.h>
 #include <defs.h>
 #include <kernel_defs.h>
 #include <map_defs.h>
@@ -36,6 +37,8 @@ const volatile u32 host_pid_ns_id;
 // Kernel symbols
 extern const void init_nsproxy __ksym;
 extern const void init_user_ns __ksym;
+
+extern u32 LINUX_KERNEL_VERSION __kconfig;
 
 /* ========================================================================= *
  * Helpers                                                                   *
@@ -1968,11 +1971,6 @@ int BPF_PROG(locked_down, enum lockdown_reason what)
     if (!container) {
         return 0;
     }
-
-    // Support Linux 5.14+
-#ifndef LOCKDOWN_BPF_READ
-#define LOCKDOWN_BPF_READ LOCKDOWN_BPF_READ_KERNEL
-#endif
 
     // We need to allow LOCKDOWN_BPF_READ so our probes work
     if (what == LOCKDOWN_BPF_READ)
