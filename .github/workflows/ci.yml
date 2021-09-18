@@ -30,6 +30,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-vagrant-
 
+      - name: Fix DNS
+        run: echo 8.8.8.8 | sudo tee /etc/resolv.conf
+
       - name: Show Vagrant Version
         run: vagrant --version
 
