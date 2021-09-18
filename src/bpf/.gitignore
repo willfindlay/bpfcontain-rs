@@ -1,5 +1,3 @@
-mod.rs
-*.skel.rs
 vmlinux*h
 
 # Prerequisites

@@ -68,7 +68,7 @@ fn generate_bindings() {
 fn generate_skeleton() {
     match SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
         .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
-        .generate("src/bpf/mod.rs")
+        .generate("src/bpf.rs")
     {
         Ok(_) => {}
         Err(e) => panic!("Failed to generate skeleton: {}", e),
