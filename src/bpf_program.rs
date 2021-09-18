@@ -142,21 +142,22 @@ impl<'a> BpfcontainContext<'a> {
 fn initialize_bpf_globals(open_skel: &mut OpenBpfcontainSkel, config: &Settings) -> Result<()> {
     // Set own PID
     open_skel.rodata().bpfcontain_pid = std::process::id();
+
     // Set own mount ns id
     open_skel.rodata().host_mnt_ns_id = ns::get_current_ns_id(ns::Namespace::Mnt)?;
+
     // Set own pid ns id
     open_skel.rodata().host_pid_ns_id = ns::get_current_ns_id(ns::Namespace::Pid)?;
-    // Set audit level
-    let audit_level = config
+
+    // Set audit level based on config
+    open_skel.rodata().audit_level = config
         .bpf
         .audit_level
         .iter()
         .map(|x| audit::AuditLevel::from(x.clone()))
-        .reduce(|a, b| a | b);
-    open_skel.rodata().audit_level = match audit_level {
-        Some(level) => level.0,
-        None => audit::AuditLevel::AUDIT__NONE.0,
-    };
+        .reduce(|a, b| a | b)
+        .map(|level| level.0)
+        .unwrap_or(audit::AuditLevel::AUDIT__NONE.0);
 
     Ok(())
 }
