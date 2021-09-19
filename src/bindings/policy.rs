@@ -105,7 +105,7 @@ pub mod bitflags {
         #[derive(Default)]
         pub struct FilePermission :raw::file_permission_t::Type {
             const MAY_READ      = raw::file_permission_t::BPFCON_MAY_READ;
-            const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE | raw::file_permission_t::BPFCON_MAY_APPEND;
+            const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE;
             const MAY_EXEC      = raw::file_permission_t::BPFCON_MAY_EXEC;
             const MAY_APPEND    = raw::file_permission_t::BPFCON_MAY_APPEND;
             const MAY_DELETE    = raw::file_permission_t::BPFCON_MAY_DELETE;
