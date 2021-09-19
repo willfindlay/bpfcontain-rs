@@ -21,9 +21,9 @@ pub enum FileIdentifier {
     #[serde(skip_deserializing)]
     Inode {
         #[serde(rename = "snake_case")]
-        st_ino: u64,
+        inum: u64,
         #[serde(rename = "snake_case")]
-        st_dev: u64,
+        dev: u64,
     },
 }
 
@@ -38,7 +38,7 @@ pub struct FileAccess {
 
 /// Access patterns that can be applied to filesystem objects
 /// such as regular files and devices.
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum FilePermission {
     Execute,
     Read,
@@ -128,7 +128,7 @@ impl Serialize for FilePermission {
     }
 }
 
-/// A wrapper around a vector of [`FilePermission`]s.
+/// A wrapper around a hashset of [`FilePermission`]s.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct FilePermissionSet(HashSet<FilePermission>);
 

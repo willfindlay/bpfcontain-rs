@@ -13,8 +13,19 @@ mod signal;
 
 use serde::{Deserialize, Serialize};
 
+use crate::utils::{default_false, default_true};
+
+/// Uniquely identifies a container.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ContainerIdentifier {
+    #[serde(alias = "number")]
+    ContainerId(u64),
+}
+
 /// Uniquely identifies a policy.
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum PolicyIdentifier {
     #[serde(alias = "name")]
     PolicyName(String),
