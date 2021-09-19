@@ -5,11 +5,12 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Display;
 use std::{collections::HashSet, fmt::Debug};
 
 use anyhow::{bail, Result};
+use bit_iter::BitIter;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::bindings::policy::bitflags::Capability as CapabilityBitflag;
@@ -134,13 +135,15 @@ impl TryFrom<CapabilityBitflag> for CapabilitySet {
     type Error = anyhow::Error;
 
     fn try_from(value: CapabilityBitflag) -> Result<Self, Self::Error> {
-        //let mut set = HashSet::default();
+        let mut set = HashSet::default();
 
-        // for bit in CapabilityBitflag::BITS.iter().filter(|b| b != 0) {
-        //     set.insert(Capability::try_from(bit.into()))
-        // }
+        for b in BitIter::from(value.bits()).map(|b| b as u64) {
+            let bit = 1 << b;
+            let bitflag = CapabilityBitflag::from_bits(bit).unwrap();
+            set.insert(bitflag.try_into()?);
+        }
 
-        todo!()
+        Ok(CapabilitySet(set))
     }
 }
 
@@ -222,5 +225,12 @@ mod tests {
 
         serde_yaml::from_str::<CapabilitySet>("[chown, foobarqux]")
             .expect_err("Should fail to deserialize");
+    }
+
+    #[test]
+    fn capability_set_from_capability_bits_test() {
+        let bitflag = CapabilityBitflag::BPF | CapabilityBitflag::KILL;
+        let capset = CapabilitySet::try_from(bitflag).expect("Failed to convert bitflag to capset");
+        assert_eq!(capset.0.len(), 2);
     }
 }

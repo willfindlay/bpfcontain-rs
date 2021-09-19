@@ -85,6 +85,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bit-iter"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "514abd67d3f7e56aa7c8181b8668fe52ddd04992748d01d955016d9672df7953"
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -123,6 +129,7 @@ version = "0.0.6"
 dependencies = [
  "anyhow",
  "bindgen",
+ "bit-iter",
  "bitflags",
  "bpfcontain_uprobes",
  "clap",

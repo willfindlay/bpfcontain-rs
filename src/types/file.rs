@@ -5,9 +5,15 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::{collections::HashSet, convert::TryFrom, fmt::Display, str::FromStr};
+use std::{
+    collections::HashSet,
+    convert::{TryFrom, TryInto},
+    fmt::Display,
+    str::FromStr,
+};
 
 use anyhow::bail;
+use bit_iter::BitIter;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::bindings::policy::bitflags::FilePermission as FilePermissionBitflag;
@@ -162,35 +168,13 @@ impl TryFrom<FilePermissionBitflag> for FilePermissionSet {
 
     fn try_from(value: FilePermissionBitflag) -> Result<Self, Self::Error> {
         let mut set = HashSet::default();
-        // TODO: Surely there must be a more idiomatic way to do this with the bitflags
-        // crate
-        if value.intersects(FilePermissionBitflag::MAY_READ) {
-            set.insert(FilePermission::Read);
+
+        for b in BitIter::from(value.bits()).map(|b| b as u32) {
+            let bit = 1 << b;
+            let bitflag = FilePermissionBitflag::from_bits(bit).unwrap();
+            set.insert(bitflag.try_into()?);
         }
-        if value.intersects(FilePermissionBitflag::MAY_WRITE) {
-            set.insert(FilePermission::Write);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_EXEC) {
-            set.insert(FilePermission::Execute);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_APPEND) {
-            set.insert(FilePermission::Append);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_DELETE) {
-            set.insert(FilePermission::Delete);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_CHMOD) {
-            set.insert(FilePermission::Chmod);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_EXEC_MMAP) {
-            set.insert(FilePermission::ExecMmap);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_LINK) {
-            set.insert(FilePermission::Link);
-        }
-        if value.intersects(FilePermissionBitflag::MAY_IOCTL) {
-            set.insert(FilePermission::Ioctl);
-        }
+
         Ok(FilePermissionSet(set))
     }
 }

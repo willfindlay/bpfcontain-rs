@@ -44,6 +44,7 @@ jsonrpc-pubsub = "17.1.0"
 jsonrpc-ws-server = "17.1.0"
 jsonrpc-core = "17.1.0"
 jsonrpc-derive = "17.1.0"
+bit-iter = "0.1.5"
 
 [build-dependencies]
 bindgen = "0.56.0"
