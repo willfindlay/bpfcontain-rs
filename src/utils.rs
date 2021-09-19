@@ -81,3 +81,13 @@ pub fn byte_array_to_string(bytes: &[u8]) -> String {
     let s = String::from_utf8_lossy(bytes);
     s.trim_matches(char::from(0)).into()
 }
+
+/// Returns false. Used for `#[serde(default = "default_false")]`
+pub fn default_false() -> bool {
+    false
+}
+
+/// Returns true. Used for `#[serde(default = "default_true")]`
+pub fn default_true() -> bool {
+    true
+}

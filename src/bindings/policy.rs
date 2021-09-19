@@ -103,7 +103,7 @@ pub mod bitflags {
     bitflags! {
         /// Represents the file permissions bitmask on the BPF side.
         #[derive(Default)]
-        pub struct FileAccess :raw::file_permission_t::Type {
+        pub struct FilePermission :raw::file_permission_t::Type {
             const MAY_READ      = raw::file_permission_t::BPFCON_MAY_READ;
             const MAY_WRITE     = raw::file_permission_t::BPFCON_MAY_WRITE | raw::file_permission_t::BPFCON_MAY_APPEND;
             const MAY_EXEC      = raw::file_permission_t::BPFCON_MAY_EXEC;
@@ -116,8 +116,9 @@ pub mod bitflags {
         }
     }
 
+    // FIXME: Remove this and use crate::types::file::FilePermissionSet instead!
     /// Convert &str access flags to FileAccess.
-    impl TryFrom<&str> for FileAccess {
+    impl TryFrom<&str> for FilePermission {
         type Error = anyhow::Error;
 
         fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -159,9 +160,10 @@ pub mod bitflags {
         }
     }
 
+    // FIXME: Remove this and use crate::types::file::FilePermissionSet instead!
     /// Convert String access flags to FileAccess.
     /// Uses the implementation for TryFrom<&str>.
-    impl TryFrom<String> for FileAccess {
+    impl TryFrom<String> for FilePermission {
         type Error = anyhow::Error;
 
         fn try_from(value: String) -> Result<Self, Self::Error> {

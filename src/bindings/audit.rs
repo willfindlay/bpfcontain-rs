@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 
 use plain::Plain;
 
-use super::policy::bitflags::{Capability, FileAccess, NetOperation, Signal};
+use super::policy::bitflags::{Capability, FilePermission, NetOperation, Signal};
 use super::raw;
 
 /// Represents the common part of an audit event.
@@ -50,7 +50,7 @@ pub type AuditFile = raw::audit_file_t;
 
 impl Display for AuditFile {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let access = FileAccess::from_bits(self.access).expect("Failed to convert file access");
+        let access = FilePermission::from_bits(self.access).expect("Failed to convert file access");
         write!(
             f,
             "kind=file st_ino={} st_dev={} access={:?}",

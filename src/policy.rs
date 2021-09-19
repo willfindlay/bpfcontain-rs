@@ -23,6 +23,7 @@ use serde::Deserialize;
 use crate::bindings::policy::{keys, values};
 use crate::bpf::BpfcontainSkel as Skel;
 use crate::policy::rules::*;
+use crate::utils::{default_false, default_true};
 
 /// A high-level representation of a BPFContain policy that has been loaded
 /// from a YAML file.
@@ -61,16 +62,6 @@ pub struct Policy {
     #[serde(default)]
     #[serde(alias = "taint")]
     taints: Vec<Rule>,
-}
-
-/// Returns false. Used for `#[serde(default = "default_false")]`
-fn default_false() -> bool {
-    false
-}
-
-/// Returns true. Used for `#[serde(default = "default_true")]`
-fn default_true() -> bool {
-    true
 }
 
 impl Policy {

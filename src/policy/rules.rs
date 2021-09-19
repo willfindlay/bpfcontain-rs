@@ -167,7 +167,7 @@ impl LoadRule for FilesystemRule {
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
-        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
+        let access = bitflags::FilePermission::try_from(self.access.0.as_str())?;
 
         let mut value = values::FilePolicyVal::default();
         match decision {
@@ -210,7 +210,7 @@ impl LoadRule for FileRule {
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
-        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
+        let access = bitflags::FilePermission::try_from(self.access.0.as_str())?;
 
         let mut value = values::FilePolicyVal::default();
         match decision {
@@ -315,7 +315,7 @@ impl LoadRule for NumberedDeviceRule {
     }
 
     fn value(&self, decision: &PolicyDecision) -> Result<Vec<u8>> {
-        let access = bitflags::FileAccess::try_from(self.access.0.as_str())?;
+        let access = bitflags::FilePermission::try_from(self.access.0.as_str())?;
 
         let mut value = values::FilePolicyVal::default();
         match decision {
@@ -341,7 +341,7 @@ pub enum Device {
 
 impl Device {
     /// Get the access vector that should be associated with this device.
-    pub fn access(&self) -> bitflags::FileAccess {
+    pub fn access(&self) -> bitflags::FilePermission {
         match self {
             Device::Terminal => "rwai".try_into().unwrap(),
             Device::Null => "rwa".try_into().unwrap(),
