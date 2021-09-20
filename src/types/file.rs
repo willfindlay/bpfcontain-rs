@@ -115,6 +115,22 @@ impl TryFrom<FilePermissionBitflag> for FilePermission {
     }
 }
 
+impl From<FilePermission> for FilePermissionBitflag {
+    fn from(perm: FilePermission) -> Self {
+        match perm {
+            FilePermission::Execute => FilePermissionBitflag::MAY_EXEC,
+            FilePermission::Read => FilePermissionBitflag::MAY_READ,
+            FilePermission::Write => FilePermissionBitflag::MAY_WRITE,
+            FilePermission::Append => FilePermissionBitflag::MAY_APPEND,
+            FilePermission::Chmod => FilePermissionBitflag::MAY_CHMOD,
+            FilePermission::Delete => FilePermissionBitflag::MAY_DELETE,
+            FilePermission::ExecMmap => FilePermissionBitflag::MAY_EXEC_MMAP,
+            FilePermission::Link => FilePermissionBitflag::MAY_LINK,
+            FilePermission::Ioctl => FilePermissionBitflag::MAY_IOCTL,
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for FilePermission {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -176,6 +192,19 @@ impl TryFrom<FilePermissionBitflag> for FilePermissionSet {
         }
 
         Ok(FilePermissionSet(set))
+    }
+}
+
+impl From<FilePermissionSet> for FilePermissionBitflag {
+    fn from(perms: FilePermissionSet) -> Self {
+        let mut bits = FilePermissionBitflag::default();
+
+        for sig in perms.0 {
+            let bit = FilePermissionBitflag::from(sig);
+            bits |= bit;
+        }
+
+        bits
     }
 }
 

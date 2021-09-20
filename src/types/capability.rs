@@ -60,6 +60,7 @@ pub enum Capability {
     PerfMon,
     Bpf,
     CheckpointRestore,
+    // Convenience aliases below this line
     Any,
 }
 
@@ -74,7 +75,6 @@ impl TryFrom<CapabilityBitflag> for Capability {
 
     fn try_from(value: CapabilityBitflag) -> Result<Self, Self::Error> {
         Ok(match value {
-            v if v == CapabilityBitflag::all() => Capability::Any,
             CapabilityBitflag::CHOWN => Self::Chown,
             CapabilityBitflag::DAC_OVERRIDE => Self::DacOverride,
             CapabilityBitflag::DAC_READ_SEARCH => Self::DacReadSearch,
@@ -121,6 +121,55 @@ impl TryFrom<CapabilityBitflag> for Capability {
     }
 }
 
+impl From<Capability> for CapabilityBitflag {
+    fn from(cap: Capability) -> Self {
+        match cap {
+            Capability::Chown => CapabilityBitflag::CHOWN,
+            Capability::DacOverride => CapabilityBitflag::DAC_OVERRIDE,
+            Capability::DacReadSearch => CapabilityBitflag::DAC_READ_SEARCH,
+            Capability::FOwner => CapabilityBitflag::FOWNER,
+            Capability::FSetId => CapabilityBitflag::FSETID,
+            Capability::Kill => CapabilityBitflag::KILL,
+            Capability::SetGid => CapabilityBitflag::SETGID,
+            Capability::SetUid => CapabilityBitflag::SETUID,
+            Capability::SetPCap => CapabilityBitflag::SETPCAP,
+            Capability::LinuxImmutable => CapabilityBitflag::LINUX_IMMUTABLE,
+            Capability::NetBindService => CapabilityBitflag::NET_BIND_SERVICE,
+            Capability::NetBroadcast => CapabilityBitflag::NET_BROADCAST,
+            Capability::NetAdmin => CapabilityBitflag::NET_ADMIN,
+            Capability::NetRaw => CapabilityBitflag::NET_RAW,
+            Capability::IpcLock => CapabilityBitflag::IPC_LOCK,
+            Capability::IpcOwner => CapabilityBitflag::IPC_OWNER,
+            Capability::SysModule => CapabilityBitflag::SYS_MODULE,
+            Capability::SysRawio => CapabilityBitflag::SYS_RAWIO,
+            Capability::SysChroot => CapabilityBitflag::SYS_CHROOT,
+            Capability::SysPtrace => CapabilityBitflag::SYS_PTRACE,
+            Capability::SysPacct => CapabilityBitflag::SYS_PACCT,
+            Capability::SysAdmin => CapabilityBitflag::SYS_ADMIN,
+            Capability::SysBoot => CapabilityBitflag::SYS_BOOT,
+            Capability::SysNice => CapabilityBitflag::SYS_NICE,
+            Capability::SysResource => CapabilityBitflag::SYS_RESOURCE,
+            Capability::SysTime => CapabilityBitflag::SYS_TIME,
+            Capability::SysTtyConfig => CapabilityBitflag::SYS_TTY_CONFIG,
+            Capability::Mknod => CapabilityBitflag::MKNOD,
+            Capability::Lease => CapabilityBitflag::LEASE,
+            Capability::AuditWrite => CapabilityBitflag::AUDIT_WRITE,
+            Capability::AuditControl => CapabilityBitflag::AUDIT_CONTROL,
+            Capability::SetFCap => CapabilityBitflag::SETFCAP,
+            Capability::MacOverride => CapabilityBitflag::MAC_OVERRIDE,
+            Capability::MacAdmin => CapabilityBitflag::MAC_ADMIN,
+            Capability::SysLog => CapabilityBitflag::SYSLOG,
+            Capability::WakeAlarm => CapabilityBitflag::WAKE_ALARM,
+            Capability::BlockSuspend => CapabilityBitflag::BLOCK_SUSPEND,
+            Capability::AuditRead => CapabilityBitflag::AUDIT_READ,
+            Capability::PerfMon => CapabilityBitflag::PERFMON,
+            Capability::Bpf => CapabilityBitflag::BPF,
+            Capability::CheckpointRestore => CapabilityBitflag::CHECKPOINT_RESTORE,
+            Capability::Any => CapabilityBitflag::all(),
+        }
+    }
+}
+
 /// A wrapper around a hashset of [`Capability`]s.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct CapabilitySet(HashSet<Capability>);
@@ -144,6 +193,19 @@ impl TryFrom<CapabilityBitflag> for CapabilitySet {
         }
 
         Ok(CapabilitySet(set))
+    }
+}
+
+impl From<CapabilitySet> for CapabilityBitflag {
+    fn from(caps: CapabilitySet) -> Self {
+        let mut bits = CapabilityBitflag::default();
+
+        for sig in caps.0 {
+            let bit = CapabilityBitflag::from(sig);
+            bits |= bit;
+        }
+
+        bits
     }
 }
 
