@@ -11,6 +11,7 @@ mod device;
 mod file;
 mod ipc;
 mod signal;
+mod socket;
 
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};

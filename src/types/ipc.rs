@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn ipc_access_serde_test() {
         let p: IpcAccess =
-            serde_yaml::from_str("{access: [send, recv], kind: [sysV, pipe], other: fooPolicy}")
+            serde_yaml::from_str("{access: [send, recv], kind: [unix, pipe], other: fooPolicy}")
                 .expect("Should deserialize");
         let s = serde_yaml::to_string(&p).expect("Should serialize");
         let q: IpcAccess = serde_yaml::from_str(&s).expect("Should deserialize");

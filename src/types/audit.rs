@@ -24,7 +24,7 @@ use crate::{bindings::audit::AuditData as RawAuditData, utils::byte_array_to_str
 use super::SignalAccess;
 use super::{
     Capability, ContainerIdentifier, DeviceAccess, FileAccess, IpcAccess, PolicyDecisionSet,
-    PolicyIdentifier, Signal,
+    PolicyIdentifier,
 };
 
 #[derive(Serialize, Deserialize, Clone)]

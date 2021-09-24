@@ -166,7 +166,7 @@ impl From<Signal> for SignalBitflag {
 
 /// A wrapper around a hashset of [`Signal`]s.
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct SignalSet(HashSet<Signal>);
+pub struct SignalSet(pub HashSet<Signal>);
 
 impl Display for SignalSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

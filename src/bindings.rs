@@ -17,7 +17,7 @@ pub mod state;
 #[allow(dead_code)]
 #[allow(unaligned_references)]
 #[allow(deref_nullptr)]
-mod raw {
+pub mod raw {
     use std::env;
     use std::include;
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
