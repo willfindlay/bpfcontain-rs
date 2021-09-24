@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
-// Copyright (C) 2020  William Findlay
+// Copyright (c) 2021  William Findlay
 //
-// Dec. 29, 2020  William Findlay  Created this.
+// September 23, 2021  William Findlay  Created this.
 
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Display;
@@ -172,7 +172,7 @@ impl From<Capability> for CapabilityBitflag {
 
 /// A wrapper around a hashset of [`Capability`]s.
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct CapabilitySet(HashSet<Capability>);
+pub struct CapabilitySet(pub HashSet<Capability>);
 
 impl Display for CapabilitySet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

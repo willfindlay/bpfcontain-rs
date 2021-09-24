@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
-// Copyright (C) 2020  William Findlay
+// Copyright (c) 2021  William Findlay
 //
-// Dec. 29, 2020  William Findlay  Created this.
+// September 23, 2021  William Findlay  Created this.
 
 use serde::{Deserialize, Serialize};
 
 use super::file::FilePermissionSet;
 
 /// Uniquely identifies a device on the system.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum DeviceIdentifier {
     #[serde(alias = "path")]
@@ -22,12 +22,12 @@ pub enum DeviceIdentifier {
 }
 
 /// Access to a device.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceAccess {
     #[serde(flatten)]
-    device: DeviceIdentifier,
-    access: FilePermissionSet,
+    pub device: DeviceIdentifier,
+    pub access: FilePermissionSet,
 }
 
 #[cfg(test)]

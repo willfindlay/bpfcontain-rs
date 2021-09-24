@@ -7,6 +7,7 @@
 
 //! Functionality related to BPF programs and maps.
 
+use std::convert::TryFrom;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 use std::thread::sleep;
@@ -18,13 +19,14 @@ use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
 use plain::Plain;
 
-use crate::api::{pubsub::AuditEvent, ApiContext};
+use crate::api::ApiContext;
 use crate::bindings::audit::{self, AuditData};
 use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::config::Settings;
 use crate::log::log_error;
 use crate::ns;
 use crate::policy::Policy;
+use crate::types::AuditEvent;
 use crate::uprobe_ext::FindSymbolUprobeExt;
 use crate::utils::bump_memlock_rlimit;
 
@@ -195,7 +197,13 @@ fn configure_ringbuf(
             log::info!("{}", data);
 
             // Convert raw audit data into an `AuditEvent`
-            let event = AuditEvent::from(data.to_owned());
+            let event = match AuditEvent::try_from(data.to_owned()) {
+                Ok(event) => event,
+                Err(e) => {
+                    log::error!("Failed to convert audit data to audit event: {:?}", e);
+                    return -1;
+                }
+            };
             // ...and notify subscribers that the event has fired
             api.read().unwrap().notify_audit_subscribers(event);
 

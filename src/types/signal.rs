@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
-// Copyright (C) 2020  William Findlay
+// Copyright (c) 2021  William Findlay
 //
-// Dec. 29, 2020  William Findlay  Created this.
+// September 23, 2021  William Findlay  Created this.
 
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
@@ -17,13 +17,12 @@ use super::PolicyIdentifier;
 use crate::bindings::policy::bitflags::Signal as SignalBitflag;
 
 /// Access to signal another process.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SignalAccess {
-    #[serde(flatten)]
-    other: PolicyIdentifier,
+    pub other: PolicyIdentifier,
     #[serde(alias = "signals")]
-    signal: SignalSet,
+    pub signal: SignalSet,
 }
 
 /// Represents a Linux signal.
@@ -166,7 +165,7 @@ impl From<Signal> for SignalBitflag {
 }
 
 /// A wrapper around a hashset of [`Signal`]s.
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct SignalSet(HashSet<Signal>);
 
 impl Display for SignalSet {

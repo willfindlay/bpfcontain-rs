@@ -11,10 +11,7 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    bindings::audit::{AuditData, AuditType},
-    utils::byte_array_to_string,
-};
+use crate::types::AuditEvent;
 
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
@@ -90,124 +87,6 @@ impl PubSub for PubSubImpl {
 pub struct AuditFilter {
     policy_name: Option<String>,
     container_id: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct AuditEvent {
-    comm: String,
-    policy_id: u64,
-    container_id: u64,
-    pid: u32,
-    ns_pid: u32,
-    decision: String, // TODO: make this a decision enum
-    data: AuditEventData,
-}
-
-/// Enable conversion from the AuditData struct sent over the ringbuf to an AuditEvent
-/// that can be sent over our API.
-impl From<AuditData> for AuditEvent {
-    fn from(data: AuditData) -> Self {
-        AuditEvent {
-            comm: byte_array_to_string(&data.comm),
-            policy_id: data.policy_id,
-            container_id: data.container_id,
-            pid: data.pid,
-            ns_pid: data.ns_pid,
-            decision: data.decision.to_string(),
-            data: match data.type_ {
-                AuditType::AUDIT_TYPE_FILE => {
-                    // SAFETY: This relies on the correctness of `data.type_`,
-                    // which comes from the eBPF side
-                    let file_data = unsafe { data.__bindgen_anon_1.file };
-                    AuditEventData::FileEvent {
-                        st_ino: file_data.st_ino,
-                        st_dev: file_data.st_dev,
-                        access: file_data.access.to_string(),
-                    }
-                }
-                AuditType::AUDIT_TYPE_CAP => {
-                    // SAFETY: This relies on the correctness of `data.type_`,
-                    // which comes from the eBPF side
-                    let cap_data = unsafe { data.__bindgen_anon_1.cap };
-                    AuditEventData::CapabilityEvent {
-                        capability: cap_data.cap.to_string(),
-                    }
-                }
-                AuditType::AUDIT_TYPE_NET => {
-                    // SAFETY: This relies on the correctness of `data.type_`,
-                    // which comes from the eBPF side
-                    let net_data = unsafe { data.__bindgen_anon_1.net };
-                    AuditEventData::SocketEvent {
-                        operation: net_data.operation.to_string(),
-                    }
-                }
-                AuditType::AUDIT_TYPE_IPC => {
-                    // SAFETY: This relies on the correctness of `data.type_`,
-                    // which comes from the eBPF side
-                    let ipc_data = unsafe { data.__bindgen_anon_1.ipc };
-                    AuditEventData::IpcEvent {
-                        other_policy_id: ipc_data.other_policy_id,
-                        other_container_id: ipc_data.other_container_id,
-                        operation: match ipc_data.sender {
-                            0 => "recv".into(),
-                            _ => "send".into(),
-                        },
-                    }
-                }
-                AuditType::AUDIT_TYPE_SIGNAL => {
-                    // SAFETY: This relies on the correctness of `data.type_`,
-                    // which comes from the eBPF side
-                    let signal_data = unsafe { data.__bindgen_anon_1.signal };
-                    AuditEventData::SignalEvent {
-                        other_policy_id: signal_data.other_policy_id,
-                        other_container_id: signal_data.other_container_id,
-                        signal: signal_data.signal.to_string(),
-                    }
-                }
-                AuditType::AUDIT_TYPE__UNKOWN => {
-                    AuditEventData::String("Unknown audit event".into())
-                }
-            },
-        }
-    }
-}
-
-/// A security event that can be forwarded to audit subscribers.
-#[derive(Serialize, Deserialize, Clone)]
-pub enum AuditEventData {
-    String(String),
-    FileEvent {
-        st_ino: u64,
-        st_dev: u32,
-        access: String,
-    },
-    DeviceEvent {
-        major: u64,
-        minor: u64,
-    },
-    CapabilityEvent {
-        // TODO
-        capability: String, // TODO: make this a capability enum
-    },
-    IpcEvent {
-        other_policy_id: u64,
-        other_container_id: u64,
-        operation: String, // TODO: make this a send/recv enum
-    },
-    SignalEvent {
-        other_policy_id: u64,
-        other_container_id: u64,
-        signal: String,
-    },
-    SocketEvent {
-        // TODO
-        operation: String, // TODO: make this an operation enum
-    },
-    ImplicitPolicyEvent {
-        // TODO
-        kind: String, // TODO: Make this an implicit policy enum
-    },
-    NewContainerEvent,
 }
 
 /// An extension trait enabling us to coerce the inner values out of a

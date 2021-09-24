@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // BPFContain - Container security with eBPF
-// Copyright (C) 2020  William Findlay
+// Copyright (c) 2021  William Findlay
 //
-// Dec. 29, 2020  William Findlay  Created this.
+// September 23, 2021  William Findlay  Created this.
 
 use std::{
     collections::HashSet,
@@ -19,27 +19,22 @@ use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializ
 use crate::bindings::policy::bitflags::FilePermission as FilePermissionBitflag;
 
 /// Uniquely identifies a file on the fileystem.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum FileIdentifier {
     #[serde(alias = "path")]
     Pathname(String),
     #[serde(skip_deserializing)]
-    Inode {
-        #[serde(rename = "snake_case")]
-        inum: u64,
-        #[serde(rename = "snake_case")]
-        dev: u64,
-    },
+    Inode { inum: u64, dev: u32 },
 }
 
 /// Access to a regular file.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileAccess {
     #[serde(flatten)]
-    file: FileIdentifier,
-    access: FilePermissionSet,
+    pub file: FileIdentifier,
+    pub access: FilePermissionSet,
 }
 
 /// Access patterns that can be applied to filesystem objects
@@ -151,7 +146,7 @@ impl Serialize for FilePermission {
 }
 
 /// A wrapper around a hashset of [`FilePermission`]s.
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct FilePermissionSet(HashSet<FilePermission>);
 
 impl Display for FilePermissionSet {
