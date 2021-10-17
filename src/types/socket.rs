@@ -5,13 +5,9 @@
 //
 // September 23, 2021  William Findlay  Created this.
 
-use std::{
-    collections::HashSet,
-    convert::TryFrom,
-    fmt::{Debug, Display},
-};
+use std::{collections::HashSet, convert::TryFrom, fmt::Debug};
 
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::bindings::raw::net_operation_t;
