@@ -15,16 +15,12 @@ use crate::bindings::policy::bitflags::Capability as CapabilityBitflag;
 use crate::bindings::policy::bitflags::FilePermission as FilePermissionBitflag;
 use crate::bindings::policy::bitflags::PolicyDecision as PolicyDecisionBitflag;
 use crate::bindings::policy::bitflags::Signal as SignalBitflag;
-use crate::types::IpcPermission;
-use crate::types::IpcPermissionSet;
-use crate::types::SignalSet;
-use crate::types::{FileIdentifier, FilePermissionSet};
 use crate::{bindings::audit::AuditData as RawAuditData, utils::byte_array_to_string};
 
 use super::SignalAccess;
 use super::{
-    Capability, ContainerIdentifier, DeviceAccess, FileAccess, IpcAccess, PolicyDecisionSet,
-    PolicyIdentifier,
+    Capability, ContainerIdentifier, DeviceAccess, FileAccess, FileIdentifier, FilePermissionSet,
+    IpcAccess, IpcPermission, IpcPermissionSet, PolicyDecisionSet, PolicyIdentifier, SignalSet,
 };
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -95,7 +91,7 @@ impl TryFrom<RawAuditData> for AuditEvent {
                         )?,
                     })
                 }
-                //AuditType::AUDIT_TYPE_DEVICE => {} // TODO
+                //AuditType::AUDIT_TYPE_DEVICE => todo!("Implement me"),
                 AuditType::AUDIT_TYPE_CAP => {
                     // SAFETY: This relies on the correctness of `data.type_`,
                     // which comes from the eBPF side
@@ -104,7 +100,7 @@ impl TryFrom<RawAuditData> for AuditEvent {
                         CapabilityBitflag::from_bits_truncate(cap_data.cap),
                     )?)
                 }
-                //AuditType::AUDIT_TYPE_NET => {} // TODO
+                //AuditType::AUDIT_TYPE_NET => todo!("Implement me"),
                 AuditType::AUDIT_TYPE_IPC => {
                     // SAFETY: This relies on the correctness of `data.type_`,
                     // which comes from the eBPF side

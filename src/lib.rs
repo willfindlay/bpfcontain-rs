@@ -18,7 +18,6 @@ pub mod utils;
 
 mod bindings;
 mod ns;
-mod types;
 mod uprobe_ext;
 
 pub mod policy_old;

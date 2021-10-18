@@ -10,7 +10,7 @@ use log::{debug, warn};
 use pubsub::{PubSub, PubSubImpl, SubscriptionIdInnerNumberExt as _, Subscriptions};
 
 use crate::config::Settings;
-use crate::types::AuditEvent;
+use crate::policy::types::AuditEvent;
 
 /// Represents a running API server along with all the context
 /// it needs to operate normally.

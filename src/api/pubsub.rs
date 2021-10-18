@@ -11,7 +11,7 @@ use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
 use serde::{Deserialize, Serialize};
 
-use crate::types::AuditEvent;
+use crate::policy::types::AuditEvent;
 
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
