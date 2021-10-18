@@ -11,7 +11,7 @@ use std::str::FromStr;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use bpfcontain::policy::Policy;
+use bpfcontain::policy_old::Policy;
 use lazy_static::lazy_static;
 
 use crate::helpers::BpfcontainContextWrapper;

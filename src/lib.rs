@@ -21,4 +21,5 @@ mod ns;
 mod types;
 mod uprobe_ext;
 
-pub use policy::Policy;
+pub mod policy_old;
+pub use policy_old::Policy;

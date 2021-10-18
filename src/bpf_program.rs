@@ -25,7 +25,7 @@ use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
 use crate::config::Settings;
 use crate::log::log_error;
 use crate::ns;
-use crate::policy::Policy;
+use crate::policy_old::Policy;
 use crate::types::AuditEvent;
 use crate::uprobe_ext::FindSymbolUprobeExt;
 use crate::utils::bump_memlock_rlimit;

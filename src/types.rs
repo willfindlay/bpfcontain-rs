@@ -5,15 +5,15 @@
 //
 // September 23, 2021  William Findlay  Created this.
 
-mod audit;
-mod capability;
-mod container;
-mod device;
-mod file;
-mod ipc;
-mod policy;
-mod signal;
-mod socket;
+pub mod audit;
+pub mod capability;
+pub mod container;
+pub mod device;
+pub mod file;
+pub mod ipc;
+pub mod policy;
+pub mod signal;
+pub mod socket;
 
 pub use audit::{AuditData, AuditEvent};
 pub use capability::{Capability, CapabilitySet};

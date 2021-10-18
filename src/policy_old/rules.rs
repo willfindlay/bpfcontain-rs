@@ -21,8 +21,8 @@ use serde::Deserialize;
 
 use crate::bindings::policy::{bitflags, keys, values};
 use crate::bpf::{BpfcontainMapsMut, BpfcontainSkel as Skel};
-use crate::policy::helpers::*;
-use crate::policy::Policy;
+use crate::policy_old::helpers::*;
+use crate::policy_old::Policy;
 use crate::utils::path_to_dev_ino;
 
 // ============================================================================

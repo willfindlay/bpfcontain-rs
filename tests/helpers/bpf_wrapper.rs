@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use anyhow::Result;
 use bpfcontain::bpf_program::BpfcontainContext;
 use bpfcontain::config::Settings;
-use bpfcontain::policy::Policy;
+use bpfcontain::policy_old::Policy;
 
 pub struct BpfcontainContextWrapper(pub Mutex<RefCell<BpfcontainContext<'static>>>);
 

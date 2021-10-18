@@ -15,7 +15,7 @@ use anyhow::{bail, Context as _, Result};
 use clap::ArgMatches;
 
 use crate::config::Settings;
-use crate::policy::Policy;
+use crate::Policy;
 
 /// Main entrypoint into launching a container.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
