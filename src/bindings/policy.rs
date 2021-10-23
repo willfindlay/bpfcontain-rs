@@ -7,9 +7,6 @@
 
 //! Structs representing bpfcontain policy.
 
-use std::convert::{TryFrom, TryInto};
-
-use anyhow::bail;
 use plain::Plain;
 
 use super::raw;
@@ -113,61 +110,6 @@ pub mod bitflags {
             const MAY_EXEC_MMAP = raw::file_permission_t::BPFCON_MAY_EXEC_MMAP;
             const MAY_LINK      = raw::file_permission_t::BPFCON_MAY_LINK;
             const MAY_IOCTL     = raw::file_permission_t::BPFCON_MAY_IOCTL;
-        }
-    }
-
-    // FIXME: Remove this and use crate::types::file::FilePermissionSet instead!
-    /// Convert &str access flags to FileAccess.
-    impl TryFrom<&str> for FilePermission {
-        type Error = anyhow::Error;
-
-        fn try_from(value: &str) -> Result<Self, Self::Error> {
-            // Try convenience aliases first
-            match value {
-                "readOnly" => return Ok(Self::MAY_READ),
-                "readWrite" => return Ok(Self::MAY_READ | Self::MAY_WRITE | Self::MAY_APPEND),
-                "readAppend" => return Ok(Self::MAY_READ | Self::MAY_APPEND),
-                "library" => return Ok(Self::MAY_READ | Self::MAY_EXEC_MMAP),
-                "exec" => return Ok(Self::MAY_READ | Self::MAY_EXEC),
-                "any" => return Ok(Self::all()),
-                _ => {}
-            };
-
-            let mut access = Self::default();
-
-            // Iterate through the characters in our access flags, creating the
-            // bitmask as we go.
-            for c in value.chars() {
-                // Because of weird Rust-isms, to_lowercase returns a string. We
-                // only care about ASCII chars, so we will match on length-1
-                // strings.
-                let c_lo = &c.to_lowercase().to_string()[..];
-                match c_lo {
-                    "r" => access |= Self::MAY_READ,
-                    "w" => access |= Self::MAY_WRITE,
-                    "x" => access |= Self::MAY_EXEC,
-                    "a" => access |= Self::MAY_APPEND,
-                    "d" => access |= Self::MAY_DELETE,
-                    "c" => access |= Self::MAY_CHMOD,
-                    "l" => access |= Self::MAY_LINK,
-                    "m" => access |= Self::MAY_EXEC_MMAP,
-                    "i" => access |= Self::MAY_IOCTL,
-                    _ => bail!("Unknown access flag {}", c),
-                };
-            }
-
-            Ok(access)
-        }
-    }
-
-    // FIXME: Remove this and use crate::types::file::FilePermissionSet instead!
-    /// Convert String access flags to FileAccess.
-    /// Uses the implementation for TryFrom<&str>.
-    impl TryFrom<String> for FilePermission {
-        type Error = anyhow::Error;
-
-        fn try_from(value: String) -> Result<Self, Self::Error> {
-            value.try_into()
         }
     }
 
