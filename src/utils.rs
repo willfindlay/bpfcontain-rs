@@ -7,9 +7,11 @@
 
 //! Various utility functions.
 
-use std::fs;
-use std::os::linux::fs::MetadataExt;
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    os::linux::fs::MetadataExt,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{bail, Context, Result};
 use glob::glob;

@@ -7,11 +7,13 @@
 
 //! Functionality related to BPF programs and maps.
 
-use std::convert::TryFrom;
-use std::path::Path;
-use std::sync::{Arc, RwLock};
-use std::thread::sleep;
-use std::time::Duration;
+use std::{
+    convert::TryFrom,
+    path::Path,
+    sync::{Arc, RwLock},
+    thread::sleep,
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
 use glob::glob;
@@ -19,16 +21,18 @@ use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
 use plain::Plain;
 
-use crate::api::ApiContext;
-use crate::bindings::audit::{self, AuditData};
-use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
-use crate::config::Settings;
-use crate::log::log_error;
-use crate::ns;
-use crate::policy::types::AuditEvent;
-use crate::policy_old::Policy;
-use crate::uprobe_ext::FindSymbolUprobeExt;
-use crate::utils::bump_memlock_rlimit;
+use crate::{
+    api::ApiContext,
+    bindings::audit::{self, AuditData},
+    bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel},
+    config::Settings,
+    log::log_error,
+    ns,
+    policy::types::AuditEvent,
+    policy_old::Policy,
+    uprobe_ext::FindSymbolUprobeExt,
+    utils::bump_memlock_rlimit,
+};
 
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,

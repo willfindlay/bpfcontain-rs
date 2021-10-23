@@ -5,9 +5,11 @@
 //
 // September 23, 2021  William Findlay  Created this.
 
-use std::collections::HashSet;
-use std::convert::{TryFrom, TryInto};
-use std::fmt::{Debug, Display};
+use std::{
+    collections::HashSet,
+    convert::{TryFrom, TryInto},
+    fmt::{Debug, Display},
+};
 
 use anyhow::bail;
 use bit_iter::BitIter;

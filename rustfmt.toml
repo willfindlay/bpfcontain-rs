@@ -1,0 +1,7 @@
+# Force import blocks to be grouped at the per-crate level.
+# https://rust-lang.github.io/rustfmt/?version=v1.4.38&search=#imports_granularity
+imports_granularity = "Crate"
+
+# Force Unix line endings.
+# https://rust-lang.github.io/rustfmt/?version=v1.4.38&search=#newline_style
+newline_style = "Unix"

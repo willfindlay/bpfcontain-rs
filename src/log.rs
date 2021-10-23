@@ -9,10 +9,14 @@
 
 use anyhow::{Context as _, Error, Result};
 use log::{Level, LevelFilter};
-use log4rs::append::console::{ConsoleAppender, Target};
-use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Root};
-use log4rs::encode::pattern::PatternEncoder;
+use log4rs::{
+    append::{
+        console::{ConsoleAppender, Target},
+        file::FileAppender,
+    },
+    config::{Appender, Config, Root},
+    encode::pattern::PatternEncoder,
+};
 
 /// Log an error
 pub fn log_error(err: Error, level: Option<Level>) {

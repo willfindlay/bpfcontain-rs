@@ -10,9 +10,10 @@
 use ::anyhow::{bail, Context as _, Result};
 use ::clap::{crate_authors, crate_name, crate_version, App, AppSettings, Arg, SubCommand};
 
-use bpfcontain::config;
-use bpfcontain::subcommands::daemon;
-use bpfcontain::subcommands::run;
+use bpfcontain::{
+    config,
+    subcommands::{daemon, run},
+};
 
 fn main() -> Result<()> {
     let app = App::new(crate_name!())

@@ -7,15 +7,12 @@
 
 //! The `run` subcommand.
 
-use std::os::unix::process::CommandExt;
-use std::path::Path;
-use std::process::Command;
+use std::{os::unix::process::CommandExt, path::Path, process::Command};
 
 use anyhow::{bail, Context as _, Result};
 use clap::ArgMatches;
 
-use crate::config::Settings;
-use crate::Policy;
+use crate::{config::Settings, Policy};
 
 /// Main entrypoint into launching a container.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {

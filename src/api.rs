@@ -4,13 +4,11 @@ pub mod rpc;
 use std::sync::Arc;
 
 use jsonrpc_pubsub::{PubSubHandler, Session};
-use jsonrpc_ws_server::RequestContext;
-use jsonrpc_ws_server::{Server, ServerBuilder};
+use jsonrpc_ws_server::{RequestContext, Server, ServerBuilder};
 use log::{debug, warn};
 use pubsub::{PubSub, PubSubImpl, SubscriptionIdInnerNumberExt as _, Subscriptions};
 
-use crate::config::Settings;
-use crate::policy::types::AuditEvent;
+use crate::{config::Settings, policy::types::AuditEvent};
 
 /// Represents a running API server along with all the context
 /// it needs to operate normally.

@@ -7,21 +7,23 @@
 
 //! The `daemon` subcommand.
 
-use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
-use std::io::Read;
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::{
+    fs::{create_dir_all, metadata, set_permissions, File, OpenOptions},
+    io::Read,
+    os::unix::fs::PermissionsExt,
+    path::PathBuf,
+};
 
 use anyhow::{bail, Context, Result};
 use clap::ArgMatches;
 use daemonize::Daemonize;
 use fs2::FileExt as _;
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
+use nix::{
+    sys::signal::{kill, Signal},
+    unistd::Pid,
+};
 
-use crate::bpf_program::BpfcontainContext;
-use crate::config::Settings;
-use crate::log::log_error;
+use crate::{bpf_program::BpfcontainContext, config::Settings, log::log_error};
 
 /// Main entrypoint into the daemon.
 pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {

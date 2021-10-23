@@ -7,8 +7,7 @@
 
 //! Bindings for working with Linux namespaces.
 
-use std::fs::read_link;
-use std::path::PathBuf;
+use std::{fs::read_link, path::PathBuf};
 
 use anyhow::{Context, Result};
 use lazy_static::lazy_static;

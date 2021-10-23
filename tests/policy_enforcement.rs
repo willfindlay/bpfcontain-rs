@@ -5,11 +5,13 @@
 //
 // May 3, 2020  William Findlay  Created this.
 
-use std::fs::{create_dir_all, File};
-use std::path::PathBuf;
-use std::str::FromStr;
-use std::sync::mpsc::channel;
-use std::thread;
+use std::{
+    fs::{create_dir_all, File},
+    path::PathBuf,
+    str::FromStr,
+    sync::mpsc::channel,
+    thread,
+};
 
 use bpfcontain::policy_old::Policy;
 use lazy_static::lazy_static;

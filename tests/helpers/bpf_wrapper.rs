@@ -5,13 +5,10 @@
 //
 // May 9, 2020  William Findlay  Created this.
 
-use std::cell::RefCell;
-use std::sync::Mutex;
+use std::{cell::RefCell, sync::Mutex};
 
 use anyhow::Result;
-use bpfcontain::bpf_program::BpfcontainContext;
-use bpfcontain::config::Settings;
-use bpfcontain::policy_old::Policy;
+use bpfcontain::{bpf_program::BpfcontainContext, config::Settings, policy_old::Policy};
 
 pub struct BpfcontainContextWrapper(pub Mutex<RefCell<BpfcontainContext<'static>>>);
 

@@ -10,17 +10,21 @@ use std::convert::TryFrom;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::bindings::audit::AuditType;
-use crate::bindings::policy::bitflags::Capability as CapabilityBitflag;
-use crate::bindings::policy::bitflags::FilePermission as FilePermissionBitflag;
-use crate::bindings::policy::bitflags::PolicyDecision as PolicyDecisionBitflag;
-use crate::bindings::policy::bitflags::Signal as SignalBitflag;
-use crate::{bindings::audit::AuditData as RawAuditData, utils::byte_array_to_string};
+use crate::{
+    bindings::{
+        audit::{AuditData as RawAuditData, AuditType},
+        policy::bitflags::{
+            Capability as CapabilityBitflag, FilePermission as FilePermissionBitflag,
+            PolicyDecision as PolicyDecisionBitflag, Signal as SignalBitflag,
+        },
+    },
+    utils::byte_array_to_string,
+};
 
-use super::SignalAccess;
 use super::{
     Capability, ContainerIdentifier, DeviceAccess, FileAccess, FileIdentifier, FilePermissionSet,
-    IpcAccess, IpcPermission, IpcPermissionSet, PolicyDecisionSet, PolicyIdentifier, SignalSet,
+    IpcAccess, IpcPermission, IpcPermissionSet, PolicyDecisionSet, PolicyIdentifier, SignalAccess,
+    SignalSet,
 };
 
 #[derive(Serialize, Deserialize, Clone)]

@@ -5,8 +5,10 @@
 //
 // September 23, 2021  William Findlay  Created this.
 
-use crate::bpf::BpfcontainSkel;
-use crate::utils::{default_false, default_true};
+use crate::{
+    bpf::BpfcontainSkel,
+    utils::{default_false, default_true},
+};
 use anyhow::{Context, Result};
 use plain::as_bytes;
 use serde::{Deserialize, Serialize};
@@ -23,8 +25,7 @@ pub mod types;
 mod disk;
 mod rules;
 
-pub use disk::PolicyDiskExt;
-pub use disk::PolicyFormat;
+pub use disk::{PolicyDiskExt, PolicyFormat};
 
 // TODO: Move this into rules
 #[derive(Hash, Debug, Serialize, Deserialize, Clone)]

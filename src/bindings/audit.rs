@@ -11,8 +11,10 @@ use std::fmt::{Display, Formatter};
 
 use plain::Plain;
 
-use super::policy::bitflags::{Capability, FilePermission, NetOperation, Signal};
-use super::raw;
+use super::{
+    policy::bitflags::{Capability, FilePermission, NetOperation, Signal},
+    raw,
+};
 
 /// Represents the common part of an audit event.
 pub type AuditData = raw::audit_data_t;

@@ -10,20 +10,19 @@
 mod helpers;
 mod rules;
 
-use std::ffi::OsStr;
-use std::io::Read;
-use std::path::Path;
-use std::str::FromStr;
+use std::{ffi::OsStr, io::Read, path::Path, str::FromStr};
 
 use anyhow::{bail, Context, Error, Result};
 use libbpf_rs::MapFlags;
 use plain::as_bytes;
 use serde::Deserialize;
 
-use crate::bindings::policy::{keys, values};
-use crate::bpf::BpfcontainSkel as Skel;
-use crate::policy_old::rules::*;
-use crate::utils::{default_false, default_true};
+use crate::{
+    bindings::policy::{keys, values},
+    bpf::BpfcontainSkel as Skel,
+    policy_old::rules::*,
+    utils::{default_false, default_true},
+};
 
 /// A high-level representation of a BPFContain policy that has been loaded
 /// from a YAML file.
@@ -95,8 +94,10 @@ impl Policy {
 
     /// Compute the policy id for a given policy name
     pub fn policy_id_for_name(name: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
 
         let mut hasher = DefaultHasher::new();
         name.hash(&mut hasher);

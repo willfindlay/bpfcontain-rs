@@ -5,13 +5,14 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::env;
-use std::fs::{remove_file, File};
-use std::io::{BufWriter, Write};
-use std::os::unix::fs::symlink;
-use std::os::unix::prelude::MetadataExt;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+    env,
+    fs::{remove_file, File},
+    io::{BufWriter, Write},
+    os::unix::{fs::symlink, prelude::MetadataExt},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
 
 use libbpf_cargo::SkeletonBuilder;
 use uname::uname;

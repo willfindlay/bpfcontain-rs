@@ -9,8 +9,7 @@
 //! interface for resolving symbols from ELF binaries for uprobe attachment as well as
 //! attaching uprobes to a function address in our current address space.
 
-use std::fs::read;
-use std::path::Path;
+use std::{fs::read, path::Path};
 
 use anyhow::{bail, Context as _, Result};
 use goblin::elf::{Elf, Sym};

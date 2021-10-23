@@ -8,22 +8,24 @@
 //! Definitions for policy rules and their translations into eBPF maps. Uses the
 //! `enum_dispatch` crate.
 
-use std::convert::{From, Into, TryFrom, TryInto};
-use std::path::PathBuf;
+use std::{
+    convert::{From, Into, TryFrom, TryInto},
+    path::PathBuf,
+};
 
 use anyhow::{Context, Result};
 use enum_dispatch::enum_dispatch;
 use glob::glob;
-use libbpf_rs::Map;
-use libbpf_rs::MapFlags;
+use libbpf_rs::{Map, MapFlags};
 use plain::as_bytes;
 use serde::Deserialize;
 
-use crate::bindings::policy::{bitflags, keys, values};
-use crate::bpf::{BpfcontainMapsMut, BpfcontainSkel as Skel};
-use crate::policy_old::helpers::*;
-use crate::policy_old::Policy;
-use crate::utils::path_to_dev_ino;
+use crate::{
+    bindings::policy::{bitflags, keys, values},
+    bpf::{BpfcontainMapsMut, BpfcontainSkel as Skel},
+    policy_old::{helpers::*, Policy},
+    utils::path_to_dev_ino,
+};
 
 // ============================================================================
 // Rule Type and LoadRule Interface

@@ -8,7 +8,10 @@ use std::{
 
 use jsonrpc_core::*;
 use jsonrpc_derive::rpc;
-use jsonrpc_pubsub::{typed::Sink, typed::Subscriber, Session, SubscriptionId};
+use jsonrpc_pubsub::{
+    typed::{Sink, Subscriber},
+    Session, SubscriptionId,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::policy::types::AuditEvent;
