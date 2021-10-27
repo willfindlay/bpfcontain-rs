@@ -6,7 +6,7 @@
 // September 23, 2021  William Findlay  Created this.
 
 use std::{
-    collections::HashSet,
+    collections::BTreeSet,
     convert::{TryFrom, TryInto},
     fmt::Display,
     str::FromStr,
@@ -19,7 +19,7 @@ use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize, Serializ
 use crate::bindings::policy::bitflags::FilePermission as FilePermissionBitflag;
 
 /// Uniquely identifies a file on the fileystem.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Serialize, Deserialize, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum FileIdentifier {
     #[serde(alias = "path")]
@@ -29,7 +29,7 @@ pub enum FileIdentifier {
 }
 
 /// Access to a regular file.
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Hash, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FileAccess {
     #[serde(flatten)]
@@ -39,7 +39,7 @@ pub struct FileAccess {
 
 /// Access patterns that can be applied to filesystem objects
 /// such as regular files and devices.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum FilePermission {
     Execute,
     Read,
@@ -146,8 +146,8 @@ impl Serialize for FilePermission {
 }
 
 /// A wrapper around a hashset of [`FilePermission`]s.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct FilePermissionSet(HashSet<FilePermission>);
+#[derive(Debug, Hash, Default, PartialEq, Eq, Clone)]
+pub struct FilePermissionSet(BTreeSet<FilePermission>);
 
 impl Display for FilePermissionSet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -163,7 +163,7 @@ impl FromStr for FilePermissionSet {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut set = HashSet::with_capacity(s.len());
+        let mut set = BTreeSet::new();
 
         let mut temp = [0; 4];
         for c in s.to_lowercase().chars() {
@@ -178,7 +178,7 @@ impl TryFrom<FilePermissionBitflag> for FilePermissionSet {
     type Error = anyhow::Error;
 
     fn try_from(value: FilePermissionBitflag) -> Result<Self, Self::Error> {
-        let mut set = HashSet::default();
+        let mut set = BTreeSet::default();
 
         for b in BitIter::from(value.bits()).map(|b| b as u32) {
             let bit = 1 << b;

@@ -8,6 +8,7 @@
 use std::{
     collections::{hash_map::DefaultHasher, BTreeSet},
     convert::{TryFrom, TryInto},
+    fmt::Display,
     hash::{Hash, Hasher},
 };
 
@@ -34,6 +35,14 @@ impl PolicyIdentifier {
         }
     }
 
+    /// Get the underlying policy id as a u64
+    pub fn get_name<'name>(&self) -> u64 {
+        match self {
+            PolicyIdentifier::PolicyName(name) => Self::name_to_id(name),
+            PolicyIdentifier::PolicyId(id) => id.to_owned(),
+        }
+    }
+
     /// Convert the policy name to the BPF identifier by taking its hash as a u64
     fn name_to_id(name: &str) -> u64 {
         let mut hasher = DefaultHasher::new();
@@ -53,6 +62,15 @@ impl PartialEq for PolicyIdentifier {
     /// `PolicyIdentifier`s are considered equal if they resolve to the same underlying id
     fn eq(&self, other: &Self) -> bool {
         self.get_id() == other.get_id()
+    }
+}
+
+impl Display for PolicyIdentifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::PolicyId(id) => write!(f, "{}", id),
+            Self::PolicyName(name) => write!(f, "{}", name),
+        }
     }
 }
 
@@ -93,7 +111,7 @@ impl From<PolicyDecision> for PolicyDecisionBitflag {
 }
 
 /// A wrapper around a `BTreeSet` of [`PolicyDecision`]s.
-#[derive(Hash, Debug, Clone, PartialEq)]
+#[derive(Hash, Debug, Clone, PartialEq, Default)]
 pub struct PolicyDecisionSet(BTreeSet<PolicyDecision>);
 
 impl TryFrom<PolicyDecisionBitflag> for PolicyDecisionSet {

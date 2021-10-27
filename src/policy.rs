@@ -5,31 +5,26 @@
 //
 // September 23, 2021  William Findlay  Created this.
 
-use crate::{
-    bpf::BpfcontainSkel,
-    utils::{default_false, default_true},
-};
-use anyhow::{Context, Result};
-use plain::as_bytes;
-use serde::{Deserialize, Serialize};
-use std::{
-    fs::File,
-    hash::Hash,
-    io::{Read, Write},
-    path::Path,
-};
-use types::policy::PolicyIdentifier;
-
-pub mod types;
-
 mod disk;
 mod rules;
+pub mod types;
 
-pub use disk::{PolicyDiskExt, PolicyFormat};
+use std::hash::Hash;
 
-// TODO: Move this into rules
-#[derive(Hash, Debug, Serialize, Deserialize, Clone)]
-pub struct Rule();
+use anyhow::{Context, Result};
+use libbpf_rs::MapFlags;
+use plain::as_bytes;
+use serde::{Deserialize, Serialize};
+use types::policy::PolicyIdentifier;
+
+use crate::{
+    bindings::raw::policy_common_t,
+    bpf::{BpfcontainMapsMut, BpfcontainSkel},
+    utils::{default_false, default_true},
+};
+
+pub use self::disk::{PolicyDiskExt, PolicyFormat};
+use self::rules::{Rule, RuleDispatch};
 
 /// A serializable and deserializable BPFContain policy
 #[derive(Hash, Debug, Serialize, Deserialize, Clone)]
@@ -77,12 +72,34 @@ impl Policy {
     /// Load the policy into the kernel.
     pub fn load_kernel(&self, skel: &mut BpfcontainSkel) -> Result<()> {
         let mut maps = skel.maps_mut();
+
+        self.load_policy_common(&mut maps)
+            .context("Failed to load common part of the policy")?;
+
+        Ok(())
+    }
+
+    pub fn load_policy_common(&self, maps: &mut BpfcontainMapsMut) -> Result<()> {
+        // Compute the key from our policy id
+        let key = self.id.get_id();
+        let key_bytes = unsafe { as_bytes(&key) };
+
+        // Populate the value with common policy configuration
+        let mut value = policy_common_t::default();
+        value.set_complain(self.complain as u8);
+        value.set_privileged(self.privileged as u8);
+        value.set_default_taint(self.default_taint as u8);
+        let value_bytes = unsafe { as_bytes(&value) };
+
+        // Load the common part of the policy into the kernel
         let policy_common = maps.policy_common();
-
-        let key = unsafe { as_bytes(&self.id.get_id()) };
-        let value = todo!("FINISH ME");
-
-        // TODO: FInish this
+        policy_common
+            .update(&key_bytes, &value_bytes, MapFlags::NO_EXIST)
+            .context("Failed to update policy map")?;
+        log::debug!(
+            "Loaded the common part of the policy into the kernel. [id={}]",
+            self.id,
+        );
 
         Ok(())
     }

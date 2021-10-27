@@ -15,6 +15,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use glob::glob;
+use libbpf_rs::MapFlags;
 use log::Level;
 
 use crate::log::log_error;
@@ -92,4 +93,26 @@ pub fn default_false() -> bool {
 /// Returns true. Used for `#[serde(default = "default_true")]`
 pub fn default_true() -> bool {
     true
+}
+
+/// An extension trait on top of [`libbpf_rs::Map`].
+pub trait MapExt {
+    /// Perform a map update but take the bitwise OR of current and existing values as the
+    /// new value.
+    fn update_bitor(&mut self, key: &[u8], val: &mut [u8]) -> Result<()>;
+}
+impl MapExt for libbpf_rs::Map {
+    fn update_bitor(&mut self, key: &[u8], val: &mut [u8]) -> Result<()> {
+        if let Some(existing) = self
+            .lookup(key, MapFlags::ANY)
+            .context("Failed to look up existing value")?
+        {
+            for (old, new) in existing.iter().zip(val.iter_mut()) {
+                *new |= *old;
+            }
+        }
+
+        self.update(key, val, MapFlags::ANY)
+            .context("Failed to update map value")
+    }
 }

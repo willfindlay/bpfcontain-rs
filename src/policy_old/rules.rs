@@ -9,7 +9,7 @@
 //! `enum_dispatch` crate.
 
 use std::{
-    convert::{From, Into, TryFrom, TryInto},
+    convert::{From, Into},
     path::PathBuf,
 };
 
