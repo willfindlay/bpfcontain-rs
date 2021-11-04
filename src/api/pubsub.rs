@@ -16,6 +16,12 @@ use crate::types::AuditEvent;
 /// An active subscription expecting responses of type `T`.
 pub type Subscriptions<T> = Arc<RwLock<HashMap<SubscriptionId, Sink<T>>>>;
 
+/// Keeps track of statistics about how many events have been processed
+#[derive(Serialize, Deserialize, Default, Clone)]
+pub struct AuditStats {
+    pub events_processed: u64,
+}
+
 /// A trait defining the publish/subscribe portions of BPFContain's API.
 #[rpc(server)]
 pub trait PubSub {
@@ -33,6 +39,9 @@ pub trait PubSub {
     /// Unsubscribe from a security audit event.
     #[pubsub(subscription = "audit", unsubscribe, name = "audit_unsubscribe")]
     fn audit_unsubscribe(&self, meta: Option<Self::Metadata>, id: SubscriptionId) -> Result<()>;
+
+    #[rpc(name = "audit_stats")]
+    fn audit_stats(&self) -> jsonrpc_core::Result<AuditStats>;
 }
 
 /// Implements BPFContain's publish/subscribe API.
@@ -40,6 +49,7 @@ pub trait PubSub {
 pub struct PubSubImpl {
     uid: AtomicUsize,
     pub(crate) audit_subscribers: Subscriptions<AuditEvent>,
+    pub(crate) stats: Arc<RwLock<AuditStats>>,
 }
 
 impl PubSub for PubSubImpl {
@@ -78,6 +88,10 @@ impl PubSub for PubSubImpl {
         self.audit_subscribers.write().unwrap().remove(&id);
         log::debug!("Unsubscribing the subscriber with id {:?}", id);
         Ok(())
+    }
+
+    fn audit_stats(&self) -> Result<AuditStats> {
+        Ok(self.stats.read().unwrap().clone())
     }
 }
 

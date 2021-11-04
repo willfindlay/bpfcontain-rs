@@ -1,8 +1,9 @@
 pub mod pubsub;
 pub mod rpc;
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
+use jsonrpc_derive::rpc;
 use jsonrpc_pubsub::{PubSubHandler, Session};
 use jsonrpc_ws_server::RequestContext;
 use jsonrpc_ws_server::{Server, ServerBuilder};
@@ -12,6 +13,8 @@ use pubsub::{PubSub, PubSubImpl, SubscriptionIdInnerNumberExt as _, Subscription
 use crate::config::Settings;
 use crate::types::AuditEvent;
 
+use self::pubsub::AuditStats;
+
 /// Represents a running API server along with all the context
 /// it needs to operate normally.
 pub struct ApiContext {
@@ -19,6 +22,7 @@ pub struct ApiContext {
     // TODO: We may need to read this at some point in the future. If not, we can prefix with an underscore
     server: Server,
     audit_subscribers: Subscriptions<AuditEvent>,
+    audit_stats: Arc<RwLock<AuditStats>>,
 }
 
 impl ApiContext {
@@ -29,7 +33,9 @@ impl ApiContext {
         // Register publish/subscribe API
         let pubsub = PubSubImpl::default();
         let audit_subscribers = pubsub.audit_subscribers.clone();
+        let audit_stats = pubsub.stats.clone();
         io.extend_with(pubsub.to_delegate());
+        //io.extend_with(self.to_delegate());
 
         // Set websocket server address
         let addr = &config
@@ -48,10 +54,15 @@ impl ApiContext {
         Self {
             server,
             audit_subscribers,
+            audit_stats,
         }
     }
 
     pub fn notify_audit_subscribers(&self, event: AuditEvent) {
+        // Keep track of event count
+        let ref mut stats = self.audit_stats.write().unwrap();
+        stats.events_processed += 1;
+
         for (id, subscriber) in self.audit_subscribers.read().unwrap().iter() {
             debug!("Notifying subscription id {}", id.number());
             if let Err(e) = subscriber.notify(Ok(event.clone())) {
