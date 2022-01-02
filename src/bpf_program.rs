@@ -47,7 +47,7 @@ fn get_symbol_address(so_path: &str, fn_name: &str) -> Result<usize> {
             }
             false
         })
-        .ok_or(anyhow!("symbol not found"))?;
+        .ok_or_else(|| anyhow!("symbol not found"))?;
 
     Ok(symbol.address() as usize)
 }
@@ -205,12 +205,12 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
     let runc_binary_path = "/usr/bin/runc";
     let runc_func_name = "x_cgo_init";
 
-    let runc_init_address = get_symbol_address(&runc_binary_path, &runc_func_name)?;
+    let runc_init_address = get_symbol_address(runc_binary_path, runc_func_name)?;
 
     skel.links.runc_x_cgo_init_enter = skel
         .progs_mut()
         .runc_x_cgo_init_enter()
-        .attach_uprobe(false, -1, &runc_binary_path, runc_init_address)?
+        .attach_uprobe(false, -1, runc_binary_path, runc_init_address)?
         .into();
 
     // TODO: Dynamically lookup binary path
