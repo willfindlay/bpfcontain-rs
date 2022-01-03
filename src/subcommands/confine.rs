@@ -34,14 +34,18 @@ pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
     println!("Applying policy now {:#?} {:#?}", pid, policy_name);
 
     println!("Policy Id {:#?}", policy.policy_id());
-   // call into a function which provies the policy id and pid
+    // call into a function which provies the policy id and pid
 
-   let mut ret: i32 = -libc::EAGAIN;
+    let mut ret: i32 = -libc::EAGAIN;
 
-   // Call into uprobe
-   do_apply_policy_to_container(&mut ret as *mut i32, pid.parse::<u64>()?, policy.policy_id());
+    // Call into uprobe
+    do_apply_policy_to_container(
+        &mut ret as *mut i32,
+        pid.parse::<u64>()?,
+        policy.policy_id(),
+    );
 
-   match ret {
+    match ret {
        0 => Ok(()),
        n if n == -libc::EAGAIN => bail!("Failed to call into uprobe. Is BPFContain running?"),
        n if n == -libc::ENOENT => bail!(

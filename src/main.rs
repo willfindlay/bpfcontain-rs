@@ -11,9 +11,9 @@ use ::anyhow::{bail, Context as _, Result};
 use ::clap::{crate_authors, crate_name, crate_version, App, AppSettings, Arg, SubCommand};
 
 use bpfcontain::config;
+use bpfcontain::subcommands::confine;
 use bpfcontain::subcommands::daemon;
 use bpfcontain::subcommands::run;
-use bpfcontain::subcommands::confine;
 
 fn main() -> Result<()> {
     let app = App::new(crate_name!())
@@ -87,7 +87,8 @@ fn main() -> Result<()> {
                         .last(true)
                         .help("Override policy command"),
                 ),
-        ).subcommand(
+        )
+        .subcommand(
             SubCommand::with_name("confine")
                 .about("Apply a policy to a container using it's pid")
                 .arg(
@@ -97,9 +98,9 @@ fn main() -> Result<()> {
                 )
                 .arg(
                     Arg::with_name("policy")
-                    .required(true)
-                    .help("The policy to use")
-                )
+                        .required(true)
+                        .help("The policy to use"),
+                ),
         );
 
     // Parse arguments
