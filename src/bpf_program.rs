@@ -205,25 +205,45 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
     let runc_binary_path = "/usr/bin/runc";
     let runc_func_name = "x_cgo_init";
 
-    let runc_init_address = get_symbol_address(runc_binary_path, runc_func_name)?;
+    let runc_address = get_symbol_address(runc_binary_path, runc_func_name);
 
-    skel.links.runc_x_cgo_init_enter = skel
-        .progs_mut()
-        .runc_x_cgo_init_enter()
-        .attach_uprobe(false, -1, runc_binary_path, runc_init_address)?
-        .into();
+    match runc_address {
+        Ok(address) => {
+            skel.links.runc_x_cgo_init_enter = skel
+                .progs_mut()
+                .runc_x_cgo_init_enter()
+                .attach_uprobe(false, -1, runc_binary_path, address)?
+                .into();
+        }
+        Err(e) => {
+            log::warn!(
+                "Docker support will not work! runc uprobe could not be attached: {}",
+                e
+            );
+        }
+    }
 
     // TODO: Dynamically lookup binary path
     let dockerd_binary_path = "/usr/bin/dockerd";
     let dockerd_func_name = "github.com/docker/docker/container.(*State).SetRunning";
 
-    let dockerd_running_address = get_symbol_address(dockerd_binary_path, dockerd_func_name)?;
+    let dockerd_address = get_symbol_address(dockerd_binary_path, dockerd_func_name);
 
-    skel.links.dockerd_container_running_enter = skel
-        .progs_mut()
-        .dockerd_container_running_enter()
-        .attach_uprobe(false, -1, dockerd_binary_path, dockerd_running_address)?
-        .into();
+    match dockerd_address {
+        Ok(address) => {
+            skel.links.dockerd_container_running_enter = skel
+                .progs_mut()
+                .dockerd_container_running_enter()
+                .attach_uprobe(false, -1, dockerd_binary_path, address)?
+                .into();
+        }
+        Err(e) => {
+            log::warn!(
+                "Docker support will not work! dockerd uprobe could not be attached: {}",
+                e
+            );
+        }
+    }
 
     Ok(())
 }
