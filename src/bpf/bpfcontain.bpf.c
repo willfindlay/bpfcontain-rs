@@ -639,7 +639,7 @@ remove_process_from_container(container_t *container, u32 host_pid)
 }
 
 static __always_inline container_t *start_docker_container(){
-    
+
     // Allocate a new container
     container_t *container = new_container_t();
     if (!container) {
@@ -680,10 +680,10 @@ static __always_inline container_t *start_docker_container(){
     // Note - for docker containers this hostname is not set right away, at this point it will match the host namespace
     // We will hook into the sethostname tracepoint to update this later (
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
-    
+
     container->status = DOCKER_INIT;
 
-    
+
     if (!add_process_to_container(container, bpf_get_current_pid_tgid(),
                                   get_current_ns_pid_tgid())) {
         // TODO: Log that an error occurred
@@ -694,7 +694,7 @@ static __always_inline container_t *start_docker_container(){
     bpf_map_update_elem(&containers, &container->container_id, container,
                         BPF_NOEXIST);
 
-    
+
     // Look up the result and return it
     return bpf_map_lookup_elem(&containers, &container->container_id);
 }
@@ -711,7 +711,7 @@ static __always_inline container_t *start_docker_container(){
 static __always_inline container_t *start_container(policy_id_t policy_id,
                                                     bool tainted, container_status_t status)
 {
-    
+
     // Allocate a new container
     container_t *container = new_container_t();
     if (!container) {
@@ -754,7 +754,7 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id by default a docker containers hostname is it's containerID)
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
-    
+
     // In a different namespace
     if (!under_init_nsproxy()) {
         // TODO do we want to do something different here?
@@ -772,7 +772,7 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     bpf_map_update_elem(&containers, &container->container_id, container,
                         BPF_NOEXIST);
 
-    
+
     // Look up the result and return it
     return bpf_map_lookup_elem(&containers, &container->container_id);
 }
@@ -918,17 +918,17 @@ static __always_inline int do_dev_permission(container_t *container,
     if ((val->allow & access) == access) {
         decision |= BPFCON_ALLOW;
     }
-        
+
     // Any part of access must match to taint
     if ((val->taint & access)) {
         decision |= BPFCON_TAINT;
     }
-        
+
     // Any part of access must match to deny
     if ((val->deny & access)) {
         decision |= BPFCON_DENY;
     }
-        
+
 
     /*
      * Try with minor = i_rdev's minor second
@@ -1534,7 +1534,7 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
     // Allow runc to access whatever it needs
     if (container->status == DOCKER_INIT)
         return BPFCON_ALLOW;
-    
+
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     u32 other_pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
@@ -1938,7 +1938,7 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
     // Unconfined
     if (!container)
         return 0;
-    
+
     // Allow runc to access whatever it needs
     if (container->status == DOCKER_INIT)
         return 0;
@@ -2274,7 +2274,7 @@ int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
     // Look up the container using the current PID
     u32 pid                = bpf_get_current_pid_tgid();
     container_t *container = get_container_by_host_pid(pid);
-  
+
     // Unconfined
     if (!container)
         return 0;
@@ -2490,46 +2490,46 @@ out:
 }
 
 /* ========================================================================= *
- * Docker Integration                                                           *
+ * Docker Integration                                                        *
  * ========================================================================= */
 
 /* Hook into Docker Container Creation
  *
- * Runc setups the entrypoint process of the Container. 
- * The [nsenter package](https://github.com/opencontainers/runc/tree/master/libcontainer/nsenter) 
- * leverages cgo to call [nsexec()](https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L610) 
+ * Runc setups the entrypoint process of the Container.
+ * The [nsenter package](https://github.com/opencontainers/runc/tree/master/libcontainer/nsenter)
+ * leverages cgo to call [nsexec()](https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L610)
  * which creates new namespaces.
- * 
+ *
  * The package is imported by [init.go](https://github.com/opencontainers/runc/blob/master/init.go)
- * 
+ *
  * By hooking into this x_cgo_init probe, we catch the entrypoint process to the container
  * Getting the task_struct using bpf_get_current_task_btf() we can get all the namespace information about the container.
- * 
- * Using this information we will add an entry to the processes and containers map 
+ *
+ * Using this information we will add an entry to the processes and containers map
  * At this point we apply a default policy.
  */
 SEC("uprobe/runc_x_cgo_init")
 int BPF_KPROBE(runc_x_cgo_init_enter)
 {
-    
+
     struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     u32 pidNs = task->thread_pid->numbers[0].ns->ns.inum;
     u32 subPidNs = task->nsproxy->pid_ns_for_children->ns.inum;
     //u32 mntNs = task->nsproxy->mnt_ns->ns.inum;
 
-    // Note this UPROBE is called multiple times, some processes are used to setup the container 
+    // Note this UPROBE is called multiple times, some processes are used to setup the container
     // You can read about this magic here: https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L689
     // We want to ignore these ones
     // It looks like they will share the same namespace as PID=1 and not have a new NS for children
     // We can check if PIDNS != subPidNS
-    if (pidNs != subPidNs) { // We only care about the entry process to the container 
+    if (pidNs != subPidNs) { // We only care about the entry process to the container
         // Add entries to the processes and containers map
         if (!start_docker_container()) {
             // TODO deal with error or log it
             return 0;
         }
     }
-    
+
 	return 0;
 }
 
@@ -2547,13 +2547,13 @@ int BPF_KPROBE(dockerd_container_running_enter)
 
     container_t *container = get_container_by_host_pid(pid);
     if (!container) {
-        
+
         return 0;
     }
 
     container->status = DOCKER_STARTED;
     bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST);
-    
+
     return 0;
 }
 
@@ -2568,7 +2568,7 @@ int sys_enter_sethostname(struct trace_event_raw_sys_enter  *ctx)
     if (!container)
       return 0;
 
-    // Can check what args are expected with 
+    // Can check what args are expected with
     // sudo cat /sys/kernel/debug/tracing/events/syscalls/sys_enter_sethostname/format
     char* name = ctx->args[0];
 
@@ -2576,7 +2576,7 @@ int sys_enter_sethostname(struct trace_event_raw_sys_enter  *ctx)
     bpf_probe_read_str(container->uts_name, sizeof(container->uts_name), name);
 
     bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST);
-    
+
 
     return 0;
 }
