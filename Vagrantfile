@@ -29,9 +29,7 @@ Vagrant.configure("2") do |config|
 
       # install rust
       su vagrant <<-EOF
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source \\$HOME/.cargo/env
-rustup default nightly
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 EOF
 
       # install needed packages
