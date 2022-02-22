@@ -35,7 +35,7 @@ rustup default nightly
 EOF
 
       # install needed packages
-      apt-get install -y gcc clang linux-tools-generic make libelf-dev gcc-multilib ca-certificates curl gnupg lsb-release
+      apt-get install -y gcc clang linux-tools-$(uname -r) make libelf-dev gcc-multilib ca-certificates curl gnupg lsb-release
 
       # install docker
       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
