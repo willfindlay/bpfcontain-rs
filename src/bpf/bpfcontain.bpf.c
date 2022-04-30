@@ -21,6 +21,7 @@
 #include <map_defs.h>
 #include <policy.h>
 #include <state.h>
+#include "ioctl.h"
 
 /* ========================================================================= *
  * BPF CO-RE Globals                                                         *
@@ -639,7 +640,7 @@ remove_process_from_container(container_t *container, u32 host_pid)
 }
 
 static __always_inline container_t *start_docker_container(){
-    
+
     // Allocate a new container
     container_t *container = new_container_t();
     if (!container) {
@@ -680,10 +681,10 @@ static __always_inline container_t *start_docker_container(){
     // Note - for docker containers this hostname is not set right away, at this point it will match the host namespace
     // We will hook into the sethostname tracepoint to update this later (
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
-    
+
     container->status = DOCKER_INIT;
 
-    
+
     if (!add_process_to_container(container, bpf_get_current_pid_tgid(),
                                   get_current_ns_pid_tgid())) {
         // TODO: Log that an error occurred
@@ -694,7 +695,7 @@ static __always_inline container_t *start_docker_container(){
     bpf_map_update_elem(&containers, &container->container_id, container,
                         BPF_NOEXIST);
 
-    
+
     // Look up the result and return it
     return bpf_map_lookup_elem(&containers, &container->container_id);
 }
@@ -708,10 +709,10 @@ static __always_inline container_t *start_docker_container(){
  *    A pointer to the newly created container, if successful
  *    Otherwise, NULL
  */
-static __always_inline container_t *start_container(policy_id_t policy_id,
+static __always_inline container_t *start_container(u32 pid, policy_id_t policy_id,
                                                     bool tainted, container_status_t status)
 {
-    
+
     // Allocate a new container
     container_t *container = new_container_t();
     if (!container) {
@@ -725,8 +726,6 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
         // TODO: Log that an error occurred
         return NULL;
     }
-
-    u32 pid = bpf_get_current_pid_tgid();
 
     // Initialize the container
     // The container id is a 64 bit integer where the upper 32 bits are a random
@@ -754,7 +753,7 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     // The UTS namespace hostname of the container. In docker and kubernetes,
     // this usually corresponds with their notion of a container id by default a docker containers hostname is it's containerID)
     get_current_uts_name(container->uts_name, sizeof(container->uts_name));
-    
+
     // In a different namespace
     if (!under_init_nsproxy()) {
         // TODO do we want to do something different here?
@@ -772,7 +771,7 @@ static __always_inline container_t *start_container(policy_id_t policy_id,
     bpf_map_update_elem(&containers, &container->container_id, container,
                         BPF_NOEXIST);
 
-    
+
     // Look up the result and return it
     return bpf_map_lookup_elem(&containers, &container->container_id);
 }
@@ -918,17 +917,17 @@ static __always_inline int do_dev_permission(container_t *container,
     if ((val->allow & access) == access) {
         decision |= BPFCON_ALLOW;
     }
-        
+
     // Any part of access must match to taint
     if ((val->taint & access)) {
         decision |= BPFCON_TAINT;
     }
-        
+
     // Any part of access must match to deny
     if ((val->deny & access)) {
         decision |= BPFCON_DENY;
     }
-        
+
 
     /*
      * Try with minor = i_rdev's minor second
@@ -1456,9 +1455,90 @@ int BPF_PROG(file_mprotect, struct vm_area_struct *vma, unsigned long reqprot,
                            !(vma->vm_flags & VM_SHARED) ? MAP_PRIVATE : 0);
 }
 
+static __always_inline int do_ioctl_confine(u32 pid, policy_id_t policy_id) {
+	if (pid == 0) {
+		pid = bpf_get_current_pid_tgid();
+
+		// The process _must_ not already be confined
+		if (get_container_by_host_pid(pid)) {
+			return -EPERM;
+		}
+	} else {
+		u32 requesting_pid = bpf_get_current_pid_tgid();
+		struct task_struct *curr = bpf_get_current_task_btf();
+
+		// The process _must_ not be confined if it wants to confine other processes
+		if (get_container_by_host_pid(requesting_pid)) {
+			return -EPERM;
+		}
+
+		// The process _must_ have CAP_MAC_ADMIN if it wants to confine other processes
+		if (!(curr->cred->cap_effective.cap[0] & CAP_MAC_ADMIN)) {
+			return -EPERM;
+		}
+	}
+
+	// Look up common policy information from policy_common map
+	policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
+	if (!common) {
+		return -ENOENT;
+	}
+
+	// Try to add a process to `processes` with `pid`/`tgid`, associated with
+	// `policy_id`
+	if (!start_container(pid, policy_id, common->default_taint, DEFAULT_SHIM)) {
+		return -ESRCH;
+	}
+
+	return 0;
+}
+
+static __always_inline int bpfcontain_do_ioctl(unsigned int cmd, void *__args, container_t *container) {
+	// For now at least, we don't want to allow an already-confined container to make any
+	// further bpfcontain ioctl calls
+	if (container != NULL)
+		return -EPERM;
+
+	// Grab an ioctl arg struct from the percpu heap
+	int zero = 0;
+	bpfcontain_ioctl_t *args = bpf_map_lookup_elem(&ioctl_heap, &zero);
+	if (args == NULL) {
+		return -ENOMEM;
+	}
+
+	// Populate the arg struct from userspace
+	if (bpf_probe_read_user(args, sizeof(bpfcontain_ioctl_t), __args)) {
+		return -ENOMEM;
+	}
+
+	// Perform the requested command
+	switch (cmd) {
+		case BPFCONTAIN_OP_CONFINE:
+			return do_ioctl_confine(args->confine.pid, args->confine.policy_id);
+		default:
+			return -EINVAL;
+	}
+}
+
+SEC("kprobe/__x64_sys_ioctl")
+int BPF_KPROBE_SYSCALL(bpfcontain_ioctl, unsigned int fd, unsigned int cmd, unsigned long arg) {
+	if (is_bpfcontain_ioctl(cmd)) {
+		// Look up the container using the current PID
+		u32 pid                = bpf_get_current_pid_tgid();
+		container_t *container = get_container_by_host_pid(pid);
+
+		int ret = bpfcontain_do_ioctl(cmd, (void *)arg, container);
+		bpf_override_return((struct pt_regs*)ctx, (u64)ret);
+	}
+
+	return 0;
+}
+
 SEC("lsm/file_ioctl")
 int BPF_PROG(file_ioctl, struct file *file, unsigned int cmd, unsigned long arg)
 {
+	int ret;
+
     // Look up the container using the current PID
     u32 pid                = bpf_get_current_pid_tgid();
     container_t *container = get_container_by_host_pid(pid);
@@ -1534,7 +1614,7 @@ bpfcontain_net_ipc_perm(container_t *container, u32 access, struct socket *sock)
     // Allow runc to access whatever it needs
     if (container->status == DOCKER_INIT)
         return BPFCON_ALLOW;
-    
+
     policy_decision_t decision = BPFCON_NO_DECISION;
 
     u32 other_pid = BPF_CORE_READ(sock, sk, sk_peer_pid, numbers[0].nr);
@@ -1938,7 +2018,7 @@ int BPF_PROG(task_kill, struct task_struct *target, struct kernel_siginfo *info,
     // Unconfined
     if (!container)
         return 0;
-    
+
     // Allow runc to access whatever it needs
     if (container->status == DOCKER_INIT)
         return 0;
@@ -2274,7 +2354,7 @@ int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
     // Look up the container using the current PID
     u32 pid                = bpf_get_current_pid_tgid();
     container_t *container = get_container_by_host_pid(pid);
-  
+
     // Unconfined
     if (!container)
         return 0;
@@ -2414,122 +2494,46 @@ int sched_process_exit(struct bpf_raw_tracepoint_args *args)
 }
 
 /* ========================================================================= *
- * Uprobe Commands                                                           *
- * ========================================================================= */
-
-/* BPF program endpoint for do_containerize in libbpfcontain.
- *
- * @ret_p: Pointer to the return value of wrapper function.
- * @policy_id: Container with which to associate.
- *
- * return: Converted access mask.
- */
-SEC("uprobe/do_containerize")
-int BPF_KPROBE(do_containerize, int *ret_p, u64 policy_id)
-{
-    int ret = 0;
-
-    // Look up common policy information from policy_common map
-    policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
-    if (!common) {
-        ret = -ENOENT;
-        goto out;
-    }
-
-    // Try to add a process to `processes` with `pid`/`tgid`, associated with
-    // `policy_id`
-    if (!start_container(policy_id, common->default_taint, DEFAULT_SHIM)) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-out:
-    if (ret_p)
-        bpf_probe_write_user(ret_p, &ret, sizeof(ret));
-
-    return 0;
-}
-
-/* BPF program endpoint for do_apply_policy_to_container in libbpfcontain.
- *
- * @ret_p: Pointer to the return value of wrapper function.
- * @pid: root pid of the container with which to associate.
- * @policy_id: the policy to assign to the container.
- *
- * return: Converted access mask.
- */
-SEC("uprobe/do_apply_policy_to_container")
-int BPF_KPROBE(do_apply_policy_to_container, int *ret_p, u64 pid, u64 policy_id)
-{
-    int ret = 0;
-
-    // Look up common policy information from policy_common map
-    policy_common_t *common = bpf_map_lookup_elem(&policy_common, &policy_id);
-    if (!common) {
-        ret = -ENOENT;
-        goto out;
-    }
-
-    container_t *container = get_container_by_host_pid(pid);
-    if (!container) {
-        ret = -ESRCH;
-        goto out;
-    }
-
-    container->policy_id = policy_id;
-    if(bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST)) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-out:
-    if (ret_p)
-        bpf_probe_write_user(ret_p, &ret, sizeof(ret));
-
-    return 0;
-}
-
-/* ========================================================================= *
  * Docker Integration                                                           *
  * ========================================================================= */
 
 /* Hook into Docker Container Creation
  *
- * Runc setups the entrypoint process of the Container. 
- * The [nsenter package](https://github.com/opencontainers/runc/tree/master/libcontainer/nsenter) 
- * leverages cgo to call [nsexec()](https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L610) 
+ * Runc setups the entrypoint process of the Container.
+ * The [nsenter package](https://github.com/opencontainers/runc/tree/master/libcontainer/nsenter)
+ * leverages cgo to call [nsexec()](https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L610)
  * which creates new namespaces.
- * 
+ *
  * The package is imported by [init.go](https://github.com/opencontainers/runc/blob/master/init.go)
- * 
+ *
  * By hooking into this x_cgo_init probe, we catch the entrypoint process to the container
  * Getting the task_struct using bpf_get_current_task_btf() we can get all the namespace information about the container.
- * 
- * Using this information we will add an entry to the processes and containers map 
+ *
+ * Using this information we will add an entry to the processes and containers map
  * At this point we apply a default policy.
  */
 SEC("uprobe/runc_x_cgo_init")
 int BPF_KPROBE(runc_x_cgo_init_enter)
 {
-    
+
     struct task_struct *task = (struct task_struct *)bpf_get_current_task_btf();
     u32 pidNs = task->thread_pid->numbers[0].ns->ns.inum;
     u32 subPidNs = task->nsproxy->pid_ns_for_children->ns.inum;
     //u32 mntNs = task->nsproxy->mnt_ns->ns.inum;
 
-    // Note this UPROBE is called multiple times, some processes are used to setup the container 
+    // Note this UPROBE is called multiple times, some processes are used to setup the container
     // You can read about this magic here: https://github.com/opencontainers/runc/blob/master/libcontainer/nsenter/nsexec.c#L689
     // We want to ignore these ones
     // It looks like they will share the same namespace as PID=1 and not have a new NS for children
     // We can check if PIDNS != subPidNS
-    if (pidNs != subPidNs) { // We only care about the entry process to the container 
+    if (pidNs != subPidNs) { // We only care about the entry process to the container
         // Add entries to the processes and containers map
         if (!start_docker_container()) {
             // TODO deal with error or log it
             return 0;
         }
     }
-    
+
 	return 0;
 }
 
@@ -2547,13 +2551,13 @@ int BPF_KPROBE(dockerd_container_running_enter)
 
     container_t *container = get_container_by_host_pid(pid);
     if (!container) {
-        
+
         return 0;
     }
 
     container->status = DOCKER_STARTED;
     bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST);
-    
+
     return 0;
 }
 
@@ -2568,7 +2572,7 @@ int sys_enter_sethostname(struct trace_event_raw_sys_enter  *ctx)
     if (!container)
       return 0;
 
-    // Can check what args are expected with 
+    // Can check what args are expected with
     // sudo cat /sys/kernel/debug/tracing/events/syscalls/sys_enter_sethostname/format
     char* name = ctx->args[0];
 
@@ -2576,7 +2580,7 @@ int sys_enter_sethostname(struct trace_event_raw_sys_enter  *ctx)
     bpf_probe_read_str(container->uts_name, sizeof(container->uts_name), name);
 
     bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST);
-    
+
 
     return 0;
 }

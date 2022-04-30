@@ -1,9 +1,0 @@
-[package]
-name = "bpfcontain_uprobes"
-version = "0.1.0"
-edition = "2018"
-license = "GPL-2.0-or-later"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]

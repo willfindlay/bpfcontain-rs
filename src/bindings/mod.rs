@@ -8,6 +8,7 @@
 //! Bindings for BPF data structures.
 
 pub mod audit;
+pub mod ioctl;
 pub mod policy;
 pub mod state;
 

@@ -10,19 +10,21 @@
 mod helpers;
 mod rules;
 
-use std::ffi::OsStr;
-use std::io::Read;
-use std::path::Path;
-use std::str::FromStr;
+use std::{ffi::OsStr, io::Read, path::Path, str::FromStr};
 
 use anyhow::{bail, Context, Error, Result};
 use libbpf_rs::MapFlags;
 use plain::as_bytes;
 use serde::Deserialize;
 
-use crate::bindings::policy::{keys, values};
-use crate::bpf::BpfcontainSkel as Skel;
-use crate::policy::rules::*;
+use crate::{
+    bindings::{
+        self,
+        policy::{keys, values},
+    },
+    bpf::BpfcontainSkel as Skel,
+    policy::rules::*,
+};
 
 /// A high-level representation of a BPFContain policy that has been loaded
 /// from a YAML file.
@@ -102,10 +104,12 @@ impl Policy {
         Self::policy_id_for_name(&self.name)
     }
 
-    /// Compute the policy id for a given policy name
+    /// compute the policy id for a given policy name
     pub fn policy_id_for_name(name: &str) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
 
         let mut hasher = DefaultHasher::new();
         name.hash(&mut hasher);
@@ -205,24 +209,7 @@ impl Policy {
 
     /// Place the current process into a container that obeys this policy.
     pub fn containerize(&self) -> Result<()> {
-        use bpfcontain_uprobes::do_containerize;
-
-        let mut ret: i32 = -libc::EAGAIN;
-
-        // Call into uprobe
-        do_containerize(&mut ret as *mut i32, self.policy_id());
-
-        match ret {
-            0 => Ok(()),
-            n if n == -libc::EAGAIN => bail!("Failed to call into uprobe. Is BPFContain running?"),
-            n if n == -libc::ENOENT => bail!(
-                "No such policy {}:{}. Has your policy been loaded?",
-                self.name,
-                self.policy_id()
-            ),
-            n if n == -libc::EINVAL => bail!("Process is already containerized or no room in map"),
-            n => bail!("Unknown error: {}", n),
-        }
+        bindings::ioctl::confine(self.policy_id(), None)
     }
 }
 
