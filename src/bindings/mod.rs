@@ -18,7 +18,7 @@ pub mod state;
 #[allow(unaligned_references)]
 #[allow(deref_nullptr)]
 mod raw {
-    use std::env;
-    use std::include;
+    use std::{env, include};
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    include!(concat!(env!("OUT_DIR"), "/vmlinux_bindings.rs"));
 }

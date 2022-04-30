@@ -11,8 +11,10 @@ use std::fmt::{Display, Formatter};
 
 use plain::Plain;
 
-use super::policy::bitflags::{Capability, FileAccess, NetOperation, Signal};
-use super::raw;
+use super::{
+    policy::bitflags::{Capability, FileAccess, NetOperation, Signal},
+    raw,
+};
 
 /// Represents the common part of an audit event.
 pub type AuditData = raw::audit_data_t;
@@ -26,11 +28,11 @@ impl Display for AuditData {
         // corresponding with the inner union.
         let inner_data_str = unsafe {
             match self.type_ {
-                AuditType::AUDIT_TYPE_FILE => self.__bindgen_anon_1.file.to_string(),
-                AuditType::AUDIT_TYPE_CAP => self.__bindgen_anon_1.cap.to_string(),
-                AuditType::AUDIT_TYPE_NET => self.__bindgen_anon_1.net.to_string(),
-                AuditType::AUDIT_TYPE_IPC => self.__bindgen_anon_1.ipc.to_string(),
-                AuditType::AUDIT_TYPE_SIGNAL => self.__bindgen_anon_1.signal.to_string(),
+                AuditType::AUDIT_TYPE_FILE => self.__bindgen_anon_1.file.as_ref().to_string(),
+                AuditType::AUDIT_TYPE_CAP => self.__bindgen_anon_1.cap.as_ref().to_string(),
+                AuditType::AUDIT_TYPE_NET => self.__bindgen_anon_1.net.as_ref().to_string(),
+                AuditType::AUDIT_TYPE_IPC => self.__bindgen_anon_1.ipc.as_ref().to_string(),
+                AuditType::AUDIT_TYPE_SIGNAL => self.__bindgen_anon_1.signal.as_ref().to_string(),
                 AuditType::AUDIT_TYPE__UNKOWN => "UNKNOWN".to_string(),
             }
         };

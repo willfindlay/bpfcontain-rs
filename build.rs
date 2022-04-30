@@ -5,13 +5,14 @@
 //
 // Dec. 29, 2020  William Findlay  Created this.
 
-use std::env;
-use std::fs::{remove_file, File};
-use std::io::{BufWriter, Write};
-use std::os::unix::fs::symlink;
-use std::os::unix::prelude::MetadataExt;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::{
+    env,
+    fs::{remove_file, File},
+    io::{BufWriter, Write},
+    os::unix::{fs::symlink, prelude::MetadataExt},
+    path::{Path, PathBuf},
+    process::{Command, Stdio},
+};
 
 use libbpf_cargo::SkeletonBuilder;
 use uname::uname;
@@ -28,40 +29,67 @@ fn main() {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 
-    generate_bindings();
     generate_vmlinux();
+    generate_bindings();
     generate_skeleton();
 }
 
-fn generate_bindings() {
-    let out_path = PathBuf::from(format!("{}/bindings.rs", env::var("OUT_DIR").unwrap()));
-
-    // Generate
-    let bindings = bindgen::builder()
-        .header("bindings.h")
+fn bindgen_builder() -> bindgen::Builder {
+    bindgen::builder()
         .derive_default(true)
         .derive_eq(true)
         .derive_partialeq(true)
         .default_enum_style(bindgen::EnumVariation::Rust {
             non_exhaustive: false,
         })
+        .clang_arg("-Isrc/bpf/include")
+        .clang_arg("-Wno-unknown-attributes")
+        .clang_arg("-target")
+        .clang_arg("bpf")
+        .ignore_functions()
+}
+
+fn generate_bindings() {
+    let bindings_out = PathBuf::from(format!("{}/bindings.rs", env::var("OUT_DIR").unwrap()));
+    let vmlinux_bindings_out = PathBuf::from(format!(
+        "{}/vmlinux_bindings.rs",
+        env::var("OUT_DIR").unwrap()
+    ));
+
+    // Generate bpfcontain api bindings
+    let bindings = bindgen_builder()
+        .header("bindings.h")
+        .blocklist_file(".*/vmlinux.h.*")
         .constified_enum_module("policy_decision_t")
         .constified_enum_module("file_permission_t")
         .constified_enum_module("capability_t")
         .constified_enum_module("net_operation_t")
         .constified_enum_module("signal_operation_t")
         .bitfield_enum("audit_level_t")
-        .clang_arg("-Isrc/bpf/include")
-        .clang_arg("-Wno-unknown-attributes")
-        .clang_arg("-target")
-        .clang_arg("bpf")
-        .ignore_functions()
         .generate()
-        .expect("Failed to generate bindings");
+        .expect("Failed to generate bpfcontain api bindings");
+
+    // Generate int bindings from vmlinux
+    let vmlinux_bindings = bindgen_builder()
+        .header("bindings.h")
+        .allowlist_type("s8")
+        .allowlist_type("s16")
+        .allowlist_type("s32")
+        .allowlist_type("s64")
+        .allowlist_type("u8_")
+        .allowlist_type("u16_")
+        .allowlist_type("u32_")
+        .allowlist_type("u64_")
+        .allowlist_type("bool")
+        .generate()
+        .expect("Failed to generate vmlinux type bindings");
 
     // Save bindings
     bindings
-        .write_to_file(out_path)
+        .write_to_file(bindings_out)
+        .expect("Failed to save bindings");
+    vmlinux_bindings
+        .write_to_file(vmlinux_bindings_out)
         .expect("Failed to save bindings");
 }
 
