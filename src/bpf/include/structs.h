@@ -9,7 +9,7 @@
 #define STRUCTS_H
 
 #include "defs.h"
-#include "user_types.h"
+#include "vmlinux.h"
 
 /* ========================================================================= *
  * Container and Process Types                                               *
