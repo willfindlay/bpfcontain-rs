@@ -7,27 +7,25 @@
 
 //! Functionality related to BPF programs and maps.
 
-use std::fs;
-use std::path::Path;
-use std::thread::sleep;
-use std::time::Duration;
+use std::{fs, path::Path, thread::sleep, time::Duration};
 
-use object::Object;
-use object::ObjectSymbol;
+use object::{Object, ObjectSymbol};
 
 use anyhow::{anyhow, Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
 
-use crate::bindings::audit;
-use crate::bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel};
-use crate::config::Settings;
-use crate::log::log_error;
-use crate::ns;
-use crate::policy::Policy;
-use crate::uprobe_ext::FindSymbolUprobeExt;
-use crate::utils::bump_memlock_rlimit;
+use crate::{
+    bindings::audit,
+    bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel},
+    config::Settings,
+    log::log_error,
+    ns,
+    policy::Policy,
+    uprobe_ext::FindSymbolUprobeExt,
+    utils::bump_memlock_rlimit,
+};
 
 // Taken from libbpf-bootstrap rust example tracecon
 // https://github.com/libbpf/libbpf-bootstrap/blob/master/examples/rust/tracecon/src/main.rs#L47
@@ -180,27 +178,6 @@ fn initialize_bpf_globals(open_skel: &mut OpenBpfcontainSkel, config: &Settings)
 
 /// Attach uprobes to events
 fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
-    // do_containerize
-    skel.links.do_containerize = skel
-        .progs_mut()
-        .do_containerize()
-        .attach_uprobe_addr(
-            false,
-            -1,
-            bpfcontain_uprobes::do_containerize as *const () as usize,
-        )?
-        .into();
-
-    skel.links.do_apply_policy_to_container = skel
-        .progs_mut()
-        .do_apply_policy_to_container()
-        .attach_uprobe_addr(
-            false,
-            -1,
-            bpfcontain_uprobes::do_apply_policy_to_container as *const () as usize,
-        )?
-        .into();
-
     // TODO: Dynamically lookup binary path
     let runc_binary_path = "/usr/bin/runc";
     let runc_func_name = "x_cgo_init";

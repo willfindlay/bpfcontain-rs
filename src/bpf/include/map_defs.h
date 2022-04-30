@@ -11,9 +11,12 @@
 #include "defs.h"
 #include "maps.h"
 #include "structs.h"
+#include "ioctl.h"
 
 /* Ring buffer for passing logging events to userspace */
 BPF_RINGBUF(__audit_buf, 16, 0);
+
+BPF_PERCPU_ARRAY(ioctl_heap, bpfcontain_ioctl_t, 1, 0, 0);
 
 /* Active (containerized) processes */
 BPF_HASH(processes, u32, process_t, BPFCON_MAX_PROCESSES, 0, 0);
