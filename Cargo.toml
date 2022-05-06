@@ -46,6 +46,7 @@ bindgen = "0.59.2"
 glob = "0.3.0"
 uname = "0.1.1"
 libbpf-cargo = { git = "https://github.com/willfindlay/libbpf-rs" }
+tempfile = "3.3.0"
 
 [dev-dependencies]
 ctor = "0.1.20"

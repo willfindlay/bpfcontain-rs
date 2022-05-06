@@ -15,6 +15,7 @@ use std::{
 };
 
 use libbpf_cargo::SkeletonBuilder;
+use tempfile::tempdir;
 use uname::uname;
 
 fn main() {
@@ -94,13 +95,35 @@ fn generate_bindings() {
 }
 
 fn generate_skeleton() {
-    match SkeletonBuilder::new("src/bpf/bpfcontain.bpf.c")
-        .clang_args("-Isrc/bpf/include -Wno-unknown-attributes")
+    let dir = tempdir()
+        .expect("Failed to create temporary directory")
+        .into_path();
+
+    let mut builder = SkeletonBuilder::new();
+
+    builder
+        .source("src/bpf/bpfcontain.bpf.c")
+        .clang_args("-O2 -Isrc/bpf/include -Wno-unknown-attributes -emit-llvm")
+        .obj(dir.join("bpfcontain.bpf.bc"))
+        .build()
+        .expect("Failed to build");
+
+    Command::new("llc")
+        .args(
+            format!(
+                "{} -mattr=+alu32 -march=bpf -mcpu=v2 -filetype=obj -o {}",
+                dir.join("bpfcontain.bpf.bc").display(),
+                dir.join("bpfcontain.bpf.o").display()
+            )
+            .split_whitespace(),
+        )
+        .status()
+        .expect("Failed to run llc");
+
+    builder
+        .obj(dir.join("bpfcontain.bpf.o"))
         .generate("src/bpf/mod.rs")
-    {
-        Ok(_) => {}
-        Err(e) => panic!("Failed to generate skeleton: {}", e),
-    }
+        .expect("Failed to generate skeleton")
 }
 
 /// Checks if a file exists and is non-empty

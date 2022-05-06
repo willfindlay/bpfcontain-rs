@@ -23,7 +23,6 @@ use crate::{
     log::log_error,
     ns,
     policy::Policy,
-    uprobe_ext::FindSymbolUprobeExt,
     utils::bump_memlock_rlimit,
 };
 
