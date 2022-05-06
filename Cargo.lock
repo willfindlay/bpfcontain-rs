@@ -125,6 +125,7 @@ dependencies = [
  "serde 1.0.137",
  "serde_json",
  "serde_yaml",
+ "tempfile",
  "toml",
  "uname",
 ]
@@ -462,7 +463,7 @@ dependencies = [
 [[package]]
 name = "libbpf-cargo"
 version = "0.11.0"
-source = "git+https://github.com/willfindlay/libbpf-rs#e6fcd07d0c41b0bf9044d6720ff1d3e1c10ef437"
+source = "git+https://github.com/willfindlay/libbpf-rs#b44a15bda508dba3e82d68fba059978a8c5a75c4"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -483,7 +484,7 @@ dependencies = [
 [[package]]
 name = "libbpf-rs"
 version = "0.17.0"
-source = "git+https://github.com/willfindlay/libbpf-rs#e6fcd07d0c41b0bf9044d6720ff1d3e1c10ef437"
+source = "git+https://github.com/willfindlay/libbpf-rs#b44a15bda508dba3e82d68fba059978a8c5a75c4"
 dependencies = [
  "bitflags",
  "lazy_static",
