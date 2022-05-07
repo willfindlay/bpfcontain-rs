@@ -9,6 +9,7 @@
 
 pub mod bpf;
 pub mod bpf_program;
+pub mod cli;
 pub mod config;
 pub mod log;
 pub mod policy;

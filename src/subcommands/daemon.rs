@@ -7,47 +7,32 @@
 
 //! The `daemon` subcommand.
 
-use std::fs::{create_dir_all, metadata, set_permissions, File, OpenOptions};
-use std::io::Read;
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::{
+    fs::{create_dir_all, metadata, set_permissions, File, OpenOptions},
+    io::Read,
+    os::unix::fs::PermissionsExt,
+    path::PathBuf,
+};
 
 use anyhow::{bail, Context, Result};
-use clap::ArgMatches;
 use daemonize::Daemonize;
 use fs2::FileExt as _;
-use nix::sys::signal::{kill, Signal};
-use nix::unistd::Pid;
+use nix::{
+    sys::signal::{kill, Signal},
+    unistd::Pid,
+};
 
-use crate::bpf_program::BpfcontainContext;
-use crate::config::Settings;
-use crate::log::log_error;
+use crate::{bpf_program::BpfcontainContext, cli::Daemon, config::Settings};
 
 /// Main entrypoint into the daemon.
-pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
-    // Initialize the logger
-    crate::log::configure(
-        config.daemon.verbosity,
-        Some(config.daemon.log_file.as_str()),
-    )?;
-
-    // Pretty print current config
-    log::debug!("{:#?}", config);
-
+pub fn main(cmd: &Daemon, config: &Settings) -> Result<()> {
     // Run the correct subcommand
-    let result = match args.subcommand() {
-        ("start", _) => start_daemon(config),
-        ("restart", _) => restart_daemon(config),
-        ("stop", _) => stop_daemon(config),
-        ("foreground", _) => run_in_foreground(config),
-        (unknown, _) => bail!("Unknown subcommand {}", unknown),
-    };
-
-    // Log results and exit with error code
-    if let Err(e) = result {
-        log_error(e, None);
-        std::process::exit(1);
-    }
+    match cmd {
+        Daemon::Start => start_daemon(config),
+        Daemon::Restart => restart_daemon(config),
+        Daemon::Stop => stop_daemon(config),
+        Daemon::Foreground => run_in_foreground(config),
+    }?;
 
     Ok(())
 }

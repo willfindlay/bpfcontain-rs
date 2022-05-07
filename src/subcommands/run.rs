@@ -7,41 +7,25 @@
 
 //! The `run` subcommand.
 
-use std::os::unix::process::CommandExt;
-use std::path::Path;
-use std::process::Command;
+use std::{os::unix::process::CommandExt, process::Command};
 
-use anyhow::{bail, Context as _, Result};
-use clap::ArgMatches;
+use anyhow::{Context as _, Result};
 
-use crate::config::Settings;
 use crate::policy::Policy;
 
 /// Main entrypoint into launching a container.
-pub fn main(args: &ArgMatches, config: &Settings) -> Result<()> {
-    // Initialize the logger
-    // We don't want to log to any file, just stderr
-    crate::log::configure(config.daemon.verbosity, None)?;
-
-    // Pretty print current config
-    log::debug!("{:#?}", config);
-
-    // Configure policy path
-    let policy_dir = Path::new(&config.policy.dir);
-    let policy_file = Path::new(
-        args.value_of("policy")
-            .context("Failed to get path to policy file")?,
-    );
-    let path = policy_dir.join(policy_file);
-
+pub fn main(policy_file: &str, cmd: &[String]) -> Result<()> {
     // Get the command from args if it was provided
-    let cmd = args
-        .values_of("command")
-        .map(|cmd| cmd.collect::<Vec<&str>>().join(" "));
+    let cmd = if cmd.len() > 0 {
+        Some(cmd.join(" "))
+    } else {
+        None
+    };
 
     // Parse policy
-    let policy = Policy::from_path(path).context("Failed to parse policy")?;
+    let policy = Policy::from_path(policy_file).context("Failed to parse policy")?;
 
+    // Run the process
     run_container_by_policy(&policy, cmd.as_deref())
 }
 
@@ -74,21 +58,15 @@ pub fn run_container_by_policy(policy: &Policy, cmd: Option<&str>) -> Result<()>
         Command::new(cmd.get(0).context("Failed to get command")?)
             .args(args)
             .pre_exec(move || {
-                // Place this process into a BPFContain container
-                match policy.containerize() {
-                    Ok(_) => {}
-                    Err(err) => panic!("Failed to containerize: {:?}", err),
-                }
-                Ok(())
+                policy.containerize().map_err(|e| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to confine process: {:?}", e),
+                    )
+                })
             })
     }
     .exec();
 
-    bail!("Failed to run {}: {:?}", cmd.get(0).unwrap(), err);
-}
-
-/// Assoicate a running Docker container with an ID of `container_id` with a `policy`.
-#[allow(unused_variables)]
-pub fn associate_docker_container_with_policy(policy: &Policy, container_id: &str) -> Result<()> {
-    todo!("Implement me")
+    Err(anyhow::Error::from(err))
 }

@@ -16,9 +16,9 @@ fn do_ioctl(
         nix::errno::errno(),
     ) {
         (0, _) => Ok(()),
-        (_, rc) if rc == nix::libc::ENOTTY => Err(anyhow!(
-            "Inappropriate ioctl for device... is bpfcontain running?"
-        )),
+        (_, rc) if rc == nix::libc::ENOTTY || rc == nix::libc::EBADF => {
+            Err(anyhow!("Failed to call into probe. Is BPFContain running?"))
+        }
         (_, rc) if rc == nix::libc::EPERM => Err(anyhow!("Permission denied")),
         (_, rc) if rc == nix::libc::ENOMEM => Err(anyhow!("Map lookup/update failed")),
         (_, rc) if rc == nix::libc::ENOENT => Err(anyhow!("Policy does not exist")),

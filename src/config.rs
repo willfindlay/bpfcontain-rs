@@ -7,6 +7,8 @@
 
 //! Configuration settings.
 
+use std::path::Path;
+
 use anyhow::{Context as _, Result};
 use config::{Config, Environment, File, FileFormat};
 use serde::Deserialize;
@@ -21,10 +23,11 @@ pub struct Settings {
     pub daemon: Daemon,
     pub policy: Policy,
     pub bpf: Bpf,
+    pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
 }
 
 impl Settings {
-    pub fn new(path: Option<&str>) -> Result<Self> {
+    pub fn new(path: &Path) -> Result<Self> {
         let mut s = Config::new();
 
         // Set defaults
@@ -35,16 +38,11 @@ impl Settings {
         .context("Failed to apply default settings")?;
 
         // Merge in config files
-        match path {
-            // User-supplied config file
-            Some(path) => s.merge(File::with_name(path).required(true)),
-            // Global config file
-            None => s.merge(File::with_name("/etc/bpfcontain.yml").required(false)),
-        }
-        .context("Error reading config file")?;
+        s.merge(File::with_name(&path.to_string_lossy()).required(false))
+            .context("Error reading config file")?;
 
         // Read in from environment variables starting with prefix
-        for prefix in &["BPFCON", "BPFCONTAIN"] {
+        for prefix in &["BC", "BPFCON", "BPFCONTAIN"] {
             s.merge(Environment::with_prefix(prefix).separator("_"))
                 .context("Error reading settings from environment")?;
         }
@@ -72,7 +70,6 @@ pub struct Daemon {
     pub log_file: String,
     pub pid_file: String,
     pub work_dir: String,
-    pub verbosity: log::LevelFilter, // TODO: figure out why only INFO works and not Info, info, etc.
 }
 
 /// Configuration related to BPF settings

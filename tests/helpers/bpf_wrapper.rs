@@ -5,19 +5,16 @@
 //
 // May 9, 2020  William Findlay  Created this.
 
-use std::cell::RefCell;
-use std::sync::Mutex;
+use std::{cell::RefCell, path::Path, sync::Mutex};
 
 use anyhow::Result;
-use bpfcontain::bpf_program::BpfcontainContext;
-use bpfcontain::config::Settings;
-use bpfcontain::policy::Policy;
+use bpfcontain::{bpf_program::BpfcontainContext, config::Settings, policy::Policy};
 
 pub struct BpfcontainContextWrapper(pub Mutex<RefCell<BpfcontainContext<'static>>>);
 
 impl BpfcontainContextWrapper {
     pub fn new() -> Self {
-        let config = Settings::new(None).expect("Failed to get default settings");
+        let config = Settings::new(Path::new("")).expect("Failed to get default settings");
         Self(Mutex::new(RefCell::new(
             BpfcontainContext::new(&config).expect("Failed to start Bpfcontain"),
         )))
