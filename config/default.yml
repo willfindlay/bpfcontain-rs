@@ -1,3 +1,6 @@
+# Log level
+verbosity: INFO
+
 daemon:
   # Path to logfile
   logFile: /var/log/bpfcontain.log
@@ -5,8 +8,6 @@ daemon:
   pidFile: /run/bpfcontain.pid
   # Working directory
   workDir: /var/lib/bpfcontain
-  # Log level
-  verbosity: INFO
 
 policy:
   # Path to policy directory
