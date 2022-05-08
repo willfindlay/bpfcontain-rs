@@ -2407,7 +2407,24 @@ int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
         return 0;
 
     // Allow this operation while runc creates a new docker container
-    if (container->status == DOCKER_INIT){
+    if (container->status == DOCKER_INIT) {
+        // FIXME(wpf): fix the following, it's problematic. granting total access to
+        // all files in every mounted filesystem results in sever overpermission,
+        // especially in the case where we are mounting some file from the host fs.
+        // one idea would be to ignore bind mounts here or make sure s_dev is an overlay
+        // filesystem (probably by checking fs magic numbers).
+        //
+        // doing this on a file-by-file basis during container _creation time_ might also
+        // make more sense. we can do this with inode local storage for example. this
+        // could get tricky and I'm not sure there is a good hook to cover this...
+        // (perhaps some kind of bpf iterator that we can trigger on filesystem mount?)
+        // basically the idea would be: if it's a directory, grant permission to create
+        // new files, read directory entries, if it's a file grant read/write/append
+        // access.
+
+        // TODO(wpf): verify that removing this code fixes the overpermission issues in
+        // docker containers
+
         // Allow implicit access to any mounts runc creates
         fs_implicit_policy_key_t key = {};
         key.container_id = container->container_id;
