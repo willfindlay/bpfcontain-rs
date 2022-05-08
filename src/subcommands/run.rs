@@ -16,7 +16,7 @@ use crate::policy::Policy;
 /// Main entrypoint into launching a container.
 pub fn main(policy_file: &str, cmd: &[String]) -> Result<()> {
     // Get the command from args if it was provided
-    let cmd = if cmd.len() > 0 {
+    let cmd = if !cmd.is_empty() {
         Some(cmd.join(" "))
     } else {
         None
