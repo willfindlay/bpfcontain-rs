@@ -169,7 +169,7 @@ typedef struct {
 typedef struct {
     u64 container_id;
     u32 device_id;
-} __PACKED fs_implict_policy_key_t;
+} __PACKED fs_implicit_policy_key_t;
 
 typedef struct {
     u64 policy_id;

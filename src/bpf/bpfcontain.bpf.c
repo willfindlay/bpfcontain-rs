@@ -661,7 +661,7 @@ static __always_inline container_t *start_docker_container(){
     // The user ns id of the container
     container->user_ns_id = get_current_user_ns_id();
 
-    // When docker containers are started up they recieve their own implict policy - using their container_id as the policy_id
+    // When docker containers are started up they recieve their own implicit policy - using their container_id as the policy_id
     container->policy_id = container->container_id;
 
     // The container's refcount (number of associated processes)
@@ -827,20 +827,20 @@ static __always_inline int do_fs_permission(container_t *container,
     if (policy_val && (policy_val->deny & access))
         decision |= BPFCON_DENY;
 
-    fs_implict_policy_key_t implicit_key = {};
+    fs_implicit_policy_key_t implicit_key = {};
     implicit_key.container_id = container->container_id;
     implicit_key.device_id = new_encode_dev(inode->i_sb->s_dev);
 
-    file_policy_val_t *implict_val = bpf_map_lookup_elem(&fs_implict_policy, &implicit_key);
+    file_policy_val_t *implicit_val = bpf_map_lookup_elem(&fs_implicit_policy, &implicit_key);
 
     // Entire access must match to allow
-    if (implict_val && (implict_val->allow & access) == access)
+    if (implicit_val && (implicit_val->allow & access) == access)
         decision |= BPFCON_ALLOW;
     // Any part of access must match to taint
-    if (implict_val && (implict_val->taint & access))
+    if (implicit_val && (implicit_val->taint & access))
         decision |= BPFCON_TAINT;
     // Any part of access must match to deny
-    if (implict_val && (implict_val->deny & access))
+    if (implicit_val && (implicit_val->deny & access))
         decision |= BPFCON_DENY;
 
     return decision;
@@ -2361,16 +2361,15 @@ int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
 
     // Allow this operation while runc creates a new docker container
     if (container->status == DOCKER_INIT){
-
-        // Allow implict access to any mounts runc creates
-        fs_implict_policy_key_t key = {};
+        // Allow implicit access to any mounts runc creates
+        fs_implicit_policy_key_t key = {};
         key.container_id = container->container_id;
         key.device_id = new_encode_dev(path->dentry->d_inode->i_sb->s_dev);
 
         file_policy_val_t val = {};
         val.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;
 
-        bpf_map_update_elem(&fs_implict_policy, &key, &val, BPF_NOEXIST);
+        bpf_map_update_elem(&fs_implicit_policy, &key, &val, BPF_NOEXIST);
 
         return 0;
     }
