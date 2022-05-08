@@ -112,7 +112,7 @@ pub enum Daemon {
     /// Restart the daemon
     #[clap(display_order(3))]
     Restart,
-    /// Run daemon in the foreground isntead of daemonizing
+    /// Run daemon in the foreground instead of daemonizing
     #[clap(display_order(4), visible_alias = "fg")]
     Foreground,
 }
