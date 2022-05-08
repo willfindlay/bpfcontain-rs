@@ -1254,6 +1254,10 @@ int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
             return ret;
     }
 
+    if (container->status == DOCKER_INIT) {
+        container->status = DOCKER_STARTED;
+    }
+
     return 0;
 }
 
@@ -2577,30 +2581,6 @@ int BPF_KPROBE(runc_x_cgo_init_enter)
     }
 
 	return 0;
-}
-
-// Function comes from https://github.com/docker/docker-ce/blob/master/components/engine/container/state.go#L267
-// It's called after staring a container here: https://github.com/docker/docker-ce/blob/master/components/engine/daemon/start.go#L209
-// It' called with the pid of the container
-// After this point we should lock down the container (start enforcing policy rules on it)
-SEC("uprobe/dockerd_container_running")
-int BPF_KPROBE(dockerd_container_running_enter)
-{
-    // gcgo (which is what docker uses) passes arguments diffrently
-    // Followed from https://blog.px.dev/ebpf-function-tracing/post/
-    // (also helpful https://brendangregg.com/blog/2017-01-31/golang-bcc-bpf-function-tracing.html)
-    u32 pid = ctx->ax;
-
-    container_t *container = get_container_by_host_pid(pid);
-    if (!container) {
-
-        return 0;
-    }
-
-    container->status = DOCKER_STARTED;
-    bpf_map_update_elem(&containers, &container->container_id, container, BPF_EXIST);
-
-    return 0;
 }
 
 SEC("tp/syscalls/sys_enter_sethostname")

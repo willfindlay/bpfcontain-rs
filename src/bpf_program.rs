@@ -199,28 +199,6 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
         }
     }
 
-    // TODO: Dynamically lookup binary path
-    let dockerd_binary_path = "/usr/bin/dockerd";
-    let dockerd_func_name = "github.com/docker/docker/container.(*State).SetRunning";
-
-    let dockerd_address = get_symbol_address(dockerd_binary_path, dockerd_func_name);
-
-    match dockerd_address {
-        Ok(address) => {
-            skel.links.dockerd_container_running_enter = skel
-                .progs_mut()
-                .dockerd_container_running_enter()
-                .attach_uprobe(false, -1, dockerd_binary_path, address)?
-                .into();
-        }
-        Err(e) => {
-            log::warn!(
-                "Docker support will not work! dockerd uprobe could not be attached: {}",
-                e
-            );
-        }
-    }
-
     Ok(())
 }
 
