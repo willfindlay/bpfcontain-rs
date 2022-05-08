@@ -776,6 +776,47 @@ static __always_inline container_t *start_container(u32 pid, policy_id_t policy_
     return bpf_map_lookup_elem(&containers, &container->container_id);
 }
 
+/* Confine an existing container or process.
+ *
+ * Params:
+ *    @policy_id: The policy id to associated with the container
+ *
+ * Returns:
+ *    A pointer to the newly created container, if successful
+ *    Otherwise, NULL
+ */
+static __always_inline int start_or_confine_container(u32 pid, container_t *container,
+        policy_id_t policy_id)
+{
+	policy_common_t *policy = bpf_map_lookup_elem(&policy_common, &policy_id);
+    if (!policy) {
+        return -ENOENT;
+    }
+
+    if (!container) {
+        container = start_container(pid, policy_id, policy->default_taint, DEFAULT_SHIM);
+        if (!container) {
+            return -ENOMEM;
+        }
+        return 0;
+    }
+
+    container->policy_id = policy_id;
+    container->tainted |= policy->default_taint;
+    if (!container->complain) {
+        container->complain = policy->complain;
+    }
+    if (!container->privileged) {
+        container->privileged = policy->privileged;
+    }
+
+    if (container->status == DOCKER_INIT) {
+        container->status = DOCKER_STARTED;
+    }
+
+    return 0;
+}
+
 /* Get container of a process with a host pid of @pid.
  *
  * Params:
@@ -1486,8 +1527,10 @@ static __always_inline int do_ioctl_confine(u32 pid, policy_id_t policy_id) {
 
 	// Try to add a process to `processes` with `pid`/`tgid`, associated with
 	// `policy_id`
-	if (!start_container(pid, policy_id, common->default_taint, DEFAULT_SHIM)) {
-		return -ESRCH;
+    container_t *container = get_container_by_host_pid(pid);
+    int ret = start_or_confine_container(pid, container, policy_id);
+	if (ret) {
+		return ret;
 	}
 
 	return 0;
@@ -2573,7 +2616,7 @@ int sys_enter_sethostname(struct trace_event_raw_sys_enter  *ctx)
 
     // Can check what args are expected with
     // sudo cat /sys/kernel/debug/tracing/events/syscalls/sys_enter_sethostname/format
-    char* name = ctx->args[0];
+    char* name = (char *)ctx->args[0];
 
     // IF Docker container is still in startup, we want to update our stored uts-name to match
     bpf_probe_read_str(container->uts_name, sizeof(container->uts_name), name);
