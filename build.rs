@@ -101,9 +101,12 @@ fn generate_skeleton() {
 
     let mut builder = SkeletonBuilder::new();
 
+    // TODO: run clang directly on each file
     builder
         .source("src/bpf/bpfcontain.bpf.c")
-        .clang_args("-O2 -Isrc/bpf/include -Wno-unknown-attributes -emit-llvm")
+        .clang_args(
+            "-c src/bpf/rootfs.bpf.c -O2 -Isrc/bpf/include -Wno-unknown-attributes -emit-llvm",
+        )
         .obj(dir.join("bpfcontain.bpf.bc"))
         .build()
         .expect("Failed to build");

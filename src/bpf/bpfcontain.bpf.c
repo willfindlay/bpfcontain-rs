@@ -22,24 +22,7 @@
 #include <policy.h>
 #include <state.h>
 #include "ioctl.h"
-
-/* ========================================================================= *
- * BPF CO-RE Globals                                                         *
- * ========================================================================= */
-
-// Settings
-const volatile u32 audit_level;
-
-// Constants
-const volatile u32 bpfcontain_pid;
-const volatile u32 host_mnt_ns_id;
-const volatile u32 host_pid_ns_id;
-
-// Kernel symbols
-extern const void init_nsproxy __ksym;
-extern const void init_user_ns __ksym;
-
-extern u32 LINUX_KERNEL_VERSION __kconfig;
+#include "config.h"
 
 /* ========================================================================= *
  * Helpers                                                                   *

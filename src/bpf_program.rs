@@ -7,7 +7,7 @@
 
 //! Functionality related to BPF programs and maps.
 
-use std::{fs, path::Path, thread::sleep, time::Duration};
+use std::{ffi::CString, fs, path::Path, thread::sleep, time::Duration};
 
 use object::{Object, ObjectSymbol};
 
@@ -23,31 +23,9 @@ use crate::{
     log::log_error,
     ns,
     policy::Policy,
+    uprobe_ext::FindSymbolUprobeExt,
     utils::bump_memlock_rlimit,
 };
-
-// Taken from libbpf-bootstrap rust example tracecon
-// https://github.com/libbpf/libbpf-bootstrap/blob/master/examples/rust/tracecon/src/main.rs#L47
-// Authored by Magnus Kulke
-// You can achieve a similar result for testing using objdump -tT so_path | grep fn_name
-// Note get_symbol_address will return the deciaml number and objdump uses hex
-fn get_symbol_address(so_path: &str, fn_name: &str) -> Result<usize> {
-    let path = Path::new(so_path);
-    let buffer = fs::read(path)?;
-    let file = object::File::parse(buffer.as_slice())?;
-
-    let mut symbols = file.dynamic_symbols();
-    let symbol = symbols
-        .find(|symbol| {
-            if let Ok(name) = symbol.name() {
-                return name == fn_name;
-            }
-            false
-        })
-        .ok_or_else(|| anyhow!("symbol not found"))?;
-
-    Ok(symbol.address() as usize)
-}
 
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
@@ -79,6 +57,9 @@ impl<'a> BpfcontainContext<'a> {
         log::debug!("Attaching BPF objects to events...");
         skel.attach().context("Failed to attach BPF programs")?;
         attach_uprobes(&mut skel).context("Failed to attach uprobes")?;
+
+        log::debug!("Populating rootfs id...");
+        populate_rootfs(&mut skel).context("Failed to populate rootfs id")?;
 
         let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
 
@@ -181,22 +162,40 @@ fn attach_uprobes(skel: &mut BpfcontainSkel) -> Result<()> {
     let runc_binary_path = "/usr/bin/runc";
     let runc_func_name = "x_cgo_init";
 
-    let runc_address = get_symbol_address(runc_binary_path, runc_func_name);
+    match skel
+        .progs_mut()
+        .runc_x_cgo_init_enter()
+        .attach_uprobe_symbol(false, -1, &runc_binary_path, runc_func_name)
+    {
+        Ok(link) => skel.links.runc_x_cgo_init_enter = link.into(),
+        Err(e) => log::warn!(
+            "Docker support will not work! runc uprobe could not be attached: {}",
+            e
+        ),
+    }
 
-    match runc_address {
-        Ok(address) => {
-            skel.links.runc_x_cgo_init_enter = skel
-                .progs_mut()
-                .runc_x_cgo_init_enter()
-                .attach_uprobe(false, -1, runc_binary_path, address)?
-                .into();
-        }
-        Err(e) => {
-            log::warn!(
-                "Docker support will not work! runc uprobe could not be attached: {}",
-                e
-            );
-        }
+    Ok(())
+}
+
+fn populate_rootfs(skel: &mut BpfcontainSkel) -> Result<()> {
+    let rootfs_path = CString::new("/").unwrap();
+    let oflags: libc::c_int = nix::libc::O_RDONLY | nix::libc::O_DIRECTORY;
+
+    let rootfs = unsafe { nix::libc::open(rootfs_path.as_ptr() as *const libc::c_char, oflags) };
+    if rootfs < 0 {
+        anyhow::bail!("Failed to open rootfs mountpoint: {}", rootfs)
+    }
+    unsafe {
+        nix::libc::ioctl(
+            rootfs,
+            0xDEADBEEF,
+            0xDEADBEEF as *mut libc::c_void as *mut u8,
+        )
+    };
+
+    log::debug!("rootfs id = {}", skel.bss().root_fs_id);
+    if skel.bss().root_fs_id == 0 {
+        anyhow::bail!("Failed to set rootfs id")
     }
 
     Ok(())

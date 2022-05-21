@@ -9,8 +9,7 @@
 //! interface for resolving symbols from ELF binaries for uprobe attachment as well as
 //! attaching uprobes to a function address in our current address space.
 
-use std::fs::read;
-use std::path::Path;
+use std::{fs::read, path::Path};
 
 use anyhow::{bail, Context as _, Result};
 use goblin::elf::{Elf, Sym};
@@ -56,11 +55,11 @@ impl<'a> SymbolResolver<'a> {
 }
 
 pub trait FindSymbolUprobeExt {
-    fn attach_uprobe_symbol(
+    fn attach_uprobe_symbol<P: AsRef<Path>>(
         &mut self,
         retprobe: bool,
         pid: i32,
-        pathname: &Path,
+        pathname: P,
         symbol: &str,
     ) -> Result<libbpf_rs::Link>;
 
@@ -74,15 +73,15 @@ pub trait FindSymbolUprobeExt {
 
 impl FindSymbolUprobeExt for libbpf_rs::Program {
     /// Attach a uprobe to a symbol within another binary.
-    fn attach_uprobe_symbol(
+    fn attach_uprobe_symbol<P: AsRef<Path>>(
         &mut self,
         retprobe: bool,
         pid: i32,
-        pathname: &Path,
+        pathname: P,
         symbol: &str,
     ) -> Result<libbpf_rs::Link> {
         // Find symbol in the ELF file
-        let offset = SymbolResolver::find_in_file(pathname, symbol)
+        let offset = SymbolResolver::find_in_file(pathname.as_ref(), symbol)
             .context("Error finding symbol")?
             .context("Failed to find symbol")?;
 
