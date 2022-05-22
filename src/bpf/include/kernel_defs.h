@@ -855,4 +855,20 @@ static inline u32 new_encode_dev(dev_t dev)
 #define Z3FOLD_MAGIC 0x33
 #define PPC_CMM_MAGIC 0xc7571590
 
+/* Mount flags */
+#define MNT_NOSUID	0x01
+#define MNT_NODEV	0x02
+#define MNT_NOEXEC	0x04
+#define MNT_NOATIME	0x08
+#define MNT_NODIRATIME	0x10
+#define MNT_RELATIME	0x20
+#define MNT_READONLY	0x40	/* does the user want this to be r/o? */
+#define MNT_NOSYMFOLLOW	0x80
+
+#define MNT_SHRINKABLE	0x100
+#define MNT_WRITE_HOLD	0x200
+
+#define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
+#define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
+
 #endif /* ifndef KERNEL_DEFS_H */
