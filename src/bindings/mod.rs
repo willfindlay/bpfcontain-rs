@@ -9,6 +9,7 @@
 
 pub mod audit;
 pub mod ioctl;
+pub mod log;
 pub mod policy;
 pub mod state;
 

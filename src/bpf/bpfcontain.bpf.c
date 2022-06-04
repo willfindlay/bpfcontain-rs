@@ -19,10 +19,12 @@
 #include <defs.h>
 #include <kernel_defs.h>
 #include <map_defs.h>
-#include <policy.h>
-#include <state.h>
-#include "ioctl.h"
+
+#include "shared/policy.h"
+#include "shared/ioctl.h"
 #include "config.h"
+#include "log.h"
+#include "docker.h"
 
 /* ========================================================================= *
  * Helpers                                                                   *
@@ -2408,10 +2410,24 @@ int BPF_PROG(sb_mount, const char *dev_name, const struct path *path,
         // TODO(wpf): verify that removing this code fixes the overpermission issues in
         // docker containers
 
+		u32 device_id = new_encode_dev(path->dentry->d_inode->i_sb->s_dev);
+		bool remount = flags & MS_REMOUNT;
+
+		if (flags & MS_BIND) {
+			LOG(LOG_DEBUG, "detected a bind mount remount=%d fs_id=%u dev_name=%s type=%s path=%s", remount, device_id, dev_name, type, path->dentry->d_iname);
+		} else {
+			LOG(LOG_DEBUG, "detected a regular mount remount=%d fs_id=%u dev_name=%s type=%s path=%s", remount, device_id, dev_name, type, path->dentry->d_iname);
+		}
+
         // Allow implicit access to any mounts runc creates
         fs_implicit_policy_key_t key = {};
         key.container_id = container->container_id;
-        key.device_id = new_encode_dev(path->dentry->d_inode->i_sb->s_dev);
+        key.device_id = device_id;
+
+		if (key.device_id == root_fs_id) {
+			LOG(LOG_DEBUG, "detected a root filesystem device remount=%d fs_id=%u dev_name=%s type=%s path=%s", remount, device_id, dev_name, type, path->dentry->d_iname);
+			return 0;
+		}
 
         file_policy_val_t val = {};
         val.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;

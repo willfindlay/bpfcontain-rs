@@ -1,5 +1,7 @@
-#ifndef BPFCONTAIN_IOCTL_H
-#define BPFCONTAIN_IOCTL_H value
+#ifndef BPFCONTAIN_IOCTL_SHARED_H
+#define BPFCONTAIN_IOCTL_SHARED_H value
+
+#include "vmlinux.h"
 
 /*
  * The following is for compatibility across the various Linux
@@ -97,8 +99,8 @@
 #define is_bpfcontain_ioctl(request) (_IOC_TYPE(request) == _MAGIC)
 
 typedef struct {
-	unsigned int pid;
-	unsigned long long policy_id;
+	u32 pid;
+	u64 policy_id;
 } bpfcontain_ioctl_confine_t;
 
 typedef union {
@@ -109,4 +111,4 @@ typedef enum {
 	BPFCONTAIN_OP_CONFINE = _IOW(_MAGIC, 0, sizeof(bpfcontain_ioctl_t)),
 } bpfcontain_request_t;
 
-#endif /* ifndef BPFCONTAIN_IOCTL_H */
+#endif /* ifndef BPFCONTAIN_IOCTL_SHARED_H */

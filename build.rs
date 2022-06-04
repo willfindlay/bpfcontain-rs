@@ -14,13 +14,12 @@ use std::{
     process::{Command, Stdio},
 };
 
+use anyhow::{Context as _, Result};
 use libbpf_cargo::SkeletonBuilder;
 use tempfile::tempdir;
 use uname::uname;
 
-fn main() {
-    // Re-run build if bpfcontain.bpf.c has changed
-    println!("cargo:rerun-if-changed=src/bpf/bpfcontain.bpf.c");
+fn main() -> Result<()> {
     // Re-run build if our header files have changed
     println!("cargo:rerun-if-changed=bindings.h");
     for path in glob::glob("src/bpf/include/*.h")
@@ -32,7 +31,9 @@ fn main() {
 
     generate_vmlinux();
     generate_bindings();
-    generate_skeleton();
+    generate_skeleton()?;
+
+    Ok(())
 }
 
 fn bindgen_builder() -> bindgen::Builder {
@@ -72,7 +73,7 @@ fn generate_bindings() {
 
     // Generate int bindings from vmlinux
     let vmlinux_bindings = bindgen_builder()
-        .header("bindings.h")
+        .header("src/bpf/include/vmlinux.h")
         .allowlist_type("s8")
         .allowlist_type("s16")
         .allowlist_type("s32")
@@ -94,39 +95,76 @@ fn generate_bindings() {
         .expect("Failed to save bindings");
 }
 
-fn generate_skeleton() {
-    let dir = tempdir()
-        .expect("Failed to create temporary directory")
-        .into_path();
+/// Build a BPF object file and output the result as
+fn build_bpf_object<P: AsRef<Path>>(path: P, outdir: P) -> Result<PathBuf> {
+    let file_name = Path::new(path.as_ref().file_name().context(format!(
+        "Failed to extract filename from path {}",
+        path.as_ref().display()
+    ))?);
+    let out_bc = outdir.as_ref().join(file_name.with_extension("bc"));
+    let out_obj = out_bc.with_extension("o");
 
     let mut builder = SkeletonBuilder::new();
-
-    // TODO: run clang directly on each file
     builder
-        .source("src/bpf/bpfcontain.bpf.c")
-        .clang_args(
-            "-c src/bpf/rootfs.bpf.c -O2 -Isrc/bpf/include -Wno-unknown-attributes -emit-llvm",
-        )
-        .obj(dir.join("bpfcontain.bpf.bc"))
+        .source(&path)
+        .clang_args("-O2 -Isrc/bpf/include -Wno-unknown-attributes -emit-llvm")
+        .obj(&out_bc)
         .build()
-        .expect("Failed to build");
+        .context(format!("Failed to build {}", path.as_ref().display()))?;
 
     Command::new("llc")
         .args(
             format!(
                 "{} -mattr=+alu32 -march=bpf -mcpu=v2 -filetype=obj -o {}",
-                dir.join("bpfcontain.bpf.bc").display(),
-                dir.join("bpfcontain.bpf.o").display()
+                &out_bc.display(),
+                &out_obj.display()
             )
             .split_whitespace(),
         )
         .status()
-        .expect("Failed to run llc");
+        .context(format!(
+            "Failed to compile llvm bytecode {}",
+            &out_bc.display()
+        ))?;
 
+    Ok(out_obj)
+}
+
+fn link_object_files(objs: &[String], output: &Path) -> Result<()> {
+    let args = format!("gen object {} {}", output.display(), objs.join(" "));
+
+    Command::new("bpftool")
+        .args(args.split_whitespace())
+        .status()
+        .context("Failed to link object files")?;
+
+    Ok(())
+}
+
+fn generate_skeleton() -> Result<()> {
+    let dir = tempdir()
+        .expect("Failed to create temporary directory")
+        .into_path();
+
+    let object_files = glob::glob("src/bpf/*.c")
+        .context("Failed to glob source files")?
+        .filter_map(Result::ok)
+        .map(|path| {
+            println!("cargo:rerun-if-changed={}", path.display());
+            build_bpf_object(&path, &dir).map(|p| p.to_string_lossy().to_string())
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let output = dir.join("bpfcontain.o");
+    link_object_files(&object_files, &output)?;
+
+    let mut builder = SkeletonBuilder::new();
     builder
-        .obj(dir.join("bpfcontain.bpf.o"))
+        .obj(output)
         .generate("src/bpf/mod.rs")
-        .expect("Failed to generate skeleton")
+        .expect("Failed to generate skeleton");
+
+    Ok(())
 }
 
 /// Checks if a file exists and is non-empty
@@ -155,7 +193,7 @@ fn generate_vmlinux() {
             .arg("btf")
             .arg("dump")
             .arg("file")
-            .arg("/sys/kernel/btf/vmlinux")
+            .arg("/sys/kernel/btf/overlay")
             .arg("format")
             .arg("c")
             .stdout(Stdio::piped())

@@ -29,12 +29,14 @@ fn do_ioctl(
 }
 
 pub fn confine(policy_id: u64, pid: Option<u32>) -> Result<()> {
-    let mut args = super::raw::bpfcontain_ioctl_t {
-        confine: super::raw::bpfcontain_ioctl_confine_t {
+    let mut args = super::raw::bpfcontain_ioctl_t::default();
+    unsafe {
+        *args.confine.as_mut() = super::raw::bpfcontain_ioctl_confine_t {
             policy_id,
             pid: if let Some(pid) = pid { pid } else { 0 },
-        },
-    };
+        };
+    }
+
     do_ioctl(
         super::raw::bpfcontain_request_t::BPFCONTAIN_OP_CONFINE,
         &mut args,

@@ -9,7 +9,7 @@
 #define AUDIT_H
 
 #include "map_defs.h"
-#include "structs.h"
+#include "shared/audit.h"
 
 /**
  * decision_to_audit_level() - Convert a policy decision into the appropriate

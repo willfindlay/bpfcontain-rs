@@ -8,8 +8,11 @@
 #ifndef ALLOCATOR_H
 #define ALLOCATOR_H
 
+#include "bpf.h"
 #include "maps.h"
-#include "state.h"
+
+#include "shared/process.h"
+#include "shared/container.h"
 
 #define ALLOCATOR(TYPE)                                                        \
     BPF_PERCPU_ARRAY(__##TYPE##__alloc, TYPE, 1, 0,                            \

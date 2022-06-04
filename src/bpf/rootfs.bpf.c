@@ -7,6 +7,8 @@
 
 #include "bpf.h"
 #include "config.h"
+#include "kernel_defs.h"
+#include "log.h"
 
 #define IOCTL_POPULATE_ROOTFS_MAGIC 0xDEADBEEF
 
@@ -17,11 +19,14 @@ int BPF_KPROBE(populate_rootfs, struct file *file, unsigned int cmd, unsigned lo
         return 0;
     }
 
-    if (cmd != IOCTL_POPULATE_ROOTFS_MAGIC || arg != IOCTL_POPULATE_ROOTFS_MAGIC) {
+    if (cmd != IOCTL_POPULATE_ROOTFS_MAGIC && arg != IOCTL_POPULATE_ROOTFS_MAGIC) {
         return 0;
     }
 
-    root_fs_id = BPF_CORE_READ(file, f_inode, i_sb, s_bdi, id);
+    dev_t dev = BPF_CORE_READ(file, f_inode, i_sb, s_dev);
+	root_fs_id = new_encode_dev(dev);
+
+	LOG(LOG_DEBUG, "Set root_fs_id to %u", root_fs_id);
 
     return 0;
 }

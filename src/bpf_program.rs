@@ -7,17 +7,24 @@
 
 //! Functionality related to BPF programs and maps.
 
-use std::{ffi::CString, fs, path::Path, thread::sleep, time::Duration};
+use std::{
+    ffi::{CStr, CString},
+    path::Path,
+    thread::sleep,
+    time::Duration,
+};
 
-use object::{Object, ObjectSymbol};
-
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use glob::glob;
 use libbpf_rs::{RingBuffer, RingBufferBuilder};
 use log::Level;
+use plain::Plain;
 
 use crate::{
-    bindings::audit,
+    bindings::{
+        audit,
+        log::{LogLevel, LogMsg},
+    },
     bpf::{BpfcontainSkel, BpfcontainSkelBuilder, OpenBpfcontainSkel},
     config::Settings,
     log::log_error,
@@ -29,7 +36,8 @@ use crate::{
 
 pub struct BpfcontainContext<'a> {
     pub skel: BpfcontainSkel<'a>,
-    pub ringbuf: RingBuffer,
+    pub audit: RingBuffer,
+    pub log: RingBuffer,
 }
 
 impl<'a> BpfcontainContext<'a> {
@@ -54,6 +62,8 @@ impl<'a> BpfcontainContext<'a> {
         log::debug!("Loading eBPF objects into kernel...");
         let mut skel = open_skel.load().context("Failed to load skeleton")?;
 
+        let (audit, log) = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
+
         log::debug!("Attaching BPF objects to events...");
         skel.attach().context("Failed to attach BPF programs")?;
         attach_uprobes(&mut skel).context("Failed to attach uprobes")?;
@@ -61,16 +71,22 @@ impl<'a> BpfcontainContext<'a> {
         log::debug!("Populating rootfs id...");
         populate_rootfs(&mut skel).context("Failed to populate rootfs id")?;
 
-        let ringbuf = configure_ringbuf(&mut skel).context("Failed to configure ringbuf")?;
+        log::debug!("Populating overlayfs entries...");
+        populate_overlayfs(&mut skel).context("Failed to populate overlayfs entries")?;
 
-        Ok(BpfcontainContext { skel, ringbuf })
+        log::info!("BPFContain initialization complete!");
+
+        Ok(BpfcontainContext { skel, audit, log })
     }
 
     /// Main BPFContain work loop
     pub fn work_loop(&self) {
         loop {
-            if let Err(e) = self.ringbuf.poll(Duration::new(1, 0)) {
-                log::warn!("Failed to poll ring buffer: {}", e);
+            if let Err(e) = self.audit.poll(Duration::new(1, 0)) {
+                log::warn!("Failed to poll audit ring buffer: {}", e);
+            }
+            if let Err(e) = self.log.poll(Duration::new(1, 0)) {
+                log::warn!("Failed to poll log ring buffer: {}", e);
             }
             sleep(Duration::from_millis(100));
         }
@@ -185,6 +201,7 @@ fn populate_rootfs(skel: &mut BpfcontainSkel) -> Result<()> {
     if rootfs < 0 {
         anyhow::bail!("Failed to open rootfs mountpoint: {}", rootfs)
     }
+
     unsafe {
         nix::libc::ioctl(
             rootfs,
@@ -198,16 +215,145 @@ fn populate_rootfs(skel: &mut BpfcontainSkel) -> Result<()> {
         anyhow::bail!("Failed to set rootfs id")
     }
 
+    // Unload the link
+    skel.links.populate_rootfs = None;
+
     Ok(())
 }
 
+fn hash_overlayfs_id(id: &str) -> u64 {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
+
+    let mut hasher = DefaultHasher::new();
+    id.hash(&mut hasher);
+
+    hasher.finish()
+}
+
+fn populate_overlayfs(skel: &mut BpfcontainSkel) -> Result<()> {
+    for path in glob("/var/lib/docker/overlay2/*/diff")
+        .unwrap()
+        .filter_map(Result::ok)
+    {
+        let overlayfs_hash = match path.parent().map(|p| p.file_name()).flatten() {
+            Some(hash) => hash,
+            None => {
+                log::debug!("Failed to extract overlayfs hash from path");
+                continue;
+            }
+        };
+
+        let overlayfs_hash = overlayfs_hash.to_string_lossy();
+        let overlayfs_hash = hash_overlayfs_id(&overlayfs_hash);
+
+        for path in glob(&format!("{}/**/*", &path.display()))
+            .unwrap()
+            .filter_map(Result::ok)
+        {
+            log::debug!("Populating file {}...", &path.display());
+
+            let fpath_str = match path.to_str() {
+                Some(s) => s,
+                None => {
+                    log::debug!("Failed to get path to file {}", path.display());
+                    continue;
+                }
+            };
+            let fpath = CString::new(fpath_str).unwrap();
+            let oflags: libc::c_int = nix::libc::O_RDONLY;
+
+            if !check_is_regular_file(&fpath) {
+                log::trace!("{} is a not regular file", &path.display());
+                continue;
+            }
+
+            let fd = unsafe { nix::libc::open(fpath.as_ptr() as *const libc::c_char, oflags) };
+            unsafe {
+                nix::libc::ioctl(
+                    fd,
+                    0xBEEFDEAD,
+                    overlayfs_hash as *mut libc::c_void as *mut u8,
+                )
+            };
+
+            log::debug!("Populated file {}", &path.display());
+        }
+    }
+
+    // // Unload the link
+    // skel.links.populate_overlayfs = None;
+
+    Ok(())
+}
+
+fn check_is_regular_file(path: &CStr) -> bool {
+    use nix::sys::stat::SFlag;
+    let stat = match nix::sys::stat::stat(path) {
+        Ok(stat) => stat,
+        Err(_) => return false,
+    };
+
+    let mode = stat.st_mode & SFlag::S_IFMT.bits();
+    if mode & SFlag::S_IFREG.bits() != 0 || mode & SFlag::S_IFDIR.bits() != 0 {
+        return true;
+    }
+
+    false
+}
+
 /// Configure ring buffers for logging
-fn configure_ringbuf(skel: &mut BpfcontainSkel) -> Result<RingBuffer> {
+fn configure_ringbuf(skel: &mut BpfcontainSkel) -> Result<(RingBuffer, RingBuffer)> {
     let mut ringbuf_builder = RingBufferBuilder::default();
 
     ringbuf_builder
         .add(skel.maps().__audit_buf(), audit::audit_callback)
         .context("Failed to add callback")?;
 
-    ringbuf_builder.build().context("Failed to create ringbuf")
+    let audit = ringbuf_builder
+        .build()
+        .context("Failed to create ringbuf")?;
+
+    let mut ringbuf_builder = RingBufferBuilder::default();
+
+    ringbuf_builder
+        .add(skel.maps().__bpfcontain_log(), log_callback)
+        .context("Failed to add callback")?;
+
+    let log = ringbuf_builder
+        .build()
+        .context("Failed to create ringbuf")?;
+
+    Ok((audit, log))
+}
+
+pub fn log_callback(data: &[u8]) -> i32 {
+    let data = LogMsg::from_bytes(data).expect("Failed to convert log data from raw bytes");
+
+    let level = match data.level {
+        LogLevel::LOG_ERROR => log::Level::Error,
+        LogLevel::LOG_WARN => log::Level::Warn,
+        LogLevel::LOG_INFO => log::Level::Info,
+        LogLevel::LOG_DEBUG => log::Level::Debug,
+        LogLevel::LOG_TRACE => log::Level::Trace,
+        _ => {
+            log::warn!("Undefined logging level: {}", data.level as u32);
+            return 0;
+        }
+    };
+
+    let msg_cstr = unsafe { CStr::from_ptr(&data.msg as *const _) };
+    let msg = match msg_cstr.to_str() {
+        Ok(msg) => msg,
+        Err(e) => {
+            log::warn!("Failed to convert log message to string: {}", e);
+            return 0;
+        }
+    };
+
+    log::log!(level, "[BPF]: {}", msg);
+
+    0
 }
