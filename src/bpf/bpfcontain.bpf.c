@@ -2135,6 +2135,10 @@ int BPF_PROG(capable, const struct cred *cred, struct user_namespace *ns,
         goto out;
     }
 
+	// Docker containers need DAC_OVERRIDE to access any files
+	if (container->status ==  DOCKER_STARTED && (access & BPFCON_CAP_DAC_OVERRIDE || access & BPFCON_CAP_DAC_READ_SEARCH))
+		decision |= BPFCON_ALLOW;
+
     cap_policy_key_t key = {};
     key.policy_id        = container->policy_id;
 

@@ -28,31 +28,38 @@ int BPF_KPROBE(populate_overlayfs, struct file *file, unsigned int cmd, unsigned
     return 0;
 }
 
-/* SEC("kprobe/ovl_copy_xattr") */
-/* int BPF_KPROBE(ovl_copy_xattr, struct super_block *sb, struct dentry *old, struct dentry *new) { */
-/* 	u64 old_inum = BPF_CORE_READ(old, d_inode, i_ino); */
-/* 	u32 old_dev = new_encode_dev(BPF_CORE_READ(old, d_inode, i_sb, s_dev)); */
-
-/* 	u64 new_inum = BPF_CORE_READ(new, d_inode, i_ino); */
-/* 	u32 new_dev = new_encode_dev(BPF_CORE_READ(new, d_inode, i_sb, s_dev)); */
-
-/* 	u32 sb_dev = new_encode_dev(BPF_CORE_READ(sb, s_dev)); */
-
-/* 	LOG(LOG_DEBUG, "copying up xattr old=(%llu,%u) new=(%llu,%u) sb=%u", old_inum, old_dev, new_inum, new_dev, sb_dev); */
-
-/* 	return 0; */
-/* } */
-
 static __always_inline struct ovl_inode* OVL_I(struct inode *inode) {
 	return container_of(inode, struct ovl_inode, vfs_inode);
 }
 
 SEC("kprobe/ovl_encode_real_fh")
 int BPF_KPROBE(do_overlayfs, struct ovl_fs *ofs, struct dentry *real, bool is_upper) {
-	u64 real_inum = BPF_CORE_READ(real, d_inode, i_ino);
-	u32 real_dev = new_encode_dev(BPF_CORE_READ(real, d_inode, i_sb, s_dev));
+	u32 pid = bpf_get_current_pid_tgid();
 
-	LOG(LOG_DEBUG, "ovl_encode_real_fh real=(%llu,%u) is_upper=%d", real_inum, real_dev, is_upper);
+    process_t *process = bpf_map_lookup_elem(&processes, &pid);
+    if (!process)
+        return 0;
+
+    container_t *container = bpf_map_lookup_elem(&containers, &process->container_id);
+	if (!container)
+		return 0;
+
+	/* u64 real_inum = BPF_CORE_READ(real, d_inode, i_ino); */
+	/* u32 real_dev = new_encode_dev(BPF_CORE_READ(real, d_inode, i_sb, s_dev)); */
+
+	file_policy_key_t key = {};
+	key.policy_id = container->policy_id;
+	key.inode_id = BPF_CORE_READ(ofs, workdir, d_inode, i_ino);
+	key.device_id = new_encode_dev(BPF_CORE_READ(ofs, workdir, d_inode, i_sb, s_dev));
+
+	LOG(LOG_DEBUG, "ovl_encode_real_fh inode=%llu, device=%u", key.inode_id, key.device_id);
+
+	file_policy_val_t val = {};
+	val.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;
+
+	bpf_map_update_elem(&file_policy, &key, &val, BPF_NOEXIST);
+
+	/* LOG(LOG_DEBUG, "ovl_encode_real_fh real=(%llu,%u) is_upper=%d", real_inum, real_dev, is_upper); */
 	return 0;
 }
 
@@ -89,6 +96,13 @@ int BPF_KPROBE(ovl_inode_init, struct inode *inode, struct ovl_inode_params *oip
 	val.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;
 
 	bpf_map_update_elem(&file_policy, &key, &val, BPF_NOEXIST);
+
+	return 0;
+}
+
+SEC("kprobe/ovl_get_dentry")
+int BPF_KPROBE(ovl_get_dentry, struct super_block *sb, struct dentry *upper, struct ovl_path *lowerpath, struct dentry *index) {
+	LOG(LOG_DEBUG, "ovl_get_dentry");
 
 	return 0;
 }
