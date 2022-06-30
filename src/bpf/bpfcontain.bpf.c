@@ -1534,7 +1534,7 @@ static __always_inline int do_ioctl_add_file_to_container(u32 pid, u64 inum, u32
 	file_policy_key_t key = {};
 	key.policy_id = container->policy_id;
 	key.inode_id = inum;
-	key.device_id = dev;
+	key.device_id = root_fs_id;
 
 	file_policy_val_t value = {};
 	value.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;
