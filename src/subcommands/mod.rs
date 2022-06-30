@@ -10,3 +10,4 @@
 pub mod confine;
 pub mod daemon;
 pub mod run;
+pub mod add;

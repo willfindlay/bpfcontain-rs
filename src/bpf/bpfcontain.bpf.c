@@ -1525,6 +1525,27 @@ static __always_inline int do_ioctl_confine(u32 pid, policy_id_t policy_id) {
 	return 0;
 }
 
+// FIXME: This is horribly insecure, just using it for testing
+static __always_inline int do_ioctl_add_file_to_container(u32 pid, u64 inum, u32 dev) {
+	container_t *container = get_container_by_host_pid(pid);
+	if (!container)
+		return -ESRCH;
+
+	file_policy_key_t key = {};
+	key.policy_id = container->policy_id;
+	key.inode_id = inum;
+	key.device_id = dev;
+
+	file_policy_val_t value = {};
+	value.allow = OVERLAYFS_PERM_MASK | BPFCON_MAY_IOCTL;
+
+	if (bpf_map_update_elem(&file_policy, &key, &value, BPF_NOEXIST)) {
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static __always_inline int bpfcontain_do_ioctl(unsigned int cmd, void *__args, container_t *container) {
 	// For now at least, we don't want to allow an already-confined container to make any
 	// further bpfcontain ioctl calls
@@ -1547,6 +1568,8 @@ static __always_inline int bpfcontain_do_ioctl(unsigned int cmd, void *__args, c
 	switch (cmd) {
 		case BPFCONTAIN_OP_CONFINE:
 			return do_ioctl_confine(args->confine.pid, args->confine.policy_id);
+		case BPFCONTAIN_OP_ADD_FILE_TO_CONTAINER:
+			return do_ioctl_add_file_to_container(args->add_file.pid, args->add_file.inum, args->add_file.dev);
 		default:
 			return -EINVAL;
 	}

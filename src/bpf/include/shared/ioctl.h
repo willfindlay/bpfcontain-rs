@@ -103,12 +103,20 @@ typedef struct {
 	u64 policy_id;
 } bpfcontain_ioctl_confine_t;
 
+typedef struct {
+	u32 pid;
+	u64 inum;
+	u32 dev;
+} bpfcontain_ioctl_add_file_to_container_t;
+
 typedef union {
 	bpfcontain_ioctl_confine_t confine;
+	bpfcontain_ioctl_add_file_to_container_t add_file;
 } bpfcontain_ioctl_t;
 
 typedef enum {
 	BPFCONTAIN_OP_CONFINE = _IOW(_MAGIC, 0, sizeof(bpfcontain_ioctl_t)),
+	BPFCONTAIN_OP_ADD_FILE_TO_CONTAINER = _IOW(_MAGIC, 1, sizeof(bpfcontain_ioctl_t)),
 } bpfcontain_request_t;
 
 #endif /* ifndef BPFCONTAIN_IOCTL_SHARED_H */

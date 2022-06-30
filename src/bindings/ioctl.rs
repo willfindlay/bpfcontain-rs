@@ -5,7 +5,9 @@
 //
 // May 01, 2022  William Findlay  Created this.
 
-use anyhow::{anyhow, Result};
+use crate::utils::path_to_dev_ino;
+use anyhow::{anyhow, Context, Result};
+use std::path::Path;
 
 fn do_ioctl(
     operation: super::raw::bpfcontain_request_t,
@@ -39,6 +41,27 @@ pub fn confine(policy_id: u64, pid: Option<u32>) -> Result<()> {
 
     do_ioctl(
         super::raw::bpfcontain_request_t::BPFCONTAIN_OP_CONFINE,
+        &mut args,
+    )
+}
+
+pub fn add_file_to_container(pid: u32, pathname: &Path) -> Result<()> {
+    let (_, st_ino) = path_to_dev_ino(pathname).context(format!(
+        "Failed to get information for {}",
+        pathname.display()
+    ))?;
+
+    let mut args = super::raw::bpfcontain_ioctl_t::default();
+    unsafe {
+        *args.add_file.as_mut() = super::raw::bpfcontain_ioctl_add_file_to_container_t {
+            pid,
+            inum: st_ino,
+            dev: 66310 as u32,
+        };
+    }
+
+    do_ioctl(
+        super::raw::bpfcontain_request_t::BPFCONTAIN_OP_ADD_FILE_TO_CONTAINER,
         &mut args,
     )
 }

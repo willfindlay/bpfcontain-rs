@@ -71,8 +71,8 @@ impl<'a> BpfcontainContext<'a> {
         log::debug!("Populating rootfs id...");
         populate_rootfs(&mut skel).context("Failed to populate rootfs id")?;
 
-        log::debug!("Populating overlayfs entries...");
-        populate_overlayfs(&mut skel).context("Failed to populate overlayfs entries")?;
+        // log::debug!("Populating overlayfs entries...");
+        // populate_overlayfs(&mut skel).context("Failed to populate overlayfs entries")?;
 
         log::info!("BPFContain initialization complete!");
 

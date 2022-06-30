@@ -63,6 +63,12 @@ impl Cli {
     }
 }
 
+#[derive(Subcommand, Debug)]
+pub enum Add {
+    File { pid: u32, path: PathBuf },
+    ContainerFiles { container_id: String },
+}
+
 /// BPFContain subcommand
 #[derive(Subcommand, Debug)]
 pub enum Cmd {
@@ -87,6 +93,12 @@ pub enum Cmd {
         /// The command to run and its arguments
         pid: u32,
     },
+    /// Modify a running container by adding a resource
+    Add {
+        /// The operation for add
+        #[clap(subcommand)]
+        add: Add,
+    },
 }
 
 impl Cmd {
@@ -95,6 +107,7 @@ impl Cmd {
             Cmd::Daemon { subcommand } => subcommand.run(config),
             Cmd::Run { policy, command } => subcommands::run::main(policy, command),
             Cmd::Confine { policy, pid } => subcommands::confine::main(policy, *pid),
+            Cmd::Add { add } => subcommands::add::main(add),
         }
     }
 }

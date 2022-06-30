@@ -41,6 +41,9 @@ serde_json = "1.0.64"
 toml = "0.5.8"
 object = "0.25"
 clap_derive = "3.1.7"
+docker-api = "0.9.1"
+tokio = { version = "1.19.2", features = ["full"] }
+jwalk = "0.6.0"
 
 [build-dependencies]
 anyhow = "1.0.36"
